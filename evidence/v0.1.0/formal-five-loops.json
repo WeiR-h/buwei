@@ -1,0 +1,222 @@
+{
+  "version": "0.1.0",
+  "passed": true,
+  "execution_variant": "opt-in acceptance; same Controller, SDK and journal as full-host",
+  "formal_rounds": [
+    {
+      "events": [
+        {
+          "operation_sha256": "fcb3478493c90f1981d9792e8a7ef421ab24a08de12c793d76c180f8ee91084f",
+          "event_sha256": "05fa5f172431131d2b663a6c15178acb3d8cb296f905ca28057126160c3575a5",
+          "event_type": "org.buwei.join",
+          "origin_server_ts_ms": 1790962211877,
+          "service_event_count": 1
+        },
+        {
+          "operation_sha256": "7c7037863400e141ccb7d4e67be015f36379b68ca7447d8efa0a2ad6f2d56645",
+          "event_sha256": "184b7c1d69085f3925051e0b9adccc43230c4057914dd3711820117aef9eb869",
+          "event_type": "org.buwei.invitation",
+          "origin_server_ts_ms": 1790962232866,
+          "service_event_count": 1
+        },
+        {
+          "operation_sha256": "8841fa47a779710f84fb2023b5f080623c2609981c2737e0f8f995a8ae53729b",
+          "event_sha256": "9d57b3b31d303848862e3f76af85fcfe54849d41d02bfb48980efd19baa9106a",
+          "event_type": "org.buwei.reply",
+          "origin_server_ts_ms": 1790962268781,
+          "service_event_count": 1
+        },
+        {
+          "operation_sha256": "63ba6536fba8a89f158f14203d3e089cbd85f18de660c0ca9aba27b614e34a06",
+          "event_sha256": "83340e2d494b8283eb602898005ccb6f09ede65fe5fb384c787ef370e02a8133",
+          "event_type": "org.buwei.cancel",
+          "origin_server_ts_ms": 1790962299961,
+          "service_event_count": 1
+        }
+      ],
+      "locally_collected_at_unix": 1790962333
+    },
+    {
+      "events": [
+        {
+          "operation_sha256": "2fa278ca3ac9cc6be55be690261d9ed2e4ab59565d2614b6573d8a3790fc97f4",
+          "event_sha256": "c7d8cc1a6371334e100e842123154c66d7b9f671adcf05e66a8f70c56b7eb443",
+          "event_type": "org.buwei.join",
+          "origin_server_ts_ms": 1790962334902,
+          "service_event_count": 1
+        },
+        {
+          "operation_sha256": "8c74925e258a61547de9b39eb18148c28ddf5edaeb07bbc91b9d15f728df5943",
+          "event_sha256": "14c06f16336e23f76c30c8663af59a39aa80eb6c0c4705e6f051b535678adc67",
+          "event_type": "org.buwei.invitation",
+          "origin_server_ts_ms": 1790962377940,
+          "service_event_count": 1
+        },
+        {
+          "operation_sha256": "55b3619abb1647743527401e973c4c4e2c4dc1cc4515ce36f9bbede12e39868d",
+          "event_sha256": "4541c704f4668c342db738df4a0c38ce6efd95e1b9dd8d834c0a1281bc576ece",
+          "event_type": "org.buwei.reply",
+          "origin_server_ts_ms": 1790962400731,
+          "service_event_count": 1
+        },
+        {
+          "operation_sha256": "0cd05aafcbf2b1283c4ac55d9ce09131cd65533de76bd1c31150797137a6f91c",
+          "event_sha256": "d39eeb4408337185e9954a8bb670842ee7c16796e4d63ba08c2cdaabd502b78a",
+          "event_type": "org.buwei.cancel",
+          "origin_server_ts_ms": 1790962422203,
+          "service_event_count": 1
+        }
+      ],
+      "locally_collected_at_unix": 1790962456
+    },
+    {
+      "events": [
+        {
+          "operation_sha256": "90fedbc41445da362cd897a2ab58d14a3f3d6c25995a793c156381b72e002a99",
+          "event_sha256": "18d3e8840da2b8823381179f192d800cc067c47d616836aebea89cc2b45989ee",
+          "event_type": "org.buwei.join",
+          "origin_server_ts_ms": 1790962456948,
+          "service_event_count": 1
+        },
+        {
+          "operation_sha256": "e75dbce5713e4464b919aa626f92ff5ec52ae4326d898fcce1bff4498864b7eb",
+          "event_sha256": "7befdcc87906eb78e7802da94caaedbcb64d862f65c4cb13388144b5b2ff40b1",
+          "event_type": "org.buwei.invitation",
+          "origin_server_ts_ms": 1790962498805,
+          "service_event_count": 1
+        },
+        {
+          "operation_sha256": "c41e8400cb0ad97e1e3602c4a31e6bc1452903bd77c4214792717f26c3eba0df",
+          "event_sha256": "0aa40f353686b738e342933afef507533dea37d7e039e955d6fc0e14795f97f4",
+          "event_type": "org.buwei.reply",
+          "origin_server_ts_ms": 1790962522189,
+          "service_event_count": 1
+        },
+        {
+          "operation_sha256": "7424618fff62c40299a39eaa84a3bce04766ded60a3b61ddcb22a42a083a2a34",
+          "event_sha256": "c27e4f8aa93cc3d82b3866e1a05fd225c3c15cefa014c6bb6e30e2895bd1ab58",
+          "event_type": "org.buwei.cancel",
+          "origin_server_ts_ms": 1790962545695,
+          "service_event_count": 1
+        }
+      ],
+      "locally_collected_at_unix": 1790962582
+    },
+    {
+      "events": [
+        {
+          "operation_sha256": "f59ad74120dc1a95ac2f5ea138246c740d3ff64c973dfbb51b9d8dcbc7b9e2de",
+          "event_sha256": "3851ba2d9f9a03290b2af62688283a5f6295f7d06b99c089c0f60646f9fde32f",
+          "event_type": "org.buwei.join",
+          "origin_server_ts_ms": 1790962583708,
+          "service_event_count": 1
+        },
+        {
+          "operation_sha256": "817570620e6ea2ec81a5f3d8dce4951f5bf0f7d58256d1d75e4dca8fe10e527f",
+          "event_sha256": "1bde2db809c8672ad13f9df102b6d88b3d00582e11c35084876ea2df11fd4b0f",
+          "event_type": "org.buwei.invitation",
+          "origin_server_ts_ms": 1790962600448,
+          "service_event_count": 1
+        },
+        {
+          "operation_sha256": "6f336036555f97fc5e97bc7273be3e95d64e18eae9d56c818fedc406016bed82",
+          "event_sha256": "a472134dc8cabe5404f0b0e8688a0d7ac714b7714a076dfa5dbbc900667984ae",
+          "event_type": "org.buwei.reply",
+          "origin_server_ts_ms": 1790962623262,
+          "service_event_count": 1
+        },
+        {
+          "operation_sha256": "e71f95dacac4ca670e50f327d698b9ba139365ba8dc2a506e8ac2f51469b79ff",
+          "event_sha256": "ff9f5f18160c4661e6874f267b4cab8ab54126b29715da704dd52e21bfc3ad90",
+          "event_type": "org.buwei.cancel",
+          "origin_server_ts_ms": 1790962655831,
+          "service_event_count": 1
+        }
+      ],
+      "locally_collected_at_unix": 1790962685
+    },
+    {
+      "events": [
+        {
+          "operation_sha256": "0ab0d7300847cff310703945eddfd5e8011bbe4a15da1dddc0c69dae0a482df0",
+          "event_sha256": "1355ca19199370ec1b3bb13fa767727e248c9d5d8a033a0fd0338c3ff7392ba6",
+          "event_type": "org.buwei.join",
+          "origin_server_ts_ms": 1790962686961,
+          "service_event_count": 1
+        },
+        {
+          "operation_sha256": "61e43c54f790deb592516f2f26fb21039b891406cad6270ea35d272da7b042b8",
+          "event_sha256": "12ddbc7e45b653f08d7db0c2d521300f53cdbfd8d46788e08047542cff35afc8",
+          "event_type": "org.buwei.invitation",
+          "origin_server_ts_ms": 1790962700947,
+          "service_event_count": 1
+        },
+        {
+          "operation_sha256": "4beefd2e574f1711ef6defaf707eea0adb451d224381f27228b63a6ee260eb17",
+          "event_sha256": "5373a8fb2db787d0f31057845aeeb4a4caf80537c687a482106b452a3f2b0a02",
+          "event_type": "org.buwei.reply",
+          "origin_server_ts_ms": 1790962725654,
+          "service_event_count": 1
+        },
+        {
+          "operation_sha256": "1bf0d4570e7e53c2b61a50fd7cdd1b3fa6a6f55617863a9aa1ebe73aee867a3f",
+          "event_sha256": "0a280c53da9c308788179d3c148532559d2fa834d358778e7454ecfe2084ccc2",
+          "event_type": "org.buwei.cancel",
+          "origin_server_ts_ms": 1790962747097,
+          "service_event_count": 1
+        }
+      ],
+      "locally_collected_at_unix": 1790962788
+    }
+  ],
+  "no_manual_refresh": true,
+  "repeat_confirmation_uses_original_id": true,
+  "reply_and_invitation_ids_distinct": true,
+  "decline": {
+    "events": [
+      {
+        "operation_sha256": "50c95f47f32ee492a043a7068f808ea7dba0f0e807bdaeedcd568c4eb14ec8d7",
+        "event_sha256": "28dd708ed38e288a0be41e90bb6ceb08fbedea4c28ffc92609f071077ce62f63",
+        "event_type": "org.buwei.join",
+        "origin_server_ts_ms": 1790962789325,
+        "service_event_count": 1
+      },
+      {
+        "operation_sha256": "83a0ebe297da9ad082c050a73901eb05e5de644dccd0b7916c095ce67d9d3f09",
+        "event_sha256": "74c3982aa3b504e944301cf4043713d1f16ae80190cbef0760c462aec1821e24",
+        "event_type": "org.buwei.invitation",
+        "origin_server_ts_ms": 1790962805581,
+        "service_event_count": 1
+      },
+      {
+        "operation_sha256": "7b6c677c48f574a6d1194d2321e41065e2cd54f3f932048cccd2fc581a1ce859",
+        "event_sha256": "256e2a8df0295074c85e9ec6b48af952bc3a9a058029e6a3cf01c546384becbb",
+        "event_type": "org.buwei.reply",
+        "origin_server_ts_ms": 1790962827388,
+        "service_event_count": 1
+      }
+    ],
+    "locally_collected_at_unix": 1790962859
+  },
+  "expiry": {
+    "events": [
+      {
+        "operation_sha256": "b2cc5de3e99b1bb648a51364e4c5ee8694d7f2b82fd08d1e5c94310e673004b0",
+        "event_sha256": "c8be41e19f3be472ba0451fc410e02fc4657c5503e4ab72f5326e4db5db170ba",
+        "event_type": "org.buwei.join",
+        "origin_server_ts_ms": 1790962862391,
+        "service_event_count": 1
+      },
+      {
+        "operation_sha256": "86dac49d066048599f3367fa79fc6b69ea92953456b46df5664bf6e9f29a64d6",
+        "event_sha256": "a29c473d91f86ce98d5527b5b9b8dae740987dcf9c41e9f6f22e1f07137349ae",
+        "event_type": "org.buwei.invitation",
+        "origin_server_ts_ms": 1790962895218,
+        "service_event_count": 1
+      }
+    ],
+    "locally_collected_at_unix": 1790963222,
+    "hold_deadline_unix": 1790963194,
+    "clock_source": "HTTPS homeserver Date before complete SDK pagination; Matrix event origin_server_ts for reply evidence"
+  }
+}

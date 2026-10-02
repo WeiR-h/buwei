@@ -3,6 +3,7 @@ import argparse,hashlib,json,pathlib,shutil,subprocess,zipfile
 from package_scan import scan
 from public_scan import scan as scan_source
 from export_contribution import export
+from build_proof import source_fingerprint,digest
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 
 def archive_tree(source,destination):
@@ -13,6 +14,10 @@ def archive_tree(source,destination):
 def stage(a):
     assert scan_source()['passed'] and scan(a.package)['passed']
     release=json.loads((a.package/'release.json').read_text('utf8'));assert release['version']=='0.1.0'
+    if release['build_proof']['native_source_sha256']!=source_fingerprint():
+        raise RuntimeError('Package native source does not match the release source')
+    if release['dependency_lock_sha256']!=digest(ROOT/'dependencies.lock.json'):
+        raise RuntimeError('Package fixed dependencies do not match the release source')
     status=subprocess.check_output(['git','status','--porcelain','--untracked-files=no'],cwd=ROOT,text=True).strip()
     if status:raise RuntimeError('Tracked source has uncommitted changes')
     commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()

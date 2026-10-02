@@ -3,13 +3,14 @@
 本预览通过 `--gui` 进入官方宿主，构建状态以验收记录为准。
 
 ```powershell
-$profileDir = Join-Path $env:LOCALAPPDATA 'BuWei/preview-organizer'
+$profileDir = Join-Path $env:LOCALAPPDATA 'BuWei/v0.1.0-organizer'
 New-Item -ItemType Directory -Force $profileDir | Out-Null
 $env:BUWEI_PROFILE='organizer'
 ./native/target/debug/buwei-rinx-dual-host.exe $profileDir --gui --official-rinx
 ```
 
-参与者使用另一资料目录，`BUWEI_PROFILE=participant`。
+参与者使用 `BuWei/v0.1.0-participant` 资料目录，`BUWEI_PROFILE=participant`。
+随包入口按版本自动分开资料目录；升级不会自动覆盖旧版资料。
 Rinx 登录服务器为 `matrix.rinx.chat`，浏览器认证由本人完成。
 首次看到 “Let Rinx's agent start?” 弹窗时选择 **Don't allow**。
 该弹窗控制后台 Agent；本版提供本人登录、报名和消息操作，后台唤醒
@@ -40,5 +41,5 @@ Rinx 登录服务器为 `matrix.rinx.chat`，浏览器认证由本人完成。
 填写密钥，并由当前 Windows 用户加密保存。
 
 升级迁移：关闭旧版后运行 `python tools/migrate.py 旧资料目录 新资料目录
---from-version 0.0.15 --to-version 0.0.16`。核实迁移记录与数据库后用新
+--from-version 0.0.16 --to-version 0.1.0`。核实迁移记录与数据库后用新
 资料目录启动，重新查看授权范围并沿原编号核实。保留旧目录和旧入口。

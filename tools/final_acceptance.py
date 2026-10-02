@@ -16,7 +16,14 @@ class CapturedSuite(Suite):
         if self.rounds:return
         time.sleep(.8)
         name=f'{len(self.frames)+1:02d}-{role}.png'
-        proof=capture(self.hosts.ports[role],self.private.parent/'raw-media',self.media/name,label,self.font)
+        deadline=time.monotonic()+65
+        while True:
+            try:
+                proof=capture(self.hosts.ports[role],self.private.parent/'raw-media',self.media/name,label,self.font)
+                break
+            except OSError:
+                if time.monotonic()>=deadline:raise
+                time.sleep(1)
         self.frames.append({'file':name,'caption':label,**proof})
         (self.media/'captures.json').write_text(json.dumps(self.frames,ensure_ascii=False,indent=2),'utf8')
     def enroll(self):

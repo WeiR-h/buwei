@@ -13,8 +13,10 @@ not passed.** See [acceptance](docs/ACCEPTANCE.md) for measured results.
 
 ## Build
 
-Windows x64, Git, Python 3.12+, Rust 1.98.0 GNU, and MinGW GCC.
-Build provenance records the GCC and Binutils versions. First build downloads
+Windows x64, Git, Python 3.12+, Rust 1.98.0, and Visual Studio 2022
+with Desktop development with C++ and Windows SDK for MSVC builds. The public
+package uses MSVC; provenance records the compiler tools. GNU / MinGW also has
+local core and real SDK checks, with GCC and Binutils recorded. First build downloads
 fixed upstream dependencies.
 Keys and signed-in profiles are not needed to build.
 

@@ -9,53 +9,44 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - uses: actions/download-artifact@v4
         with:
           name: windows-preview
-          run-id: 37012054941
+          run-id: 37034759066
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: downloaded
-      - name: Diagnose old verified compilation without rebuilding
+      - name: Verify stack normalization on the actual previously compiled package
         shell: pwsh
         run: |
-          Add-Type -TypeDefinition @'
-          using System;
-          using System.Runtime.InteropServices;
-          public class WarpProbe {
-            [DllImport("d3d11.dll")]
-            static extern int D3D11CreateDevice(IntPtr adapter, uint driver, IntPtr software, uint flags, uint[] levels, uint count, uint sdk, out IntPtr device, out uint level, out IntPtr context);
-            public static void Run() {
-              IntPtr device,context; uint level;
-              int result=D3D11CreateDevice(IntPtr.Zero,5,IntPtr.Zero,0x20,new uint[]{0xb000},1,7,out device,out level,out context);
-              Console.WriteLine("WARP device result: 0x"+result.ToString("X8")+", feature level: 0x"+level.ToString("X"));
-              if(context!=IntPtr.Zero) Marshal.Release(context);
-              if(device!=IntPtr.Zero) Marshal.Release(device);
-              if(result!=0) throw new Exception("Software D3D11 probe failed");
-            }
-          }
-          '@
-          [WarpProbe]::Run()
-          Get-WindowsFeature Server-Media-Foundation | Select-Object Name,InstallState
-          'mf.dll','mfplat.dll','mfreadwrite.dll','d3d11.dll','d3dcompiler_47.dll','xinput1_4.dll' | ForEach-Object { Write-Output ($_ + ': ' + (Test-Path (Join-Path $env:SystemRoot ('System32/' + $_)))) }
+          $PSNativeCommandUseErrorActionPreference = $true
           @'
-          import os,pathlib,subprocess,tempfile
-          binaries=list(pathlib.Path('downloaded').rglob('buwei-rinx-dual-host.exe'))
-          assert len(binaries)==1
-          exe=binaries[0].resolve()
-          env=dict(os.environ);env['MAKEPAD_HIDE_WINDOWS']='1'
-          env['PATH']=os.environ['SystemRoot']+'/System32;'+os.environ['SystemRoot']
-          with tempfile.TemporaryDirectory(prefix='buwei-probe-') as profile:
-              p=subprocess.Popen([str(exe),profile,'--gui','--official-rinx'],cwd=exe.parent,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-              try: output=p.communicate(timeout=12)[0]
-              except subprocess.TimeoutExpired:
-                  p.terminate();output=p.communicate(timeout=10)[0]
-                  print('Process survived initial startup; this artifact lacks packaged resources and is only a diagnostic.')
-              print('Exit:',hex(p.returncode & 0xffffffff))
-              import re
-              text=output.decode('utf8',errors='replace')
-              text=re.sub(r'[A-Z]:[\\/]Users[\\/][^\s\"]+','<fresh-user-path>',text,flags=re.I)
-              print('\n'.join(text.splitlines()[-20:]))
+          import json,pathlib,sys
+          sys.path.insert(0,'tools')
+          from pe_stack import normalize
+          from startup_check import check
+          p=next(pathlib.Path('downloaded').rglob('release.json')).parent
+          result=normalize(p/'native/buwei-rinx-dual-host.exe')
+          print(json.dumps(result))
+          release=json.loads((p/'release.json').read_text('utf8'))
+          release['native_binary_sha256']=result['binary_sha256']
+          release['sha256']['native/buwei-rinx-dual-host.exe']=result['binary_sha256']
+          release['diagnostic_only_post_link_stack_normalization']=True
+          (p/'release.json').write_text(json.dumps(release,indent=2),'utf8')
+          report=check(p,pathlib.Path('.run/stack-probe'))
+          report['diagnostic_only']=True
+          report['stack_normalization']=result
+          pathlib.Path('.run/stack-probe/diagnostic.json').write_text(json.dumps(report,indent=2),'utf8')
+          print(json.dumps(report))
           '@ | python -
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stack-startup-diagnostic
+          path: |
+            .run/stack-probe/startup.json
+            .run/stack-probe/diagnostic.json
+            .run/stack-probe/startup.png

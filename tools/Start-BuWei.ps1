@@ -5,7 +5,17 @@
 )
 $ErrorActionPreference='Stop'
 $buweiRoot=Split-Path $PSScriptRoot -Parent
-if(!$ProfileDirectory){$ProfileDirectory=Join-Path $env:LOCALAPPDATA ('BuWei/preview-'+$Role)}
+if(!$ProfileDirectory){
+ $buweiReleaseFile=Join-Path $buweiRoot 'release.json'
+ if(Test-Path -LiteralPath $buweiReleaseFile){
+  $buweiVersion=(Get-Content -LiteralPath $buweiReleaseFile -Raw | ConvertFrom-Json).version
+ }else{
+  $buweiManifest=Get-Content -LiteralPath (Join-Path $buweiRoot 'native/Cargo.toml') -Raw
+  $buweiVersion=[regex]::Match($buweiManifest,'(?m)^version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"').Groups[1].Value
+ }
+ if($buweiVersion -notmatch '^\d+\.\d+\.\d+$'){throw '版本信息无效，资料目录未创建。'}
+ $ProfileDirectory=Join-Path $env:LOCALAPPDATA ('BuWei/v'+$buweiVersion+'-'+$Role)
+}
 if(!$Executable){$Executable=Join-Path $buweiRoot 'native/target/debug/buwei-rinx-dual-host.exe'}
 if(!(Test-Path -LiteralPath $Executable)){throw '尚未找到补位程序，请先构建或使用完整运行包。'}
 New-Item -ItemType Directory -Path $ProfileDirectory -Force | Out-Null

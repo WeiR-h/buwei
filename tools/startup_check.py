@@ -51,6 +51,7 @@ def check(package,output):
             (output/'startup.png').write_bytes(get('g?raw=1'))
             get('quit');assert process.wait(timeout=25)==0
             log.flush();content=(output/'startup.private.log').read_text('utf8',errors='replace')
+            report['renderer']='Windows WARP software rendering' if 'using Windows WARP software rendering' in content else 'hardware D3D11'
             report['known_upstream_diagnostics']=inspect_log(content)
             report['passed']=True
         finally:

@@ -33,6 +33,8 @@ try {
   $buweiTargetRoot=if($env:CARGO_TARGET_DIR){$env:CARGO_TARGET_DIR}else{Join-Path $buweiRoot 'native/target'}
   $buweiProfile=if($Release){'release'}else{'debug'}
   $buweiBinary=Join-Path $buweiTargetRoot ($buweiProfile+'/buwei-rinx-dual-host.exe')
+  python tools/pe_stack.py $buweiBinary
+  if($LASTEXITCODE -ne 0){throw 'Windows 可执行文件栈设置核验失败，禁止打包。'}
   python tools/build_proof.py --finish $buweiProofStart --binary $buweiBinary --output ($buweiBinary+'.build.json')
   if($LASTEXITCODE -ne 0){throw '构建期间来源发生变化，禁止打包。'}
  }

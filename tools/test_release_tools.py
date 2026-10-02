@@ -1,11 +1,25 @@
-import json,pathlib,sqlite3,tempfile,unittest
+import json,pathlib,sqlite3,tempfile,unittest,struct
 from contextlib import closing
 from migrate import migrate
 from release_gate import check,REQUIRED
 from startup_check import inspect_log
 from package_scan import content_findings
+from pe_stack import normalize
 
 class ReleaseTools(unittest.TestCase):
+    def test_stack_normalization_preserves_code_and_rejects_signed_binary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            file=pathlib.Path(tmp)/'native.exe';data=bytearray(1024)
+            data[:2]=b'MZ';struct.pack_into('<I',data,60,128);data[128:132]=b'PE\0\0'
+            struct.pack_into('<H',data,132,0x8664);struct.pack_into('<H',data,152,0x20b)
+            struct.pack_into('<Q',data,224,1048576);struct.pack_into('<Q',data,232,4096)
+            data[512:]=bytes(range(256))*2;file.write_bytes(data)
+            proof=normalize(file)
+            self.assertEqual(proof['stack_reserve_bytes'],16777216)
+            self.assertEqual(file.read_bytes()[512:],data[512:])
+            changed=bytearray(file.read_bytes());struct.pack_into('<II',changed,296,800,8);file.write_bytes(changed)
+            with self.assertRaises(ValueError):normalize(file)
+            self.assertEqual(file.read_bytes(),changed)
     def test_binary_key_parser_labels_are_distinct_from_embedded_key_material(self):
         marker=b'-----BEGIN '+b'PRIVATE KEY-----'
         self.assertNotIn('private_key',content_findings(marker,True))

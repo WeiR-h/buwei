@@ -1,0 +1,34 @@
+{
+  "version": "0.1.0",
+  "passed": true,
+  "profiles": [
+    {
+      "role": "organizer",
+      "source_version": "0.0.16",
+      "destination_version": "0.1.0",
+      "copied_at": "2026-10-02T17:30:03.320479+00:00",
+      "original_preserved": true,
+      "effective_consent_inherited": false,
+      "database_integrity": "ok",
+      "databases_verified": 7,
+      "operation_count": 57,
+      "all_original_operation_ids_preserved": true,
+      "operation_set_sha256": "bc651c417ab8bbf1c8bac26da9743c942768d5b9b4bf6936b325d6eca9707a3e",
+      "same_windows_user_only": true
+    },
+    {
+      "role": "participant",
+      "source_version": "0.0.16",
+      "destination_version": "0.1.0",
+      "copied_at": "2026-10-02T17:30:03.660616+00:00",
+      "original_preserved": true,
+      "effective_consent_inherited": false,
+      "database_integrity": "ok",
+      "databases_verified": 7,
+      "operation_count": 27,
+      "all_original_operation_ids_preserved": true,
+      "operation_set_sha256": "c528c47f7f1798099292ef38a39ce3db4fd5cd8dd15cfd08c366ae8ccf093dee",
+      "same_windows_user_only": true
+    }
+  ]
+}

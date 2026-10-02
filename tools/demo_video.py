@@ -11,6 +11,11 @@ def build(a):
     records=json.loads(a.captures.read_text('utf8'));formal=json.loads(a.formal.read_text('utf8'))
     assert formal['passed'] and formal['version']=='0.1.0' and len(formal['formal_rounds'])==5
     assert len(records)==5 and all(r.get('manually_reviewed') for r in records)
+    for file in [a.recovery,a.outages,a.original_editor]:
+        evidence=json.loads(file.read_text('utf8'))
+        assert evidence['passed'] and evidence['version']=='0.1.0'
+    assert len(json.loads(a.recovery.read_text('utf8'))['cases'])==6
+    assert len(json.loads(a.outages.read_text('utf8'))['cases'])==3
     a.directory.mkdir(parents=True,exist_ok=False)
     font=ImageFont.truetype(str(a.font),34);small=ImageFont.truetype(str(a.font),25);big=ImageFont.truetype(str(a.font),66)
     slides=[]
@@ -38,4 +43,4 @@ def build(a):
     (a.directory/'video.json').write_text(json.dumps(report,indent=2),'utf8');return report
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--captures',type=pathlib.Path,required=True);p.add_argument('--formal',type=pathlib.Path,required=True);p.add_argument('--directory',type=pathlib.Path,required=True);p.add_argument('--font',type=pathlib.Path,required=True);p.add_argument('--ffmpeg',type=pathlib.Path,required=True);p.add_argument('--output',type=pathlib.Path,required=True);print(json.dumps(build(p.parse_args())))
+    p=argparse.ArgumentParser();p.add_argument('--captures',type=pathlib.Path,required=True);p.add_argument('--formal',type=pathlib.Path,required=True);p.add_argument('--recovery',type=pathlib.Path,required=True);p.add_argument('--outages',type=pathlib.Path,required=True);p.add_argument('--original-editor',type=pathlib.Path,required=True);p.add_argument('--directory',type=pathlib.Path,required=True);p.add_argument('--font',type=pathlib.Path,required=True);p.add_argument('--ffmpeg',type=pathlib.Path,required=True);p.add_argument('--output',type=pathlib.Path,required=True);print(json.dumps(build(p.parse_args())))

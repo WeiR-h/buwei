@@ -10,17 +10,17 @@ jobs:
     timeout-minutes: 120
     env:
       CARGO_HOME: ${{ github.workspace }}/.run/cargo-home
+      RUSTUP_TOOLCHAIN: 1.98.0-x86_64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install pinned Rust with GNU target
+      - name: Install pinned Rust MSVC toolchain
         shell: pwsh
         run: |
-          rustup toolchain install 1.98.0-x86_64-pc-windows-gnu --profile minimal
-          rustup default 1.98.0-x86_64-pc-windows-gnu
-          'C:\mingw64\bin' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          rustup toolchain install 1.98.0-x86_64-pc-windows-msvc --profile minimal
+          rustup default 1.98.0-x86_64-pc-windows-msvc
       - name: Restore fixed dependency compilation cache
         id: native-cache
         uses: actions/cache/restore@v4
@@ -31,7 +31,9 @@ jobs:
             .run/cargo-home/git
             native/target
           key: windows-gnu-v4-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-${{ hashFiles('native/Cargo.lock') }}
-          restore-keys: windows-gnu-v4-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-
+          restore-keys: |
+            windows-gnu-v4-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-
+            windows-gnu-v4-
       - name: Verify or download pinned official dependencies
         run: python tools/bootstrap.py
       - name: Check public source and history

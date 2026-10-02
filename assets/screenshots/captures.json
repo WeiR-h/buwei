@@ -1,0 +1,42 @@
+[
+  {
+    "file": "01-organizer.png",
+    "caption": "本人报名后，组织者依据服务端事件加入候补",
+    "read_only_native_capture": true,
+    "private_fields_covered": 3,
+    "published_sha256": "d88b0c6a87f4f7c578791aa086a428370cb577468b9cd3798ebf8dd99173a6d8",
+    "manually_reviewed": true
+  },
+  {
+    "file": "02-organizer.png",
+    "caption": "名额已保留、邀请已送达；接受状态分别记录",
+    "read_only_native_capture": true,
+    "private_fields_covered": 3,
+    "published_sha256": "8fb62897cc02da34b7fe96c128eda4a5c94a82c69b2d58e830eb422498091588",
+    "manually_reviewed": true
+  },
+  {
+    "file": "03-participant.png",
+    "caption": "参与者使用自己的 Rinx 登录接收邀请",
+    "read_only_native_capture": true,
+    "private_fields_covered": 4,
+    "published_sha256": "70d09428ef7a97877830fc9862f95694f4362c15ff9f9b4737a853336bfabcac",
+    "manually_reviewed": true
+  },
+  {
+    "file": "04-organizer.png",
+    "caption": "本人回复经组织者核验后，席位才最终确认",
+    "read_only_native_capture": true,
+    "private_fields_covered": 3,
+    "published_sha256": "9ba5e1abb05f109501875ca2c49b088931ed753671366ec3a2b89fddc3794f85",
+    "manually_reviewed": true
+  },
+  {
+    "file": "05-organizer.png",
+    "caption": "本人取消，组织者核验并释放名额",
+    "read_only_native_capture": true,
+    "private_fields_covered": 3,
+    "published_sha256": "02d5b60efd123abdcc132c5307c65e315812057bef3f5c2a20f8ab3116c997de",
+    "manually_reviewed": true
+  }
+]

@@ -24,3 +24,7 @@ SHA-256 values and exact modified-file verification in dependencies.lock.json.
 This build does not imply official endorsement or competition acceptance.
 Binary packages must include upstream license texts and a dependency license
 inventory. The acceptance record states actual package validation results.
+
+Windows 可执行文件在构建后核验并统一主线程栈预留为 16 MiB。
+工具只修改未签名 PE 的栈预留和校验和，逐字节确认代码与资源不变。
+该构建修正不改变身份、授权或业务逻辑；运行包仍必须通过实际启动。

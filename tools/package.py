@@ -8,7 +8,7 @@ def stage(binary,destination,metadata=None):
     proof=json.loads(pathlib.Path(str(binary)+'.build.json').read_text('utf8'))
     if proof.get('passed') is not True or proof['features']!=['full-host'] or proof['binary_sha256']!=digest(binary) or proof['native_source_sha256']!=source_fingerprint() or proof['cargo_lock_sha256']!=digest(ROOT/'native/Cargo.lock') or proof['dependencies_lock_sha256']!=digest(ROOT/'dependencies.lock.json'):raise RuntimeError('Binary does not match this measured full-host source build')
     if metadata is None:
-        result=subprocess.check_output(['cargo','metadata','--manifest-path',str(ROOT/'native/Cargo.toml'),'--locked','--features','full-host','--filter-platform','x86_64-pc-windows-gnu','--format-version','1'],cwd=ROOT)
+        result=subprocess.check_output(['cargo','metadata','--manifest-path',str(ROOT/'native/Cargo.toml'),'--locked','--features','full-host','--filter-platform',proof['rust_host'],'--format-version','1'],cwd=ROOT)
         metadata=json.loads(result)
     version=tomllib.loads((ROOT/'native/Cargo.toml').read_text('utf8'))['package']['version']
     native=destination/'native';native.mkdir(parents=True)
