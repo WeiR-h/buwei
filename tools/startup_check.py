@@ -27,7 +27,16 @@ def check(package,output):
         try:
             start=time.monotonic()
             while time.monotonic()-start<60:
-                if process.poll() is not None:raise RuntimeError('Native host exited before rendering')
+                if process.poll() is not None:
+                    log.flush();content=(output/'startup.private.log').read_text('utf8',errors='replace')
+                    report['early_exit_code']=process.returncode
+                    report['early_exit_hex']=hex(process.returncode & 0xffffffff)
+                    # Fresh unauthenticated profile: print only bounded diagnostics,
+                    # masking ephemeral Windows user paths. Never used on signed-in profiles.
+                    tail='\n'.join(content.splitlines()[-18:])
+                    tail=re.sub(r'[A-Z]:[\\/]Users[\\/][^\s\"]+', '<fresh-user-path>',tail,flags=re.I)
+                    print('Fresh native startup diagnostic:',report['early_exit_hex'],tail,flush=True)
+                    raise RuntimeError('Native host exited before rendering: '+report['early_exit_hex'])
                 try:
                     snap=json.loads(get('snap?all=1'));labels='\n'.join(w.get('t','') for w in snap['s'] if w['ty']=='Label')
                     if '补位' in labels and 'v'+release['version'] in labels and '未授权' in labels:break

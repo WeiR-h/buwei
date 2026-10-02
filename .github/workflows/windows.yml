@@ -24,7 +24,8 @@ jobs:
       - name: Download pinned official dependencies
         run: python tools/bootstrap.py
       - name: Restore fixed dependency compilation cache
-        uses: actions/cache@v4
+        id: native-cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             .run/cargo-home/registry
@@ -35,20 +36,35 @@ jobs:
       - name: Check public source and history
         run: python tools/public_scan.py
       - name: Test and build complete official host
+        id: compile
         shell: pwsh
         run: |
           ./tools/Build.ps1 -Tests
           ./tools/Build.ps1 -Release
           python -m unittest discover -s tools -p test_release_tools.py
-      - name: Package and start on fresh Windows profile
+      - name: Save verified compilation before runtime validation
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .run/cargo-home/registry
+            .run/cargo-home/git
+            native/target
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
+      - name: Package and scan complete runtime
+        id: stage
         shell: pwsh
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           python tools/package.py --binary native/target/release/buwei-rinx-dual-host.exe --destination .run/windows-package
           python tools/package_scan.py .run/windows-package --output .run/startup-evidence/package-privacy.json
+      - name: Start on fresh Windows profile
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
           python tools/startup_check.py .run/windows-package --output .run/startup-evidence
       - name: Upload measured build logs and binary
-        if: success()
+        if: always() && steps.stage.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: windows-preview

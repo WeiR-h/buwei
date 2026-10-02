@@ -1,0 +1,44 @@
+name: Diagnose fresh native startup
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnostic:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-preview
+          run-id: 37012054941
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: downloaded
+      - name: Diagnose old verified compilation without rebuilding
+        shell: pwsh
+        run: |
+          Get-WindowsFeature Server-Media-Foundation | Select-Object Name,InstallState
+          'mf.dll','mfplat.dll','mfreadwrite.dll','d3d11.dll','d3dcompiler_47.dll','xinput1_4.dll' | ForEach-Object { Write-Output ($_ + ': ' + (Test-Path (Join-Path $env:SystemRoot ('System32/' + $_)))) }
+          @'
+          import os,pathlib,subprocess,tempfile
+          binaries=list(pathlib.Path('downloaded').rglob('buwei-rinx-dual-host.exe'))
+          assert len(binaries)==1
+          exe=binaries[0].resolve()
+          env=dict(os.environ);env['MAKEPAD_HIDE_WINDOWS']='1'
+          env['PATH']=os.environ['SystemRoot']+'/System32;'+os.environ['SystemRoot']
+          with tempfile.TemporaryDirectory(prefix='buwei-probe-') as profile:
+              p=subprocess.Popen([str(exe),profile,'--gui','--official-rinx'],cwd=exe.parent,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+              try: output=p.communicate(timeout=12)[0]
+              except subprocess.TimeoutExpired:
+                  p.terminate();output=p.communicate(timeout=10)[0]
+                  print('Process survived initial startup; this artifact lacks packaged resources and is only a diagnostic.')
+              print('Exit:',hex(p.returncode & 0xffffffff))
+              import re
+              text=output.decode('utf8',errors='replace')
+              text=re.sub(r'[A-Z]:[\\/]Users[\\/][^\s\"]+','<fresh-user-path>',text,flags=re.I)
+              print('\n'.join(text.splitlines()[-20:]))
+          '@ | python -
