@@ -3,7 +3,8 @@
 Requires an explicit acceptance executable and two stopped, migrated profiles.
 No keys or identities are accepted as arguments. It reuses verified SDK binding.
 """
-import argparse,json,os,pathlib,subprocess,time,urllib.request
+import argparse,json,os,pathlib,sqlite3,subprocess,time,urllib.request
+from contextlib import closing
 from dual_acceptance import Suite
 from formal_control import Control
 
@@ -42,6 +43,14 @@ class FaultSuite(Suite):
         if role=='organizer':self.o=control
         else:self.p=control
         return control
+    def persisted_operation(self,role,operation_id):
+        profile=self.owner if role=='organizer' else self.participant
+        db=next((profile/'data'/('v'+self.version)/'native/rinx').glob('*/operations.db'))
+        with closing(sqlite3.connect('file:'+db.as_posix()+'?mode=ro',uri=True)) as connection:
+            row=connection.execute('select status,body from operations where id=?',(operation_id,)).fetchone()
+        if row is None:raise AssertionError('Operation missing from durable journal')
+        body=json.loads(row[1]);assert row[0]==body['status'] and body['id']==operation_id
+        return body
     def fault_dispatch(self,role,mode,name,value,key,operation):
         control=self.o if role=='organizer' else self.p;self.call(control,'TestFault',mode)
         before='unknown'
@@ -54,8 +63,11 @@ class FaultSuite(Suite):
             before='dispatching'
         else:
             uncertain=self.operation(self.call(control,name,value),key,'unknown');assert uncertain['id']==operation['id']
+        persisted=self.persisted_operation(role,operation['id']);assert persisted['status']==before
         control=self.restart_control(role);recovered=self.operation(self.call(control,'ReconcilePending'),key,'confirmed');assert recovered['id']==operation['id']
-        proof=self.evidence([recovered]);record={'scene':key,'fault':mode,'persisted_status_before_recovery':before,'status_after_recovery':'confirmed','original_operation_retained':True,'native_process_restarted':True,'blind_resends':0,**proof};self.cases.append(record);print(key+' '+mode+' recovered once',flush=True);return recovered
+        proof=self.evidence([recovered]);record={'scene':key,'fault':mode,'persisted_status_before_recovery':before,'status_after_recovery':'confirmed','original_operation_retained':True,'native_process_restarted':True,'blind_resends':0,**proof};self.cases.append(record)
+        (self.private.parent/'completed-cases.private.json').write_text(json.dumps(self.cases,indent=2),'utf8')
+        print(key+' '+mode+' recovered once',flush=True);return recovered
     def run_faults(self):
         self.o.authorize();self.p.authorize()
         for mode in ['lost_ack','crash_before_receipt']:

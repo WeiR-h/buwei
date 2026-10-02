@@ -217,11 +217,12 @@ impl Controller {
         official_sync::check_authority(&self.rt,self.active(),&a)?;
         // The expiry watermark is captured before reading. Replies accepted by
         // the server while paging cannot be released by a later local clock.
-        let watermark=official_sync::server_watermark(self.active());let mut store=Store::open(self.data.join("activity.db"))?;
+        let watermark=official_sync::server_watermark(self.active());let clock_captured=std::time::Instant::now();let mut store=Store::open(self.data.join("activity.db"))?;
         let checkpoint=store.sync_checkpoint(&a.room)?;
         let events=official_sync::timeline_since(&self.rt,self.active(),&room,checkpoint.as_deref())?;let mut accepted=0;let mut rejected=0;
         let last=events.last().and_then(|v|v["event_id"].as_str()).map(str::to_owned);
-        for v in events{if !matches!(v["type"].as_str(),Some("org.buwei.join"|"org.buwei.reply"|"org.buwei.cancel")){continue;}let id=v["event_id"].as_str().ok_or("服务端编号缺失")?;match store.apply_verified_event(id,|a|official_sync::apply_participant(a,room.as_str(),&v,now()))?{Some(true)=>accepted+=1,Some(false)=>rejected+=1,None=>{}}}
+        let reply_clock=watermark.as_ref().map(|time|time.saturating_add(5).saturating_add(clock_captured.elapsed().as_secs())).unwrap_or_else(|_|now());
+        for v in events{if !matches!(v["type"].as_str(),Some("org.buwei.join"|"org.buwei.reply"|"org.buwei.cancel")){continue;}let id=v["event_id"].as_str().ok_or("服务端编号缺失")?;match store.apply_verified_event(id,|a|official_sync::apply_participant(a,room.as_str(),&v,reply_clock))?{Some(true)=>accepted+=1,Some(false)=>rejected+=1,None=>{}}}
         if let Some(id)=last{store.save_sync_checkpoint(&a.room,&id)?;}
         let current=store.load()?.ok_or("活动缺失")?;let mut expired=0;
         if let Ok(watermark)=watermark.as_ref(){store.update(current.revision,|a|{expired=a.expire(*watermark);Ok(())})?;}

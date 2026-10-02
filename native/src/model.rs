@@ -51,13 +51,19 @@ static NATIVE_HOST:std::sync::OnceLock<Arc<ModelHost>>=std::sync::OnceLock::new(
 fn merge_ledger(left:Value,right:Value)->Result<Value>{
     fn valid(v:&Value)->bool{v["day"].as_u64().is_some()&&v["apps"].as_object().is_some_and(|apps|apps.values().all(|a|a["calls"].as_u64().is_some()&&a["tokens"].as_u64().is_some()))&&v["limits"].as_object().is_some()}
     if !valid(&left)||!valid(&right){return Err("历史模型计数损坏".into());}
-    if left["day"].as_u64()>right["day"].as_u64(){return Ok(left);}
-    if left["day"].as_u64()<right["day"].as_u64(){return Ok(right);}
-    let mut result=left;
-    for (app,count) in right["apps"].as_object().unwrap(){
+    let mut limits=serde_json::Map::new();
+    for source in [&left,&right]{for (app,value) in source["limits"].as_object().unwrap(){
+        let object=value.as_object().ok_or("历史模型限制不合法")?;
+        for (key,number) in object{if !matches!(key.as_str(),"per_minute"|"calls_per_day"|"tokens_per_day")||number.as_u64().is_none(){return Err("历史模型限制不合法".into());}}
+        let previous=limits.entry(app.clone()).or_insert_with(||json!({"per_minute":3,"calls_per_day":20,"tokens_per_day":30000}));
+        for (key,number) in object{previous[key]=previous[key].as_u64().unwrap().min(number.as_u64().unwrap()).into();}
+    }}
+    let same_day=left["day"]==right["day"];
+    let mut result=if left["day"].as_u64()>=right["day"].as_u64(){left}else{right.clone()};
+    if same_day{for (app,count) in right["apps"].as_object().unwrap(){
         let previous=&result["apps"][app];let calls=previous["calls"].as_u64().unwrap_or(0).max(count["calls"].as_u64().unwrap());let tokens=previous["tokens"].as_u64().unwrap_or(0).max(count["tokens"].as_u64().unwrap());
         result["apps"][app]=json!({"calls":calls,"tokens":tokens});
-    }Ok(result)
+    }}result["limits"]=Value::Object(limits);Ok(result)
 }
 fn prepare_ledger(root:&Path)->Result<()>{
     let path=root.join("data/model/ledger.json");
@@ -79,7 +85,7 @@ pub(crate) fn host(root:&Path)->Arc<ModelHost> {
 }
 pub(crate) fn status(root:&Path,host:&ModelHost)->String{
     let budget=host.budget("buwei");let cost=std::fs::read(root.join("data/model/development-budget.json")).ok().and_then(|b|serde_json::from_slice::<Value>(&b).ok());
-    format!("实际模型：MiniMax-M3 · {}\n今日 {} / 20 次，{} / 30,000 tokens（UTC 日重置）。\n本目录开发预算预留 {:.2} / 10 元；按 2026-10-02 标准价格估算 {:.4} 元，实际扣费需在 MiniMax 账单核对。",if root.join(".secrets/minimax-cn.dpapi").is_file(){"已配置本机加密密钥"}else{"尚未配置，手动流程可用"},budget.calls_today,budget.tokens_today,cost.as_ref().and_then(|v|v["reserved_rmb"].as_f64()).unwrap_or(0.0),cost.as_ref().and_then(|v|v["estimated_rmb"].as_f64()).unwrap_or(0.0))
+    format!("实际模型：MiniMax-M3 · {}\n今日 {} / {} 次，{} / {} tokens（UTC 日重置）。\n本目录开发预算预留 {:.2} / 10 元；按 2026-10-02 标准价格估算 {:.4} 元，实际扣费需在 MiniMax 账单核对。",if root.join(".secrets/minimax-cn.dpapi").is_file(){"已配置本机加密密钥"}else{"尚未配置，手动流程可用"},budget.calls_today,budget.calls_per_day,budget.tokens_today,budget.tokens_per_day,cost.as_ref().and_then(|v|v["reserved_rmb"].as_f64()).unwrap_or(0.0),cost.as_ref().and_then(|v|v["estimated_rmb"].as_f64()).unwrap_or(0.0))
 }
 pub(crate) fn anonymous_summary(a:&Activity)->Value{
     json!({"start_hour":a.start,"end_hour":a.end,"capacity":a.capacity,"accepted":a.confirmed(),"held":a.held(),"free":a.free(),"queue":a.people.iter().enumerate().map(|(n,p)|json!({"position":n+1,"earliest":p.preferences.earliest,"latest":p.preferences.latest,"group":p.preferences.group,"status":p.status,"preferences_confirmed":p.preferences_confirmed})).collect::<Vec<_>>()})
@@ -99,6 +105,12 @@ pub(crate) fn explain(host:&ModelHost,g:&Grant,a:&Activity)->Result<(String,Valu
 }
 #[cfg(test)]mod tests{
     use super::*;
+    #[test]fn upgrade_preserves_stricter_limits_across_days(){
+        let old=json!({"day":9,"apps":{},"limits":{"buwei":{"calls_per_day":2,"tokens_per_day":100}}});
+        let newer=json!({"day":10,"apps":{"buwei":{"calls":1,"tokens":4}},"limits":{"buwei":{"calls_per_day":10,"per_minute":1}}});
+        let result=merge_ledger(old,newer).unwrap();assert_eq!(result["limits"]["buwei"],json!({"calls_per_day":2,"tokens_per_day":100,"per_minute":1}));assert_eq!(result["day"],10);
+        assert!(merge_ledger(result,json!({"day":11,"apps":{},"limits":{"buwei":{"calls_per_day":"invalid"}}})).is_err());
+    }
     #[test]fn upgrade_keeps_each_days_largest_counter_and_rejects_corruption(){
         let a=json!({"day":10,"apps":{"buwei":{"calls":5,"tokens":100}},"limits":{}});let b=json!({"day":10,"apps":{"buwei":{"calls":3,"tokens":200}},"limits":{}});
         let merged=merge_ledger(a.clone(),b).unwrap();assert_eq!(merged["apps"]["buwei"],json!({"calls":5,"tokens":200}));

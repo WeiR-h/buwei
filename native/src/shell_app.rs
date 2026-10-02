@@ -14,8 +14,6 @@ impl AppMain for App{
     fn handle_event(&mut self,cx:&mut Cx,event:&Event){
         self.shell.shell_handle_event(cx,event);
         if matches!(event,Event::Startup){
-            let app=octosense_shell::clients::AppDef{id:"buwei".into(),label:"补位".into(),bin:"buwei-matrix-host".into(),package:"buwei-matrix-host".into(),dir:".".into(),manifest:None,args:vec![],policy:octosense_shell::clients::LaunchPolicy::OrFocus,target_dir:None};
-            self.shell.launch_module_as(cx,&super::gui::MODULE,&app);
             #[cfg(feature="full-host")]
             if super::rinx_bridge::official_mode(){
                 let registry=octosense_shell::apps::AppRegistry::default();
@@ -24,6 +22,8 @@ impl AppMain for App{
                     self.shell.launch_module_as(cx,module,&app);
                 }
             }
+            let app=octosense_shell::clients::AppDef{id:"buwei".into(),label:"补位".into(),bin:"buwei-matrix-host".into(),package:"buwei-matrix-host".into(),dir:".".into(),manifest:None,args:vec![],policy:octosense_shell::clients::LaunchPolicy::OrFocus,target_dir:None};
+            self.shell.launch_module_as(cx,&super::gui::MODULE,&app);
             if let Some(state)=self.shell.state.as_mut(){state.layout.toggle_fullscreen_mode(octosense_shell::layout::FullscreenMode::Maximized);}
             self.shell.ui.redraw(cx);
         }

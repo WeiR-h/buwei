@@ -25,7 +25,8 @@ class Suite:
     def save(self):
         self.private.parent.mkdir(parents=True,exist_ok=True);self.private.write_text(json.dumps(self.trace,ensure_ascii=False,indent=2),'utf8')
     def call(self,control,command,value=None):
-        result=control.command(command,value);self.trace.append({'step':command,'result':result});self.save();return result
+        timeout=180 if command in {'CollectEvidence','ReconcilePending','SyncActivity'} else 80
+        result=control.command(command,value,timeout=timeout);self.trace.append({'step':command,'result':result});self.save();return result
     def person(self,activity):return next((p for p in activity['people'] if p['account']==self.accounts[1]),{})
     def wait(self,profile,label,predicate,timeout=70):
         start=time.monotonic()

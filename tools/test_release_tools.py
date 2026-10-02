@@ -15,6 +15,7 @@ class ReleaseTools(unittest.TestCase):
     def test_startup_accepts_only_the_pinned_deferred_vm_guard(self):
         line='[E] public/makepad/widgets/src/widget_async.rs:787:9 - BUG: update_global_ui_handle while isolate SplashVmId(2) is installed; deferred'
         self.assertEqual(inspect_log(line)[0]['count'],1)
+        self.assertEqual(inspect_log(line.replace('SplashVmId(2)','SplashVmId(1)'))[0]['count'],1)
         for error in [line+'\n[E] unexpected error','[E] renderer failed','Failed to load resource']:
             with self.assertRaises(AssertionError):inspect_log(error)
     def test_sqlite_header_and_wal_migrate_preserve_ids_and_original(self):

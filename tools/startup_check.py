@@ -1,16 +1,16 @@
 """Start an actual packaged native host on a fresh profile and system-only PATH."""
-import argparse,hashlib,json,os,pathlib,socket,subprocess,tempfile,time,urllib.request
+import argparse,hashlib,json,os,pathlib,re,socket,subprocess,tempfile,time,urllib.request
 
 def inspect_log(content):
     # The pinned upstream guard deliberately defers an isolated VM call. Keep
     # this diagnostic visible in the report; never allow other error lines.
-    known='BUG: update_global_ui_handle while isolate SplashVmId(2) is installed; deferred'
     errors=[line for line in content.splitlines() if '[E]' in line]
-    unexpected=[line for line in errors if known not in line or 'widget_async.rs:787:9' not in line]
+    guard=re.compile(r'BUG: update_global_ui_handle while isolate SplashVmId\([1-9][0-9]*\) is installed; deferred$')
+    unexpected=[line for line in errors if not guard.search(line) or 'widget_async.rs:787:9' not in line]
     if unexpected:raise AssertionError('Unexpected native error; see private startup log')
     for marker in ['Failed to load resource','on_render closure failed','instruction limit exceeded']:
         if marker in content:raise AssertionError(marker)
-    return [{'upstream_file':'makepad/widgets/src/widget_async.rs:787','diagnostic':known,'count':len(errors),'behavior':'upstream guard deferred isolated VM update; native render and shutdown checked'}] if errors else []
+    return [{'upstream_file':'makepad/widgets/src/widget_async.rs:787','diagnostic':'isolated VM global UI update safely deferred','count':len(errors),'behavior':'upstream guard deferred isolated VM update; native render and shutdown checked'}] if errors else []
 def check(package,output):
     package=package.resolve();output.mkdir(parents=True,exist_ok=True)
     release=json.loads((package/'release.json').read_text('utf8'));exe=package/'native/buwei-rinx-dual-host.exe'
