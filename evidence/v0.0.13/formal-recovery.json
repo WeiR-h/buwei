@@ -1,0 +1,27 @@
+{
+  "version": "0.0.13",
+  "passed": true,
+  "scope": "formal SDK in embedded official host; local opt-in acceptance build",
+  "collected_at": "2026-10-02T12:46:39.527979+00:00",
+  "binary_sha256": "b269361c1b0beed89f02191aa57c038c08aaede2202f43f95407edbcf9cf4ba5",
+  "baseline_66_checks_passed": true,
+  "added_participant_checks": 8,
+  "complete_dual_account_loops": 1,
+  "duplicate_confirmation_same_operation": true,
+  "reply_operation_separate_from_invitation": true,
+  "cancel_releases_seat": true,
+  "lost_ack_restart": {
+    "before": "unknown",
+    "after": "confirmed",
+    "operation_id_preserved": true,
+    "fresh_consent": true,
+    "unique_service_event": true,
+    "lookup_complete": true,
+    "resent": false
+  },
+  "migration_databases_verified_per_profile": 7,
+  "raw_identities_and_room_removed": true,
+  "clean_windows_verified": false,
+  "native_visual_review": false,
+  "stable_release_allowed": false
+}
