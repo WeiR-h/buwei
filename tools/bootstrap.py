@@ -1,5 +1,5 @@
 """Acquire the reviewed official runtime at fixed commits, without credentials."""
-import argparse, hashlib, json, pathlib, subprocess, sys, os
+import argparse, hashlib, json, pathlib, subprocess, sys, os, tempfile
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 PIN='ad0d738bd1c10b735af6b34e11f5826623b6a73b'
 URL='https://github.com/OctoSense-org/OctoSense.git'
@@ -30,14 +30,20 @@ def main():
     setup=[sys.executable,'-X','utf8',str(host/'tools/setup.py')]
     setup+=['--hub',str(args.source_cache.resolve())] if args.source_cache else ['--no-hub']
     # Verify the official overlay before applying the explicitly listed product patch.
+    expected=json.loads((ROOT/'dependencies.lock.json').read_text('utf8'))
     framework=host/'.sources/makepad';patch=ROOT/'patches/makepad-unicode-smallvec.patch'
+    product_patches=[{'path':'patches/makepad-unicode-smallvec.patch','sha256':expected['product_patch_sha256'],'changed_files':['libs/unicode/unicode-bidi/Cargo.toml']},*expected.get('additional_product_patches',[])]
+    for entry in product_patches:
+        if hashlib.sha256((ROOT/entry['path']).read_bytes()).hexdigest()!=entry['sha256']:raise RuntimeError('Product patch hash mismatch')
     applied=framework.exists() and subprocess.run(['git','-C',str(framework),'apply','--reverse','--check',str(patch)],capture_output=True).returncode==0
     if not applied:
         call(*setup,cwd=host)
         call(*setup,'--check',cwd=host)
-        call('git','-C',str(framework),'apply','--check',str(patch))
-        call('git','-C',str(framework),'apply',str(patch))
-    expected=json.loads((ROOT/'dependencies.lock.json').read_text('utf8'))
+    for entry in product_patches:
+        file=ROOT/entry['path']
+        if subprocess.run(['git','-C',str(framework),'apply','--reverse','--check',str(file)],capture_output=True).returncode:
+            call('git','-C',str(framework),'apply','--check',str(file))
+            call('git','-C',str(framework),'apply',str(file))
     for name,revision in expected['frameworks'].items():
         source=host/'.sources'/name
         if git(source,'rev-parse','HEAD')!=revision:raise RuntimeError('Framework revision mismatch: '+name)
@@ -46,15 +52,23 @@ def main():
             overlay=json.loads((host/'runtime-patches.lock.json').read_text('utf8'))['makepad']
             if git(source,'write-tree')!=overlay['tree']:raise RuntimeError('Official overlay tree mismatch')
             changed=git(source,'diff','--name-only').splitlines()
-            changed_path='libs/unicode/unicode-bidi/Cargo.toml'
-            if changed!=[changed_path]:raise RuntimeError('Unreviewed Makepad modifications')
-            original=subprocess.check_output(['git','-C',str(source),'show',':'+changed_path])
-            wanted=original.replace(b'path = "../smallvec"',b'path = "../../smallvec"')
-            if (source/changed_path).read_bytes().replace(b'\r\n',b'\n')!=wanted.replace(b'\r\n',b'\n'):raise RuntimeError('Product path patch differs')
+            paths=sorted({p for entry in product_patches for p in entry['changed_files']})
+            if changed!=paths:raise RuntimeError('Unreviewed Makepad modifications')
+            private=ROOT/'.run';private.mkdir(exist_ok=True)
+            with tempfile.TemporaryDirectory(dir=private,prefix='verify-product-') as folder:
+                review=pathlib.Path(folder).resolve()
+                if not review.is_relative_to(private.resolve()):raise RuntimeError('Review directory outside workspace')
+                call('git','init','-q',str(review))
+                for path in paths:
+                    target=review/path;target.parent.mkdir(parents=True,exist_ok=True)
+                    target.write_bytes(subprocess.check_output(['git','-C',str(source),'show',':'+path]))
+                for entry in product_patches:call('git','-C',str(review),'apply',str(ROOT/entry['path']))
+                for path in paths:
+                    if (source/path).read_bytes().replace(b'\r\n',b'\n')!=(review/path).read_bytes().replace(b'\r\n',b'\n'):raise RuntimeError('Product patch differs: '+path)
             for entry in [overlay,*overlay.get('stacked',[])]:
                 if hashlib.sha256((host/entry['patch']).read_bytes()).hexdigest()!=entry['sha256']:raise RuntimeError('Official overlay hash differs')
         elif git(source,'status','--porcelain'):raise RuntimeError('Modified framework preserved: '+name)
     digest=hashlib.sha256(patch.read_bytes()).hexdigest()
     if digest!=expected['product_patch_sha256']:raise RuntimeError('Product patch hash mismatch')
-    print(json.dumps({'official_commit':PIN,'official_reviewed_overlay':True,'product_patch_sha256':digest,'credentials_created':False}))
+    print(json.dumps({'official_commit':PIN,'official_reviewed_overlay':True,'product_patch_sha256':digest,'additional_product_patches':expected.get('additional_product_patches',[]),'credentials_created':False}))
 if __name__=='__main__':main()

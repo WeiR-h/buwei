@@ -7,5 +7,14 @@
     "octoscript-makepad": "b33f494b963759088edf5785fc626cb8593818ee"
   },
   "official_overlay_lock": "runtime-patches.lock.json",
-  "product_patch_sha256": "8df6c2a8d442154f17aca229553ee69f45317962d7b732ae91fae2fda1adf55e"
+  "product_patch_sha256": "8df6c2a8d442154f17aca229553ee69f45317962d7b732ae91fae2fda1adf55e",
+  "additional_product_patches": [
+    {
+      "path": "patches/makepad-windows-warp.patch",
+      "sha256": "7e991970009b506744127023e153073ba7dc0a4f1e849ec1b7505b4dd1d47331",
+      "changed_files": [
+        "platform/src/os/windows/d3d11.rs"
+      ]
+    }
+  ]
 }

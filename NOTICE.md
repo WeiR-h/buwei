@@ -18,6 +18,9 @@ sources are pinned in native/Cargo.lock. Frameworks are pinned in
 
 Official Makepad overlays are locked in OctoSense/runtime-patches.lock.json.
 BuWei adds the separately recorded patches/makepad-unicode-smallvec.patch.
+BuWei also adds patches/makepad-windows-warp.patch: hardware device creation
+failure falls back to the Windows WARP renderer. Both patches have fixed
+SHA-256 values and exact modified-file verification in dependencies.lock.json.
 This build does not imply official endorsement or competition acceptance.
 Binary packages must include upstream license texts and a dependency license
 inventory. The acceptance record states actual package validation results.

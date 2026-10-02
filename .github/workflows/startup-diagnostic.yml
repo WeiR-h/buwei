@@ -21,6 +21,23 @@ jobs:
       - name: Diagnose old verified compilation without rebuilding
         shell: pwsh
         run: |
+          Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public class WarpProbe {
+            [DllImport("d3d11.dll")]
+            static extern int D3D11CreateDevice(IntPtr adapter, uint driver, IntPtr software, uint flags, uint[] levels, uint count, uint sdk, out IntPtr device, out uint level, out IntPtr context);
+            public static void Run() {
+              IntPtr device,context; uint level;
+              int result=D3D11CreateDevice(IntPtr.Zero,5,IntPtr.Zero,0x20,new uint[]{0xb000},1,7,out device,out level,out context);
+              Console.WriteLine("WARP device result: 0x"+result.ToString("X8")+", feature level: 0x"+level.ToString("X"));
+              if(context!=IntPtr.Zero) Marshal.Release(context);
+              if(device!=IntPtr.Zero) Marshal.Release(device);
+              if(result!=0) throw new Exception("Software D3D11 probe failed");
+            }
+          }
+          '@
+          [WarpProbe]::Run()
           Get-WindowsFeature Server-Media-Foundation | Select-Object Name,InstallState
           'mf.dll','mfplat.dll','mfreadwrite.dll','d3d11.dll','d3dcompiler_47.dll','xinput1_4.dll' | ForEach-Object { Write-Output ($_ + ': ' + (Test-Path (Join-Path $env:SystemRoot ('System32/' + $_)))) }
           @'
