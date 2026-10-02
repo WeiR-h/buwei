@@ -1,0 +1,12 @@
+diff --git a/libs/unicode/unicode-bidi/Cargo.toml b/libs/unicode/unicode-bidi/Cargo.toml
+--- a/libs/unicode/unicode-bidi/Cargo.toml
++++ b/libs/unicode/unicode-bidi/Cargo.toml
+@@ -57,7 +57,7 @@ default-features = false
+ 
+ [dependencies.smallvec]
+ version = ">=1.13"
+-path = "../smallvec"
++path = "../../smallvec"
+ features = ["union"]
+ optional = true
+ 

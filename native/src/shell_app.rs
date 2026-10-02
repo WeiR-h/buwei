@@ -1,0 +1,33 @@
+//! Official desktop packaging seam, following the phone package's wrapper.
+use octosense_shell::App as ShellApp;
+use makepad_widgets::*;
+use makepad_app_module::AppModule;
+script_mod!{use mod.prelude.widgets.* use mod.widgets.* startup() do #(App::script_component(vm)){ui:mod.widgets.OctoSenseRoot{}}}
+#[derive(Script,ScriptHook)]pub struct App{#[deref]shell:ShellApp}
+fn linked_modules()->Vec<&'static dyn AppModule>{vec![&super::gui::MODULE]}
+fn trusted(module:&dyn AppModule)->bool{std::ptr::eq(module,&super::gui::MODULE as &dyn AppModule)}
+impl AppMain for App{
+    fn script_mod(vm:&mut ScriptVm)->ScriptValue{
+        octosense_shell::ext::install(octosense_shell::ext::Ext{linked_modules,trusted_module:trusted});
+        ShellApp::shell_script_mod(vm);self::script_mod(vm)
+    }
+    fn handle_event(&mut self,cx:&mut Cx,event:&Event){
+        self.shell.shell_handle_event(cx,event);
+        if matches!(event,Event::Startup){
+            let app=octosense_shell::clients::AppDef{id:"buwei".into(),label:"补位".into(),bin:"buwei-matrix-host".into(),package:"buwei-matrix-host".into(),dir:".".into(),manifest:None,args:vec![],policy:octosense_shell::clients::LaunchPolicy::OrFocus,target_dir:None};
+            self.shell.launch_module_as(cx,&super::gui::MODULE,&app);
+            #[cfg(feature="full-host")]
+            if super::rinx_bridge::official_mode(){
+                let registry=octosense_shell::apps::AppRegistry::default();
+                if let Some(module)=registry.module("rinx"){
+                    let app=octosense_shell::clients::AppDef{id:"rinx".into(),label:"Rinx · 正式账号登录".into(),bin:"rinx".into(),package:"rinx".into(),dir:".".into(),manifest:None,args:vec![],policy:octosense_shell::clients::LaunchPolicy::OrFocus,target_dir:None};
+                    self.shell.launch_module_as(cx,module,&app);
+                }
+            }
+            if let Some(state)=self.shell.state.as_mut(){state.layout.toggle_fullscreen_mode(octosense_shell::layout::FullscreenMode::Maximized);}
+            self.shell.ui.redraw(cx);
+        }
+    }
+}
+octosense_shell::octosense_main!();
+pub(crate) fn run(){main()}

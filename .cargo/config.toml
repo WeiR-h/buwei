@@ -1,0 +1,14 @@
+[env]
+MAKEPAD_BUNDLE_NAME = { value = "BuWei", force = true }
+MAKEPAD_BUNDLE_IDENTIFIER = { value = "dev.buwei.desktop", force = true }
+OCTOSENSE_WORKSPACE = { value = ".deps/octosense/.sources", relative = true }
+OCTOSENSE_SYSTEM_APPS = { value = ".deps/octosense/desktop/system-apps.json", relative = true }
+
+[net]
+git-fetch-with-cli = true
+
+[target.x86_64-pc-windows-gnu]
+rustflags = ["-C", "link-arg=-Wl,--stack,16777216"]
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "link-arg=/STACK:16777216"]

@@ -1,0 +1,103 @@
+[package]
+name = "buwei-rinx-dual-host"
+version = "0.0.13"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+[workspace]
+members = [".", "crates/action-receipts", "crates/buwei-host-core"]
+
+[dependencies]
+rinx = { git = "https://github.com/hagency-org/Rinx.git", rev = "68afcf796d303aaf646eeb832d65c450a56c92b5", default-features = false, features = ["octosense-module"], optional = true }
+action-receipts = { path = "crates/action-receipts" }
+buwei-host-core = { path = "crates/buwei-host-core" }
+matrix-sdk = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "6892cb217ae4a886571e928c8efcccfbec5490a6", default-features = false }
+tokio = { version = "1", features = ["rt-multi-thread", "time"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["raw_value"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
+
+
+makepad-widgets = { path = "../.deps/octosense/.sources/makepad/widgets", optional = true }
+makepad-app-module = { path = "../.deps/octosense/.sources/makepad/libs/app_module", optional = true }
+octosense-shell = { path = "../.deps/octosense/crates/shell", features = ["app-hub","dev-mode"], optional = true }
+octosense-llm-service = { path = "../.deps/octosense/apps/ai-providers/host-service", optional = true }
+octosense-llm-config = { path = "../.deps/octosense/apps/ai-providers/config", optional = true }
+ureq = { version = "2", default-features = false, features = ["tls"], optional = true }
+sha2 = "0.10"
+hex = "0.4"
+
+[features]
+default = []
+desktop = ["dep:makepad-widgets","dep:makepad-app-module","dep:octosense-shell","dep:octosense-llm-service","dep:octosense-llm-config","dep:ureq"]
+full-host = ["desktop", "octosense-shell/app-rinx", "dep:rinx"]
+
+# Same patched ruma source as the official OctoSense / Rinx lock.
+[patch."https://github.com/ruma/ruma"]
+ruma = { git = "https://github.com/project-robius/ruma.git", rev = "7a912c8579871e72468ee5a4deecc16615e73099" }
+
+[profile.release]
+strip = true
+
+[profile.dev]
+opt-level = 1
+debug = "line-tables-only"
+incremental = false
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.dev.package.argon2]
+opt-level = 3
+[profile.dev.package.blake2]
+opt-level = 3
+[profile.dev.package.image]
+opt-level = 3
+[profile.dev.package.zune-jpeg]
+opt-level = 3
+[profile.dev.package.png]
+opt-level = 3
+[profile.dev.package.rqrr]
+opt-level = 3
+
+[patch."https://github.com/OctoSense-org/makepad.git"]
+makepad-ai = { path = "../.deps/octosense/.sources/makepad/libs/makepad_ai" }
+makepad-aichat = { path = "../.deps/octosense/.sources/makepad/apps/aichat" }
+makepad-script = { path = "../.deps/octosense/.sources/makepad/platform/script" }
+makepad-widgets = { path = "../.deps/octosense/.sources/makepad/widgets" }
+makepad-code-editor = { path = "../.deps/octosense/.sources/makepad/code_editor" }
+makepad-studio-protocol = { path = "../.deps/octosense/.sources/makepad/platform/studio" }
+makepad-network = { path = "../.deps/octosense/.sources/makepad/platform/network" }
+makepad-wm-api = { path = "../.deps/octosense/.sources/makepad/libs/wm_api" }
+makepad-ai-services = { path = "../.deps/octosense/.sources/makepad/libs/ai/services" }
+makepad-strict-json = { path = "../.deps/octosense/.sources/makepad/libs/strict_json" }
+makepad-app-module = { path = "../.deps/octosense/.sources/makepad/libs/app_module" }
+makepad-wm-theme = { path = "../.deps/octosense/.sources/makepad/libs/wm_theme" }
+makepad-markdown = { path = "../.deps/octosense/.sources/makepad/libs/markdown" }
+makepad-markdown-widgets = { path = "../.deps/octosense/.sources/makepad/libs/markdown_widgets" }
+makepad-sheets = { path = "../.deps/octosense/.sources/makepad/apps/sheets" }
+
+[patch."https://github.com/ZhangHanDong/makepad.git"]
+makepad-widgets = { path = "../.deps/octosense/.sources/makepad/widgets" }
+
+[patch."https://github.com/kevinaboos/makepad"]
+makepad-widgets = { path = "../.deps/octosense/.sources/makepad/widgets" }
+makepad-code-editor = { path = "../.deps/octosense/.sources/makepad/code_editor" }
+
+[patch."https://github.com/OctoSense-org/Octoscript.git"]
+octoscript-ui-l0 = { path = "../.deps/octosense/.sources/octoscript/crates/octoscript-ui-l0" }
+octoscript-core = { path = "../.deps/octosense/.sources/octoscript/crates/octoscript-core" }
+
+[patch."https://github.com/OctoSense-org/Octoscript-Makepad.git"]
+octoscript-makepad = { path = "../.deps/octosense/.sources/octoscript-makepad/crates/octoscript-makepad" }
+octoscript-widgets = { path = "../.deps/octosense/.sources/octoscript-makepad/crates/octoscript-widgets" }
+octoscript-node = { path = "../.deps/octosense/.sources/octoscript-makepad/crates/octoscript-node" }
+
+[patch."https://github.com/OctoSense-org/OctoSense.git"]
+octosense-app-peers = { path = "../.deps/octosense/crates/app-peers" }
+octosense-kernel = { path = "../.deps/octosense/crates/kernel" }
+octosense-llm-config = { path = "../.deps/octosense/apps/ai-providers/config" }
+
+[patch."crates-io"]
+nix = { git = "https://github.com/octos-org/octos.git", rev = "18fcd3f16e527d2b601d7ae244f056fb711bb6b8" }

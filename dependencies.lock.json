@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "octosense_commit": "ad0d738bd1c10b735af6b34e11f5826623b6a73b",
+  "frameworks": {
+    "makepad": "4fdcfccc127b700f1fc01aa1a5488af938dd7f3d",
+    "octoscript": "68f6a9df55692b5d8ef8873a12721e279a3f40d6",
+    "octoscript-makepad": "b33f494b963759088edf5785fc626cb8593818ee"
+  },
+  "official_overlay_lock": "runtime-patches.lock.json",
+  "product_patch_sha256": "8df6c2a8d442154f17aca229553ee69f45317962d7b732ae91fae2fda1adf55e"
+}
