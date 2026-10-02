@@ -1,0 +1,24 @@
+{
+  "version": "0.0.14",
+  "passed": true,
+  "scope": "actual official Rinx SDK accounts and server; private room",
+  "automatic_transitions": 7,
+  "manual_refresh_commands": 0,
+  "authorization_revoke_blocks_write": true,
+  "service_history_complete": true,
+  "core_and_host_tests_passed": 78,
+  "binary_sha256": "db1673a80af8ec9eaa95546d5d8f1e475c0ab2d64965ef134b1d142392bc5c71",
+  "binary_variant": "acceptance, excluded from distribution; GUI button and status text refined after run",
+  "per_transition_seconds": [
+    38.34,
+    14.14,
+    31.76,
+    35.81,
+    6.58,
+    44.89,
+    9.59
+  ],
+  "service_time_source": "origin_server_ts, distinct from local collection time",
+  "native_visual_review": false,
+  "stable_v010_allowed": false
+}

@@ -164,7 +164,10 @@ impl Activity {
         let i=&self.invitations[index];
         if room!=self.room || sender!=i.recipient || i.delivery!=Delivery::Delivered || i.server_event.as_deref()!=Some(in_reply_to) {return Err("本人身份或回复关联不匹配".into());}
         if i.reply!=Reply::Pending {return Err("邀请已有处理结果".into());}
-        if now>=i.until || server_time>=i.until || server_time>now.saturating_add(5) {return Err("迟到或过期回复不能占位".into());}
+        // A timely server reply remains valid when the organizer reads it late,
+        // provided the original reservation is still pending. Expired or
+        // reallocated invitations were rejected above. Drain inbox before expiry.
+        if server_time>=i.until || server_time>now.saturating_add(5) {return Err("迟到或过期回复不能占位".into());}
         let mut next=self.clone();next.invitations[index].reply=if accept{Reply::Accepted}else{Reply::Declined};
         let person=next.people.iter_mut().find(|p|p.account==sender).ok_or("参与者不存在")?;
         person.status=if accept{PersonStatus::Confirmed}else{PersonStatus::Declined};next.revision+=1;next.validate()?;*self=next;Ok(())
@@ -189,12 +192,21 @@ impl Store {
     pub fn open(path:impl AsRef<Path>)->Result<Self> {
         let db=Connection::open(path).map_err(|e|e.to_string())?;
         db.busy_timeout(std::time::Duration::from_secs(3)).map_err(|e|e.to_string())?;
-        db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS buwei_state(singleton INTEGER PRIMARY KEY CHECK(singleton=1), revision INTEGER NOT NULL, body TEXT NOT NULL); CREATE TABLE IF NOT EXISTS buwei_inbox(event_id TEXT PRIMARY KEY, accepted INTEGER NOT NULL);").map_err(|e|e.to_string())?;
+        db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS buwei_state(singleton INTEGER PRIMARY KEY CHECK(singleton=1), revision INTEGER NOT NULL, body TEXT NOT NULL); CREATE TABLE IF NOT EXISTS buwei_inbox(event_id TEXT PRIMARY KEY, accepted INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS buwei_sync(room TEXT PRIMARY KEY,event_id TEXT NOT NULL);").map_err(|e|e.to_string())?;
         Ok(Self{db})
     }
     pub fn load(&self)->Result<Option<Activity>> {
         let row:Option<(i64,String)>=self.db.query_row("SELECT revision,body FROM buwei_state WHERE singleton=1",[],|r|Ok((r.get(0)?,r.get(1)?))).optional().map_err(|e|e.to_string())?;
         row.map(|(revision,body)|{let state:Activity=serde_json::from_str(&body).map_err(|_|"活动记录损坏，原文件保留")?;state.validate()?;if revision<1 || state.revision!=revision as u64{return Err("活动版本记录不一致".into());}Ok(state)}).transpose()
+    }
+    pub fn sync_checkpoint(&self,room:&str)->Result<Option<String>> {
+        self.db.query_row("SELECT event_id FROM buwei_sync WHERE room=?1",[room],|r|r.get(0)).optional().map_err(|e|e.to_string())
+    }
+    /// Save only after a complete SDK history interval was processed. If a
+    /// crash happens first, the durable inbox markers deduplicate replay.
+    pub fn save_sync_checkpoint(&self,room:&str,event_id:&str)->Result<()> {
+        if !event_valid(event_id)||self.load()?.is_none_or(|a|a.room!=room){return Err("同步对象或进度不匹配".into());}
+        self.db.execute("INSERT INTO buwei_sync VALUES(?1,?2) ON CONFLICT(room) DO UPDATE SET event_id=excluded.event_id",params![room,event_id]).map_err(|e|e.to_string())?;Ok(())
     }
     pub fn create(&mut self,actor:&Grant,state:&Activity,now:u64)->Result<()> {
         actor.check("create",now).map_err(|_|"活动创建授权已失效")?;

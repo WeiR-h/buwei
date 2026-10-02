@@ -11,7 +11,8 @@ pub(crate) fn set_fault(mode:&str)->Result<()>{
     FAULT.store(value,Ordering::SeqCst);Ok(())
 }
 pub(crate) fn before_send()->Result<()>{if FAULT.compare_exchange(1,0,Ordering::SeqCst,Ordering::SeqCst).is_ok(){return Err("验收注入：发送前传输不可用，保持原编号待核实".into());}Ok(())}
-pub(crate) fn after_server_event()->Result<()>{
+pub(crate) fn after_server_event(kind:&str)->Result<()>{
+    if !matches!(kind,"org.buwei.invitation"|"org.buwei.join"|"org.buwei.reply"|"org.buwei.cancel"|"m.room.message"){return Ok(());}
     if FAULT.compare_exchange(2,0,Ordering::SeqCst,Ordering::SeqCst).is_ok(){return Err("验收注入：服务器事件已读取，丢弃本地回执".into());}
     if FAULT.compare_exchange(3,0,Ordering::SeqCst,Ordering::SeqCst).is_ok(){std::process::abort();}
     Ok(())

@@ -29,20 +29,21 @@ script_mod! {
                 }
                 authorization:=Small{text:"点击查看授权范围，再确认授权。"}
                 expires:=Small{text:"当前未授权"}
+                sync_status:=Small{text:"自动同步尚未授权"}
                 Small{text:"AI 建议会将填写的需求发送到 MiniMax；邀请和文章按完整预览单独确认。"}
                 message:=Text{text:"正式服务器 https://matrix.rinx.chat；浏览器认证由本人完成。"}
-                View{width:Fill height:Fit flow:Right spacing:8
+                organizer_actions:=View{width:Fill height:Fit flow:Right spacing:8
                     sync_activity:=Action{text:"同步活动与回复"}
                     prepare:=Action{text:"预览邀请"}
                     execute:=Action{text:"确认邀请"}
                     reconcile:=Action{text:"核实邀请回执"}
+                    expire:=Action{text:"检查过期邀请"}
                 }
                 reply_status:=Small{text:"当前账号没有待回复邀请。"}
-                View{width:Fill height:Fit flow:Right spacing:8
+                participant_actions:=View{width:Fill height:Fit flow:Right spacing:8
                     accept:=Action{text:"预览本人接受"}
                     decline:=Action{text:"预览本人拒绝"}
                     cancel:=Action{text:"预览本人取消"}
-                    expire:=Action{text:"检查过期邀请"}
                 }
                 participant_preview:=Small{text:"本人操作尚未预览。"}
                 View{width:Fill height:Fit flow:Right spacing:8
@@ -53,6 +54,7 @@ script_mod! {
                     left:=ScrollYView{width:500 height:Fill flow:Down spacing:12 padding:16 show_bg:true draw_bg.color:#xf2f6ef
                         Heading{text:"活动与候补"}
                         activity:=Text{text:"尚无活动"}
+                        organizer_setup:=View{width:Fill height:Fit flow:Down spacing:8
                         title:=Input{text:"周末活动" empty_text:"活动名称"}
                         View{width:Fill height:Fit flow:Right spacing:8
                             Small{text:"容量" width:40}
@@ -65,6 +67,8 @@ script_mod! {
                         create:=Action{text:"创建活动"}
                         member:=Input{empty_text:"第二个测试账号，例如 @test:matrix.rinx.chat"}
                         invite_member:=Action{text:"邀请该账号加入房间（不分配席位）"}
+                        }
+                        participant_setup:=View{width:Fill height:Fit flow:Down spacing:8
                         room:=Input{empty_text:"参与者填写组织者提供的完整房间编号 !..."}
                         join_room:=Action{text:"本人加入并读取活动房间"}
                         Small{text:"组织者先同步活动并邀请房间成员；参与者接入后登记或回复，组织者再次同步。"}
@@ -74,6 +78,7 @@ script_mod! {
                             latest:=Input{text:"23" width:80 empty_text:"最晚小时"}
                             group:=Input{text:"1" width:65 empty_text:"同行人数"}
                             join:=Action{text:"预览本人报名"}
+                        }
                         }
                         people:=Text{text:"尚无候补"}
                         preview:=Small{text:"尚未预览"}
@@ -138,6 +143,11 @@ impl BuWeiView{
         self.view.label(cx,ids!(account)).set_text(cx,&format!("当前真实账号：{} · {}",view.account,if view.authorized{"已授权"}else{"未授权"}));
         self.consent_id=view.consent_id.clone();self.view.label(cx,ids!(authorization)).set_text(cx,&view.consent);self.view.label(cx,ids!(expires)).set_text(cx,&view.expires);
         self.view.label(cx,ids!(activity)).set_text(cx,&view.activity);self.view.label(cx,ids!(people)).set_text(cx,&view.people);
+        self.view.label(cx,ids!(sync_status)).set_text(cx,&view.sync_status);
+        self.view.view(cx,ids!(organizer_actions)).set_visible(cx,view.organizer);
+        self.view.view(cx,ids!(organizer_setup)).set_visible(cx,view.organizer);
+        self.view.view(cx,ids!(participant_actions)).set_visible(cx,!view.organizer);
+        self.view.view(cx,ids!(participant_setup)).set_visible(cx,!view.organizer);
         self.view.label(cx,ids!(participant_preview)).set_text(cx,&view.participant_preview);self.view.label(cx,ids!(history)).set_text(cx,&view.history);
         self.view.label(cx,ids!(reply_status)).set_text(cx,&view.reply);self.view.label(cx,ids!(preview)).set_text(cx,&view.preview);self.view.label(cx,ids!(article)).set_text(cx,&view.article);
         self.view.label(cx,ids!(advice)).set_text(cx,&view.advice);self.view.label(cx,ids!(message)).set_text(cx,&view.message);

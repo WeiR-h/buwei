@@ -11,12 +11,13 @@ pub(crate) enum Command {
     Suggest(String),ApplySuggestion(String),Draft{title:String,markdown:String},
     PrepareArticle,PublishArticle{title:String,markdown:String},ReconcileArticle,Fault,Refresh,
     #[cfg(feature="acceptance")]TestFault(String),
+    #[cfg(feature="acceptance")]CollectEvidence,
 }
 #[derive(Clone,Default)]
-pub(crate) struct View {pub account:String,pub activity:String,pub people:String,pub preview:String,pub participant_preview:String,pub participant_inputs:Option<(String,Preferences)>,pub history:String,pub reply:String,pub article:String,pub draft:Option<(String,String)>,pub advice:String,pub message:String,pub authorized:bool,pub consent_id:Option<String>,pub consent:String,pub expires:String,pub fault:bool}
+pub(crate) struct View {pub account:String,pub activity:String,pub people:String,pub preview:String,pub participant_preview:String,pub participant_inputs:Option<(String,Preferences)>,pub history:String,pub reply:String,pub article:String,pub draft:Option<(String,String)>,pub advice:String,pub message:String,pub sync_status:String,pub organizer:bool,pub authorized:bool,pub consent_id:Option<String>,pub consent:String,pub expires:String,pub fault:bool}
 pub(crate) struct Controller {
     root:PathBuf,consent:Option<consent::Consent>,authorized_until:u64,server_verified:bool,data:PathBuf,rt:Arc<Runtime>,owner:Client,participant:Client,
-    selected:bool,authority:Authority,grant:Option<Grant>,article_grant:Option<Grant>,
+    selected:bool,authority:Authority,grant:Option<Grant>,article_grant:Option<Grant>,sync_grant:Option<Grant>,last_sync_status:String,
     journal:Journal,current:Option<Operation>,participant_current:Option<Operation>,article_current:Option<Operation>,
     fault:bool,model:Arc<octosense_llm_service::complete::ModelHost>,
     suggestion:Option<(String,String,u64,ModelAdvice)>,message:String,
@@ -33,7 +34,7 @@ impl Controller {
         let data=root.join("data").join(format!("v{}",env!("CARGO_PKG_VERSION"))).join("native");std::fs::create_dir_all(&data).map_err(|_|"业务记录目录不可用")?;
         let authority=Authority::default();authority.set_account(Some(&account(&owner)));
         let journal=Journal::open(data.join("operations.db")).map_err(|_|"回执数据库不可用")?;
-        Ok(Self{root:root.to_path_buf(),consent:None,authorized_until:0,server_verified:true,data,rt,owner,participant,selected:false,authority,grant:None,article_grant:None,journal,current:None,participant_current:None,article_current:None,fault:false,model:model::host(root),suggestion:None,message:"两个本机测试身份已向服务端核验。请先授权；每次执行仍需确认确切预览。".into()})
+        Ok(Self{root:root.to_path_buf(),consent:None,authorized_until:0,server_verified:true,data,rt,owner,participant,selected:false,authority,grant:None,article_grant:None,sync_grant:None,last_sync_status:"等待同步授权".into(),journal,current:None,participant_current:None,article_current:None,fault:false,model:model::host(root),suggestion:None,message:"两个本机测试身份已向服务端核验。请先授权；每次执行仍需确认确切预览。".into()})
     }
     #[cfg(feature="full-host")]
     fn open_official(root:&Path)->Result<Self>{
@@ -46,7 +47,7 @@ impl Controller {
         let authority=Authority::default();authority.set_account(Some(&actor));
         let journal=Journal::open(data.join("operations.db")).map_err(|_|"回执数据库不可用")?;
         rinx_bridge::record_status(root,Some(&actor),true,false)?;
-        Ok(Self{root:root.to_path_buf(),consent:None,authorized_until:0,server_verified:true,data,rt,owner:client.clone(),participant:client,selected:false,authority,grant:None,article_grant:None,journal,current:None,participant_current:None,article_current:None,fault:false,model:model::host(root),suggestion:None,message:"Rinx 当前正式账号已向服务端核验。尚未授权；两个隔离窗口可通过活动房间联调；正式双账号验收尚未完成。".into()})
+        Ok(Self{root:root.to_path_buf(),consent:None,authorized_until:0,server_verified:true,data,rt,owner:client.clone(),participant:client,selected:false,authority,grant:None,article_grant:None,sync_grant:None,last_sync_status:"等待同步授权".into(),journal,current:None,participant_current:None,article_current:None,fault:false,model:model::host(root),suggestion:None,message:"Rinx 当前真实账号已向服务端核验。请查看授权范围；打开期间每 10 秒同步已核验状态。".into()})
     }
     pub fn host_session_current(&self)->bool{
         #[cfg(feature="full-host")]
@@ -81,20 +82,32 @@ impl Controller {
         match command {
             #[cfg(feature="acceptance")]
             Command::TestFault(mode)=>{self.g("read")?;super::acceptance::set_fault(&mode)?;Ok("仅验收构建的单次传输故障已设置；公开运行包不包含此功能。".into())},
+            #[cfg(feature="acceptance")]
+            Command::CollectEvidence=>{
+                self.g("read")?;
+                let a=self.activity()?;let room=OwnedRoomId::try_from(a.room.as_str()).map_err(|_|"活动房间不合法")?;
+                let values=official_sync::timeline(&self.rt,self.active(),&room)?;
+                let events=values.into_iter().filter(|v|matches!(v["type"].as_str(),Some("org.buwei.invitation"|"org.buwei.join"|"org.buwei.reply"|"org.buwei.cancel"|"m.room.message"|"org.buwei.activity"))).map(|v|json!({"event_id":v["event_id"],"sender":v["sender"],"type":v["type"],"origin_server_ts":v["origin_server_ts"],"content":v["content"]})).collect::<Vec<_>>();
+                let evidence=json!({"collected_at_unix":now(),"complete_sdk_history":true,"room":a.room,"events":events});
+                let dir=self.root.join(".run/acceptance");std::fs::write(dir.join("events.private.json"),serde_json::to_vec_pretty(&evidence).map_err(|_|"证据格式不合法")?).map_err(|_|"私密证据目录不可写")?;
+                Ok("完整 SDK 事件与服务端时间已保存到本机私密验收目录。".into())
+            },
             Command::Authorize=>{self.consent=Some(consent::Consent::prepare(self.actor(),now()));Ok("请核对下面的账号、权限范围和有效期，再确认授权。".into())},
             Command::ConfirmAuthorization(id)=>{
                 self.consent.as_ref().ok_or("请先查看授权范围")?.check(&id,&self.actor(),now())?;
-                self.consent=None;if let Some(g)=&self.grant{g.revoke();}if let Some(g)=&self.article_grant{g.revoke();}
+                self.consent=None;if let Some(g)=&self.grant{g.revoke();}if let Some(g)=&self.article_grant{g.revoke();}if let Some(g)=&self.sync_grant{g.revoke();}
                 let clock=now();self.authorized_until=clock+3600;
                 self.grant=Some(self.authority.grant("buwei",&["create","invite","participate","model","read"],clock,3600).map_err(|_|"授权不可用")?);
                 self.article_grant=Some(self.authority.grant("buwei-article",&["create","publish"],clock,3600).map_err(|_|"文章授权不可用")?);
+                self.sync_grant=Some(self.authority.grant("buwei-sync",&["sync_state"],clock,3600).map_err(|_|"同步授权不可用")?);
+                self.last_sync_status="已授权自动读取回复并同步活动状态，每 10 秒检查；尚未同步".into();
                 let recent=self.journal.recent(self.grant.as_ref().unwrap(),now()).map_err(|_|"历史回执不可用")?;
                 self.current=recent.iter().find(|o|o.action.permission=="invite").cloned();self.participant_current=recent.iter().find(|o|o.action.permission=="participate").cloned();
                 self.article_current=self.journal.recent(self.article_grant.as_ref().unwrap(),now()).map_err(|_|"文章回执不可用")?.into_iter().next();
                 Ok("已授权当前真实账号。旧的未执行确认不会自动恢复，请重新预览。".into())
             }
-            Command::Switch=>{self.selected=!self.selected;self.authority.set_account(Some(&self.actor()));self.grant=None;self.article_grant=None;self.current=None;self.participant_current=None;self.article_current=None;self.consent=None;self.authorized_until=0;self.suggestion=None;Ok("账号已切换；旧授权与旧确认已失效。".into())}
-            Command::Revoke=>{if let Some(g)=&self.grant{g.revoke();}if let Some(g)=&self.article_grant{g.revoke();}self.suggestion=None;self.consent=None;self.authorized_until=0;Ok("当前账号的授权已撤销。".into())}
+            Command::Switch=>{self.selected=!self.selected;self.authority.set_account(Some(&self.actor()));self.grant=None;self.article_grant=None;self.sync_grant=None;self.current=None;self.participant_current=None;self.article_current=None;self.consent=None;self.authorized_until=0;self.last_sync_status="账号已切换，自动同步停止".into();self.suggestion=None;Ok("账号已切换；旧授权与旧确认已失效。".into())}
+            Command::Revoke=>{if let Some(g)=&self.grant{g.revoke();}if let Some(g)=&self.article_grant{g.revoke();}if let Some(g)=&self.sync_grant{g.revoke();}self.last_sync_status="授权已撤销，自动同步停止".into();self.suggestion=None;self.consent=None;self.authorized_until=0;Ok("当前账号的授权已撤销。".into())}
             Command::JoinRoom(room)=>{
                 #[cfg(feature="full-host")] if rinx_bridge::official_mode(){self.g("participate")?;let room=OwnedRoomId::try_from(room.trim()).map_err(|_|"请填写完整活动房间编号")?;if let Ok(a)=self.activity(){if a.room!=room.as_str(){return Err("本版只管理一场活动，请保留现有活动".into());}}
                     self.rt.block_on(self.active().join_room_by_id(&room)).map_err(|_|"尚不能加入；请组织者先邀请这个测试账号加入房间")?;let a=official_sync::fetch(&self.rt,self.active(),&room)?;if a.owner==self.actor(){return Err("组织者请使用创建活动入口".into());}Store::open(self.data.join("activity.db"))?.cache_verified_snapshot(&a)?;return Ok("已核验组织者并读取活动；本人登记和回复由组织者同步后生效。".into());}
@@ -143,7 +156,11 @@ impl Controller {
                 self.prepare_participant(buwei_host_core::participation::Intent::Reply{invitation_id:i.operation_id.clone(),invitation_event:i.server_event.clone().ok_or("邀请尚未核验送达")?,accept})
             },
             Command::Cancel=>self.prepare_participant(buwei_host_core::participation::Intent::Cancel),
-            Command::Expire=>{self.g("read")?;let a=self.activity()?;if self.actor()!=a.owner{return Err("过期处理由组织者管理".into());}let count=a.invitations.iter().filter(|i|i.until<=now()&&i.reply==buwei_host_core::Reply::Pending).count();Store::open(self.data.join("activity.db"))?.update(a.revision,|a|{a.expire(now());Ok(())})?;Ok(format!("已检查 {count} 个到期邀请；结果待核实的名额继续保留。"))}
+            Command::Expire=>{
+                self.g("read")?;if self.activity()?.owner!=self.actor(){return Err("过期处理由组织者管理".into());}
+                #[cfg(feature="full-host")]if rinx_bridge::official_mode(){return self.sync_activity();}
+                let a=self.activity()?;Store::open(self.data.join("activity.db"))?.update(a.revision,|a|{a.expire(now());Ok(())})?;Ok("已检查过期；不明发送继续保留名额".into())
+            }
             Command::Suggest(text)=>{let g=self.g("model")?;let a=self.activity()?;let (advice,reply)=model::recommend(&self.model,&g,&text)?;let proof=json!({"version":env!("CARGO_PKG_VERSION"),"returned_model":"MiniMax-M3","official_model_host":true,"schema_validated":true,"usage":reply["meta"]["usage"],"budget":reply["meta"]["budget"],"model_did_not_change_activity":self.activity()?.revision==a.revision});std::fs::write(self.data.join("model-receipt.json"),serde_json::to_vec_pretty(&proof).map_err(|_|"模型回执格式不合法")?).map_err(|_|"建议已生成，但本机回执保存失败")?;self.suggestion=Some((self.actor(),advice_digest(&text,a.revision),a.revision,advice));Ok("建议已生成，尚未修改候补偏好或队列。请核对后本人确认。".into())}
             Command::ApplySuggestion(text)=>{self.g("participate")?;let a=self.activity()?;let (actor,digest,revision,advice)=self.suggestion.as_ref().ok_or("请先生成建议")?;
                 if *actor!=self.actor()||*revision!=a.revision||*digest!=advice_digest(&text,a.revision){return Err("输入、账号或活动版本已变化，请重新生成建议".into());}if advice.needs_clarification{return Err("建议需要补充信息，请先完善需求或手动填写时段".into());}
@@ -162,9 +179,29 @@ impl Controller {
     #[cfg(feature="full-host")]
     fn sync_activity(&mut self)->Result<String>{
         self.g("read")?;let a=self.activity()?;if self.actor()!=a.owner{return self.apply(Command::Refresh).map(|_|"组织者活动状态已刷新".into());}self.g("invite")?;
-        let room=OwnedRoomId::try_from(a.room.as_str()).map_err(|_|"活动房间不可用")?;let events=official_sync::timeline(&self.rt,self.active(),&room)?;let mut accepted=0;let mut rejected=0;let mut store=Store::open(self.data.join("activity.db"))?;
+        let room=OwnedRoomId::try_from(a.room.as_str()).map_err(|_|"活动房间不可用")?;
+        official_sync::check_authority(&self.rt,self.active(),&a)?;
+        // The expiry watermark is captured before reading. Replies accepted by
+        // the server while paging cannot be released by a later local clock.
+        let watermark=now().saturating_sub(5);let mut store=Store::open(self.data.join("activity.db"))?;
+        let checkpoint=store.sync_checkpoint(&a.room)?;
+        let events=official_sync::timeline_since(&self.rt,self.active(),&room,checkpoint.as_deref())?;let mut accepted=0;let mut rejected=0;
+        let last=events.last().and_then(|v|v["event_id"].as_str()).map(str::to_owned);
         for v in events{if !matches!(v["type"].as_str(),Some("org.buwei.join"|"org.buwei.reply"|"org.buwei.cancel")){continue;}let id=v["event_id"].as_str().ok_or("服务端编号缺失")?;match store.apply_verified_event(id,|a|official_sync::apply_participant(a,room.as_str(),&v,now()))?{Some(true)=>accepted+=1,Some(false)=>rejected+=1,None=>{}}}
-        let state=store.load()?.ok_or("活动缺失")?;official_sync::publish(&self.rt,self.active(),&state)?;Ok(format!("活动同步已核验：新增有效操作 {accepted}，拒绝无效操作 {rejected}。重复服务器事件不会再次生效。"))
+        if let Some(id)=last{store.save_sync_checkpoint(&a.room,&id)?;}
+        let current=store.load()?.ok_or("活动缺失")?;let mut expired=0;
+        store.update(current.revision,|a|{expired=a.expire(watermark);Ok(())})?;
+        let sg=self.sync_grant.as_ref().ok_or("同步授权不可用")?.clone();
+        official_sync::publish(self.rt.clone(),&self.owner,self.data.join("activity.db"),&sg,&mut self.journal)?;
+        let result=format!("活动同步已核验：有效 {accepted}，拒绝 {rejected}，过期释放 {expired}；进度已保存。");self.last_sync_status=result.clone();Ok(result)
+    }
+    pub fn automatic_sync(&mut self)->Option<View>{
+        if !self.is_authorized(){return None;}
+        #[cfg(feature="full-host")]if rinx_bridge::official_mode(){
+            if self.activity().is_err(){return None;}
+            let view=self.handle(Command::SyncActivity);self.last_sync_status=format!("{} · 本机检查北京时间 {:02}:{:02}:{:02}",view.message,((now()/3600)+8)%24,(now()/60)%60,now()%60);return Some(self.view());
+        }
+        None
     }
     fn participant_adapter(&self)->Result<participant::ParticipantAdapter>{
         let a=self.activity()?;Ok(participant::ParticipantAdapter{runtime:self.rt.clone(),client:self.active().clone(),room:OwnedRoomId::try_from(a.room.as_str()).map_err(|_|"房间编号不合法")?,state:self.data.join("activity.db"),drop_ack:self.fault})
@@ -191,23 +228,31 @@ impl Controller {
         }
         Ok(format!("沿原编号核实：恢复 {restored} 项，仍待核实 {unresolved} 项。没有重新发送。"))
     }
-    pub fn shutdown(&mut self){self.consent=None;self.authorized_until=0;if let Some(g)=&self.grant{g.revoke();}if let Some(g)=&self.article_grant{g.revoke();}
+    pub fn shutdown(&mut self){self.consent=None;self.authorized_until=0;if let Some(g)=&self.grant{g.revoke();}if let Some(g)=&self.article_grant{g.revoke();}if let Some(g)=&self.sync_grant{g.revoke();}
         #[cfg(feature="full-host")] if rinx_bridge::official_mode(){let _=rinx_bridge::record_status(&self.root,None,false,false);}
     }
     pub fn is_authorized(&self)->bool{self.grant.as_ref().is_some_and(|g|g.check("read",now()).is_ok())}
     #[cfg(feature="acceptance")]
     pub fn acceptance_snapshot(&self)->Value{json!({"version":env!("CARGO_PKG_VERSION"),"collected_at_unix":now(),"account":self.actor(),"authorized":self.is_authorized(),"consent_id":self.consent.as_ref().map(|c|&c.id),"message":self.message,"activity":self.activity().ok(),"invitation":self.current,"participant":self.participant_current,"article":self.article_current})}
     pub fn view(&self)->View {
-        let mut v=View{account:self.actor(),message:self.message.clone(),authorized:self.grant.as_ref().is_some_and(|g|g.check("read",now()).is_ok()),fault:self.fault,..Default::default()};
-        v.consent_id=self.consent.as_ref().map(|p|p.id.clone());v.consent=if self.consent.is_some(){format!("授权对象：{}\n补位：创建本场活动、邀请、本人登记与回复、读取记录、请求 AI 建议。\n文章：保存草稿并在单独确认后发布。有效期：确认后 1 小时；本次授权预览 2 分钟内有效。\n登录由 Rinx 管理；邀请和发布仍需核对具体预览。",self.actor())}else{"点击查看授权范围，再确认授权。".into()};
+        let mut v=View{account:self.actor(),message:self.message.clone(),authorized:self.grant.as_ref().is_some_and(|g|g.check("read",now()).is_ok()),fault:self.fault,organizer:std::env::var("BUWEI_PROFILE").as_deref()!=Ok("participant"),sync_status:if self.is_authorized(){self.last_sync_status.clone()}else{"当前未授权，自动同步已停止".into()},..Default::default()};
+        v.consent_id=self.consent.as_ref().map(|p|p.id.clone());v.consent=if self.consent.is_some(){format!("授权对象：{}\n补位：创建本场活动、邀请、本人登记与回复、读取记录、请求 AI 建议。\n自动读取回复并同步活动状态：应用打开期间每 10 秒检查；组织者同步已核验快照，参与者读取最终结果；不自动发新邀请或文章。\n文章：保存草稿并在单独确认后发布。有效期：确认后 1 小时；授权预览 2 分钟内有效。",self.actor())}else{"点击查看授权范围，再确认授权。".into()};
         v.expires=if v.authorized{format!("授权剩余约 {} 分钟 · 到期北京时间 {:02}:{:02} · 可随时撤销",(self.authorized_until.saturating_sub(now())+59)/60,((self.authorized_until/3600)+8)%24,(self.authorized_until/60)%60)}else{"当前未授权；重启、撤销或账号变化后需重新确认。".into()};
         match self.activity(){Ok(a)=>{
+            v.organizer=a.owner==self.actor();
             v.reply=match a.invitations.iter().rev().find(|i|i.recipient==self.actor()&&i.reply==buwei_host_core::Reply::Pending&&i.delivery==buwei_host_core::Delivery::Delivered){
                 Some(i) if now()<i.until=>format!("本人邀请：{} · 还剩 {} 秒 · 北京时间 {:02}:{:02}:{:02} 截止。接受后等待组织者同步。",i.recipient,i.until.saturating_sub(now()),((i.until/3600)+8)%24,(i.until/60)%60,i.until%60),
                 Some(_)=>"本人邀请已过期；请组织者检查过期并同步，再重新登记。迟到回复不会发送。".into(),
                 None=>"当前账号没有已送达且待回复的邀请。".into(),
-            };v.activity=format!("{} · {}:00–{}:00\n容量 {} · 已确认 {} · 保留 {} · 可用 {}\n活动对象：{} · 版本 {}",a.title,a.start,a.end,a.capacity,a.confirmed(),a.held(),a.free(),a.room,a.revision);v.people=a.people.iter().map(|p|{let status=match p.status{buwei_host_core::PersonStatus::Waiting=>"候补中",buwei_host_core::PersonStatus::Confirmed=>"本人已接受",buwei_host_core::PersonStatus::Declined=>"本人已拒绝",buwei_host_core::PersonStatus::Cancelled=>"本人已取消",buwei_host_core::PersonStatus::Expired=>"邀请已过期"};let delivery=a.invitations.iter().rev().find(|i|i.recipient==p.account).map(|i|format!("\n最近邀请：{} · {}\n服务端事件：{}",match i.delivery{buwei_host_core::Delivery::Pending=>"等待核验",buwei_host_core::Delivery::Unknown=>"结果待核实",buwei_host_core::Delivery::Delivered=>"已核实送达",buwei_host_core::Delivery::Rejected=>"发送被拒绝"},match i.reply{buwei_host_core::Reply::Pending=>"等待本人回复",buwei_host_core::Reply::Accepted=>"已接受",buwei_host_core::Reply::Declined=>"已拒绝",buwei_host_core::Reply::Expired=>"已过期"},i.server_event.as_deref().unwrap_or("尚无证据"))).unwrap_or_default();format!("第 {} 位 · {} · {}\n账号：{}\n可用 {}–{} 点，{} 人{}",p.joined,p.name,status,p.account,p.preferences.earliest,p.preferences.latest,p.preferences.group,delivery)}).collect::<Vec<_>>().join("\n\n");},Err(_)=>v.activity="还没有活动。由组织者填写信息并创建。".into()}
-        fn describe(op:&Operation)->String{let status=match op.status{Status::Prepared=>"等待确认（尚未发送）",Status::Queued=>"已确认，等待执行",Status::Dispatching=>"执行中，等待核验",Status::Unknown=>"结果待核实（禁止重发）",Status::Confirmed=>"服务端回执已核实",Status::Failed=>"操作失败",Status::Cancelled=>"操作已取消",Status::Expired=>"确认已过期"};format!("{}\n账号：{}\n对象：{}\n编号：{}\n摘要：{}\n状态：{}\n完整参数：{}",op.action.summary,op.account,op.action.target,op.id,op.digest,status,op.action.payload)}
+            };
+            if let Some(p)=a.people.iter().find(|p|p.account==self.actor()){
+                if p.status!=buwei_host_core::PersonStatus::Waiting{v.reply=format!("组织者已核验本人最终结果：{}",match p.status{buwei_host_core::PersonStatus::Confirmed=>"已接受，占位成功",buwei_host_core::PersonStatus::Declined=>"已拒绝，名额已释放",buwei_host_core::PersonStatus::Cancelled=>"已取消，名额已释放",buwei_host_core::PersonStatus::Expired=>"已过期，名额已释放",_=>"候补中"});}
+            }
+            if let Some(op)=&self.participant_current{if op.status==Status::Confirmed&&op.action.permission=="participate"{
+                if let Ok(intent)=buwei_host_core::participation::Intent::parse(&op.action){let waiting=match intent{buwei_host_core::participation::Intent::Join{..}=>a.people.iter().find(|p|p.account==self.actor()).is_none_or(|p|p.status!=buwei_host_core::PersonStatus::Waiting),buwei_host_core::participation::Intent::Reply{invitation_id,..}=>a.invitations.iter().any(|i|i.operation_id==invitation_id&&i.reply==buwei_host_core::Reply::Pending),buwei_host_core::participation::Intent::Cancel=>a.people.iter().any(|p|p.account==self.actor()&&p.status==buwei_host_core::PersonStatus::Confirmed)};if waiting{v.reply="本人操作已送达服务器，等待组织者核验；以同步后的最终席位为准。".into();}}
+            }}
+            v.activity=format!("{} · {}:00–{}:00\n容量 {} · 本人已接受 {} · 名额已保留 {} · 可用 {}\n活动对象：{} · 版本 {}",a.title,a.start,a.end,a.capacity,a.confirmed(),a.held(),a.free(),a.room,a.revision);v.people=a.people.iter().map(|p|{let status=match p.status{buwei_host_core::PersonStatus::Waiting=>"候补中",buwei_host_core::PersonStatus::Confirmed=>"本人已接受",buwei_host_core::PersonStatus::Declined=>"本人已拒绝",buwei_host_core::PersonStatus::Cancelled=>"本人已取消",buwei_host_core::PersonStatus::Expired=>"邀请已过期"};let delivery=a.invitations.iter().rev().find(|i|i.recipient==p.account).map(|i|format!("\n最近邀请：名额{} · 邀请{} · {}",if i.reply==buwei_host_core::Reply::Pending&&i.delivery!=buwei_host_core::Delivery::Rejected{"已保留"}else{"已结算"},match i.delivery{buwei_host_core::Delivery::Pending=>"待核验",buwei_host_core::Delivery::Unknown=>"结果待核实",buwei_host_core::Delivery::Delivered=>"已送达",buwei_host_core::Delivery::Rejected=>"发送被拒绝"},match i.reply{buwei_host_core::Reply::Pending=>"本人尚未接受",buwei_host_core::Reply::Accepted=>"本人已接受",buwei_host_core::Reply::Declined=>"本人已拒绝",buwei_host_core::Reply::Expired=>"本人未回复，已过期"})).unwrap_or_default();format!("第 {} 位 · {} · {}\n账号：{}\n可用 {}–{} 点，{} 人{}",p.joined,p.name,status,p.account,p.preferences.earliest,p.preferences.latest,p.preferences.group,delivery)}).collect::<Vec<_>>().join("\n\n");},Err(_)=>v.activity="还没有活动。由组织者填写信息并创建。".into()}
+        fn describe(op:&Operation)->String{let status=if matches!(op.status,Status::Prepared|Status::Queued)&&now()>=op.expires_at{"确认已过期，请重新预览"}else{match op.status{Status::Prepared=>"等待确认（尚未发送）",Status::Queued=>"已确认，等待执行",Status::Dispatching=>"执行中，等待核验",Status::Unknown=>"结果待核实（禁止重发）",Status::Confirmed=>"服务端回执已核实",Status::Failed=>"操作失败",Status::Cancelled=>"操作已取消",Status::Expired=>"确认已过期"}};format!("{}\n账号：{}\n对象：{}\n编号：{}\n摘要：{}\n状态：{}\n完整参数：{}",op.action.summary,op.account,op.action.target,op.id,op.digest,status,op.action.payload)}
         v.preview=self.current.as_ref().map(describe).unwrap_or_else(||"尚未预览邀请。".into());
         v.participant_preview=self.participant_current.as_ref().map(describe).unwrap_or_else(||"本人操作尚未预览。".into());
         v.participant_inputs=self.participant_current.as_ref().and_then(|op|match buwei_host_core::participation::Intent::parse(&op.action).ok()?{buwei_host_core::participation::Intent::Join{preferences}=>Some((op.id.clone(),preferences)),_=>None});

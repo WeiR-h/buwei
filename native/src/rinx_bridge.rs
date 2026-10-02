@@ -38,7 +38,7 @@ pub fn verified_current(rt:&Runtime)->Result<Client>{
 pub fn record_status(root:&Path,actor:Option<&str>,verified:bool,authorized:bool)->Result<()>{
     let dir=root.join("data").join(format!("v{}",env!("CARGO_PKG_VERSION")));
     std::fs::create_dir_all(&dir).map_err(|_|"状态目录不可用")?;
-    let v=json!({"snapshot_at_unix":now(),"process_id":std::process::id(),"kind":"local status snapshot, not an authorization token","version":env!("CARGO_PKG_VERSION"),"homeserver":"https://matrix.rinx.chat","identity_source":"rinx_host_current_client","account":actor,"server_identity_verified":verified,"action_authorized":authorized,"automatic_messages_sent":false});
+    let v=json!({"snapshot_at_unix":now(),"process_id":std::process::id(),"kind":"local status snapshot, not an authorization token","version":env!("CARGO_PKG_VERSION"),"homeserver":"https://matrix.rinx.chat","identity_source":"rinx_host_current_client","account":actor,"server_identity_verified":verified,"action_authorized":authorized,"automatic_new_invitations":false,"automatic_articles":false,"automatic_state_sync_authorized":authorized});
     std::fs::write(dir.join("rinx-binding-status.json"),serde_json::to_vec_pretty(&v).map_err(|_|"状态格式不可用")?).map_err(|_|"绑定状态不可保存".into())
 }
 

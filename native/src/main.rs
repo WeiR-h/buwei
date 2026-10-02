@@ -53,7 +53,7 @@ fn send(rt:&Runtime,c:&Client,room:&OwnedRoomId,transaction:&str,kind:&str,conte
 }
 fn event(rt:&Runtime,c:&Client,room:&OwnedRoomId,id:OwnedEventId)->Result<Value> {
     let response=rt.block_on(async {c.send(get_room_event::v3::Request::new(room.clone(),id)).await}).map_err(|_|"服务端事件暂不可核实")?;
-    #[cfg(feature="acceptance")] acceptance::after_server_event()?;
+    #[cfg(feature="acceptance")] {let value:Value=serde_json::from_str(response.event.json().get()).map_err(|_|"服务端事件格式不合法")?;acceptance::after_server_event(value["type"].as_str().unwrap_or_default())?;}
     serde_json::from_str(response.event.json().get()).map_err(|_|"服务端事件格式不合法".into())
 }
 struct SdkAdapter {runtime:Arc<Runtime>,client:Client,room:OwnedRoomId,state:PathBuf,drop_ack:bool}
