@@ -1,16 +1,17 @@
 {
   "version": "0.0.13",
-  "recorded_at": "2026-10-02T11:57:54.458815+00:00",
-  "scope": "unit tests; SDK formal acceptance not yet performed",
+  "recorded_at": "2026-10-02T12:45:35.120725+00:00",
+  "scope": "70 core tests and 4 official host checks; one formal dual-account loop and participant lost-ack restart recovery",
   "tests": {
     "action_receipts": 29,
     "article": 6,
     "business_rules": 27,
     "participant_recovery": 8,
-    "failed": 0
+    "failed": 0,
+    "official_host": 4
   },
   "core_passed": true,
-  "native_host_check": "running",
-  "formal_recovery_verified": false,
+  "native_host_check": "passed",
+  "formal_recovery_verified": true,
   "stable_release_allowed": false
 }
