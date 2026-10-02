@@ -13,7 +13,13 @@ def source_fingerprint():
 def snapshot():
     try:commit=subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True).strip()
     except subprocess.CalledProcessError:commit=None
-    return {'source_commit':commit,'native_source_sha256':source_fingerprint(),'dependencies_lock_sha256':digest(ROOT/'dependencies.lock.json'),'cargo_lock_sha256':digest(ROOT/'native/Cargo.lock'),'rustc':subprocess.check_output(['rustc','--version'],text=True).strip(),'features':['full-host']}
+    rustc=subprocess.check_output(['rustc','--version'],text=True).strip()
+    host=subprocess.check_output(['rustc','-vV'],text=True)
+    compiler={}
+    if 'host: x86_64-pc-windows-gnu' in host:
+        compiler['gcc']=subprocess.check_output(['gcc','-dumpfullversion','-dumpversion'],text=True).strip()
+        compiler['binutils']=subprocess.check_output(['ld','--version'],text=True).splitlines()[0]
+    return {'source_commit':commit,'native_source_sha256':source_fingerprint(),'dependencies_lock_sha256':digest(ROOT/'dependencies.lock.json'),'cargo_lock_sha256':digest(ROOT/'native/Cargo.lock'),'rustc':rustc,'compiler':compiler,'features':['full-host']}
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--start',type=pathlib.Path);p.add_argument('--finish',type=pathlib.Path);p.add_argument('--binary',type=pathlib.Path);p.add_argument('--output',type=pathlib.Path);a=p.parse_args()
     if a.start:a.start.parent.mkdir(parents=True,exist_ok=True);a.start.write_text(json.dumps(snapshot(),indent=2),'utf8')

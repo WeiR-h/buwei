@@ -14,8 +14,8 @@
 
 ## 源码构建
 
-需要 Windows x64、Git、Python 3.12+、Rust 1.98.0 和 C/C++ 工具链。
-GNU 目标需 MinGW GCC；MSVC 目标需 Visual Studio C++ Build Tools。
+需要 Windows x64、Git、Python 3.12+、Rust 1.98.0 GNU 和 MinGW GCC。
+实际构建所用 GCC 与 Binutils 版本记录在运行包构建来源中。
 首次构建需要网络下载固定依赖，不需要模型密钥或 Rinx 登录。
 
 ```powershell

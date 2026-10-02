@@ -28,10 +28,16 @@ class Hosts:
     def stop(self,role):
         process=self.processes.get(role)
         if process and process.poll() is not None:return
-        try:urllib.request.urlopen('http://127.0.0.1:'+str(self.ports[role])+'/quit',timeout=8).read()
-        except OSError:
-            if process and process.poll() is None:raise RuntimeError('Could not gracefully stop own host; profile preserved')
-        if process:process.wait(timeout=35)
+        opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        try:opener.open('http://127.0.0.1:'+str(self.ports[role])+'/quit',timeout=8).read()
+        except OSError:pass
+        # The upstream RPC replies after four seconds, but its queued Quit can
+        # still complete later during software rendering. Wait for this exact
+        # child without resending or killing a signed-in process.
+        if process:
+            try:process.wait(timeout=90)
+            except subprocess.TimeoutExpired:raise RuntimeError('Own host did not finish queued shutdown; profile preserved')
+            if process.returncode!=0:raise RuntimeError('Own host shutdown failed; profile preserved')
     def restart(self,role):self.stop(role);self.start(role)
 
 class FaultSuite(Suite):

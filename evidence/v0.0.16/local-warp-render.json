@@ -1,0 +1,19 @@
+{
+  "version": "0.0.16",
+  "passed": true,
+  "scope": "Local Windows native acceptance executable on a fresh profile with forced WARP renderer; not a clean-machine package check",
+  "binary_sha256": "f48cdfec4855641f19e986673835bc91524acc75b711227832c869098da52d1a",
+  "provider_calls": 0,
+  "known_upstream_diagnostics": [
+    {
+      "upstream_file": "makepad/widgets/src/widget_async.rs:787",
+      "diagnostic": "isolated VM global UI update safely deferred",
+      "count": 1,
+      "behavior": "upstream guard deferred isolated VM update; native render and shutdown checked"
+    }
+  ],
+  "actual_native_render": true,
+  "software_backend_confirmed_by_native_log": true,
+  "normal_shutdown": true,
+  "unauthenticated_and_unauthorized": true
+}

@@ -94,6 +94,7 @@
     "official_sync::tests::projection_receipt_rejects_changed_identity_revision_content_and_operation",
     "rinx_bridge::tests::app_supplied_sdk_session_cannot_replace_a_rinx_login"
   ],
-  "private_log_sha256": "52a549ea45a541549200d7b471cd2d8702047b2723f571050f294ce12925a094",
-  "scope": "Full host workspace tests on local Windows; real SDK and clean environment evidence recorded separately"
+  "private_log_sha256": "0b6079cf4c20e8e05aabfcc2d85107220bed37eb1b5bce869fec665f3a0b6aaf",
+  "scope": "Full host workspace tests on local Windows; real SDK and clean environment evidence recorded separately",
+  "fixed_warp_patch_included": true
 }

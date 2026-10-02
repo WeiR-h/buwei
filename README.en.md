@@ -13,8 +13,9 @@ not passed.** See [acceptance](docs/ACCEPTANCE.md) for measured results.
 
 ## Build
 
-Windows x64, Git, Python 3.12+, Rust 1.98.0, and MinGW GCC (GNU) or Visual Studio
-C++ Build Tools (MSVC). First build downloads fixed upstream dependencies.
+Windows x64, Git, Python 3.12+, Rust 1.98.0 GNU, and MinGW GCC.
+Build provenance records the GCC and Binutils versions. First build downloads
+fixed upstream dependencies.
 Keys and signed-in profiles are not needed to build.
 
 ```powershell

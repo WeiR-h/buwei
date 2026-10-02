@@ -11,6 +11,9 @@ $env:BUWEI_PROFILE='organizer'
 
 参与者使用另一资料目录，`BUWEI_PROFILE=participant`。
 Rinx 登录服务器为 `matrix.rinx.chat`，浏览器认证由本人完成。
+首次看到 “Let Rinx's agent start?” 弹窗时选择 **Don't allow**。
+该弹窗控制后台 Agent；本版提供本人登录、报名和消息操作，后台唤醒
+安排在后续版本。关闭弹窗后在底部 Rinx 窗口继续登录。
 打开补位，查看账号及授权范围，再确认授权；登录不等于业务授权。
 
 1. 组织者创建活动，同步活动，将第二个账号邀请进房间。

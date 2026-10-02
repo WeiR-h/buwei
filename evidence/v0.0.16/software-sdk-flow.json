@@ -1,0 +1,49 @@
+{
+  "version": "0.0.16",
+  "passed": true,
+  "execution_variant": "opt-in acceptance; same Controller, SDK and journal as full-host",
+  "formal_rounds": [
+    {
+      "events": [
+        {
+          "operation_sha256": "2e4d498335663c592eef2320e61e955c9b5c76315afb99f1c729a1103e0bff37",
+          "event_sha256": "737826406e227b355697b0e4cc6f593ef4817dee954598b0bb46aa17a5c17492",
+          "event_type": "org.buwei.join",
+          "origin_server_ts_ms": 1790959565584,
+          "service_event_count": 1
+        },
+        {
+          "operation_sha256": "91b8b6e803404637420171e5fa90669a5e4efe4a13e51324ca0989c0c7ba0ebd",
+          "event_sha256": "e6a96adb7074e3a351086b814dc19f5aff44910681a56944e52fa49f8da50616",
+          "event_type": "org.buwei.invitation",
+          "origin_server_ts_ms": 1790959589050,
+          "service_event_count": 1
+        },
+        {
+          "operation_sha256": "54e70c6654903d40cdd33ad74fc34c0f841aced8ae1b16de8ec873fe20a232ff",
+          "event_sha256": "b9259bf3441bce74378f63e7cab615fd79c154794cbe8c873d2125d32bf66fef",
+          "event_type": "org.buwei.reply",
+          "origin_server_ts_ms": 1790959615144,
+          "service_event_count": 1
+        },
+        {
+          "operation_sha256": "bfdc529b0f32148e903b62df69622356ed99fe0a2b2b4eeae63ead57ee2b8a38",
+          "event_sha256": "712e80c5ba17e2a5c10dce7f6edb9aa33e9149b507f3b86011601a56fe0d2024",
+          "event_type": "org.buwei.cancel",
+          "origin_server_ts_ms": 1790959639469,
+          "service_event_count": 1
+        }
+      ],
+      "locally_collected_at_unix": 1790959710
+    }
+  ],
+  "no_manual_refresh": true,
+  "repeat_confirmation_uses_original_id": true,
+  "reply_and_invitation_ids_distinct": true,
+  "both_native_hosts_forced_warp": true,
+  "scope": "Actual two-identity SDK flow on both software-rendered native hosts; one additional regression after backend patch",
+  "driver_cleanup_note": "First organizer Quit acknowledgement exceeded upstream four-second RPC reply deadline, although the queued request later completed. Both hosts then persisted and exited; participant received a read-only-control follow-up Quit. No business action was resent.",
+  "first_driver_exit_code": 1,
+  "both_profiles_stopped_and_preserved": true,
+  "shutdown_helper_now_waits_for_exact_child_after_reply_timeout": true
+}

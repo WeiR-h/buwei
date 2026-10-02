@@ -38,6 +38,8 @@ class ReleaseTools(unittest.TestCase):
             path=pathlib.Path(tmp)/'acceptance.json';record={'version':'0.1.0'}
             path.write_text(json.dumps(record));self.assertFalse(check(path)['stable_release_allowed'])
             record.update({name:{'passed':True,'evidence':'measured-report.json'} for name in REQUIRED})
-            path.write_text(json.dumps(record));self.assertTrue(check(path)['stable_release_allowed'])
+            path.write_text(json.dumps(record));self.assertFalse(check(path)['stable_release_allowed'])
+            proof=path.parent/'measured-report.json';proof.write_text(json.dumps({'version':'0.0.16','passed':True}));self.assertFalse(check(path)['stable_release_allowed'])
+            proof.write_text(json.dumps({'version':'0.1.0','passed':True}));self.assertTrue(check(path)['stable_release_allowed'])
             record['formal_outage_recovery']['evidence']='';path.write_text(json.dumps(record));self.assertFalse(check(path)['stable_release_allowed'])
 if __name__=='__main__':unittest.main()

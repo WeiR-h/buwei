@@ -1,0 +1,14 @@
+{
+  "version": "0.0.16",
+  "scope": "Windows 2025 fresh-runner D3D11 API diagnostic; not full native application acceptance",
+  "diagnostic_run_url": "https://github.com/WeiR-h/buwei/actions/runs/37034764676",
+  "old_native_hardware_startup_failed": true,
+  "hardware_error": "DXGI_ERROR_UNSUPPORTED (0x887A0004)",
+  "warp_api_create_device_succeeded": true,
+  "warp_hresult": "0x00000000",
+  "feature_level": "11.0",
+  "bgra_support": true,
+  "hardware_video_support_not_requested": true,
+  "native_application_with_fallback_still_pending": true,
+  "locally_collected_at": "2026-10-02T16:36:53.809978+00:00"
+}
