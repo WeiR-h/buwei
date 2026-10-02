@@ -10,9 +10,9 @@ from formal_control import Control
 
 class Hosts:
     def __init__(self,exe,owner,participant,version,owner_port,participant_port):
-        self.exe=exe.resolve();self.profiles={'organizer':owner.resolve(),'participant':participant.resolve()};self.ports={'organizer':owner_port,'participant':participant_port};self.version=version;self.processes={};self.logs=[]
+        self.exe=exe.resolve();self.profiles={'organizer':owner.resolve(),'participant':participant.resolve()};self.ports={'organizer':owner_port,'participant':participant_port};self.version=version;self.processes={};self.logs=[];self.extra_environment={}
     def start(self,role):
-        profile=self.profiles[role];env=dict(os.environ);env['BUWEI_PROFILE']=role;env['MAKEPAD_HIDE_WINDOWS']='1'
+        profile=self.profiles[role];env=dict(os.environ);env.update(self.extra_environment.get(role,{}));env['BUWEI_PROFILE']=role;env['MAKEPAD_HIDE_WINDOWS']='1'
         log=open(profile/('fault-host-'+str(time.time_ns())+'.private.log'),'wb');self.logs.append(log)
         startup=subprocess.STARTUPINFO();startup.dwFlags|=subprocess.STARTF_USESHOWWINDOW;startup.wShowWindow=0
         process=subprocess.Popen([str(self.exe),str(profile),'--gui','--official-rinx','--acceptance','--remote='+str(self.ports[role])],cwd=self.exe.parent,env=env,stdout=log,stderr=subprocess.STDOUT,startupinfo=startup);self.processes[role]=process

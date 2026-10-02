@@ -1,0 +1,21 @@
+{
+  "version": "0.0.16",
+  "passed": true,
+  "ordinary_full_host": true,
+  "original_rinx_source_commit": "68afcf796d303aaf646eeb832d65c450a56c92b5",
+  "draft_saved": true,
+  "full_preview_reviewed": true,
+  "publication_confirmed_in_native_ui": true,
+  "share_confirmed_in_native_ui": true,
+  "private_test_room_only": true,
+  "complete_sdk_history": true,
+  "article_server_event_count": 1,
+  "app_share_server_event_count": 1,
+  "article_event_sha256": "bdffbd5d5e550c25e3e1ed961154eba13fad17b3e6dbaac7e8beb52039b34765",
+  "share_event_sha256": "9b052bde7f1a06d9557b332cf33e88dd65e57504349dca45d4a1890d9ce6eb88",
+  "article_origin_server_ts_ms": 1790955463786,
+  "share_origin_server_ts_ms": 1790955802376,
+  "locally_collected_at_unix": 1790956430,
+  "native_screenshot": "original-rinx-share.png",
+  "screenshot_manually_reviewed_no_private_identifiers": true
+}

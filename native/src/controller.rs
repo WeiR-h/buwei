@@ -112,7 +112,7 @@ impl Controller {
                 self.g("read")?;
                 let a=self.activity()?;let room=OwnedRoomId::try_from(a.room.as_str()).map_err(|_|"活动房间不合法")?;
                 let values=official_sync::timeline(&self.rt,self.active(),&room)?;
-                let events=values.into_iter().filter(|v|matches!(v["type"].as_str(),Some("org.buwei.invitation"|"org.buwei.join"|"org.buwei.reply"|"org.buwei.cancel"|"m.room.message"|"org.buwei.activity"))).map(|v|json!({"event_id":v["event_id"],"sender":v["sender"],"type":v["type"],"origin_server_ts":v["origin_server_ts"],"content":v["content"]})).collect::<Vec<_>>();
+                let events=values.into_iter().filter(|v|matches!(v["type"].as_str(),Some("org.buwei.invitation"|"org.buwei.join"|"org.buwei.reply"|"org.buwei.cancel"|"m.room.message"|"org.buwei.activity"|"org.octosense.article"))).map(|v|json!({"event_id":v["event_id"],"sender":v["sender"],"type":v["type"],"origin_server_ts":v["origin_server_ts"],"content":v["content"]})).collect::<Vec<_>>();
                 let evidence=json!({"collected_at_unix":now(),"complete_sdk_history":true,"room":a.room,"events":events});
                 let dir=self.root.join(".run/acceptance");std::fs::write(dir.join("events.private.json"),serde_json::to_vec_pretty(&evidence).map_err(|_|"证据格式不合法")?).map_err(|_|"私密证据目录不可写")?;
                 Ok("完整 SDK 事件与服务端时间已保存到本机私密验收目录。".into())

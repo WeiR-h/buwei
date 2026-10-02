@@ -32,7 +32,7 @@ def stage(binary,destination,metadata=None):
         inventory.append({'name':name,'version':package['version'],'license':package.get('license'),'source':package.get('source'),'repository':package.get('repository'),'notice_files':copied})
     (licenses/'inventory.json').write_text(json.dumps(inventory,ensure_ascii=False,indent=2),'utf8')
     tools=destination/'tools';tools.mkdir()
-    for name in ['Start-BuWei.ps1','Configure-Model.ps1','migrate.py']:
+    for name in ['Start-BuWei.ps1','Configure-Model.ps1','migrate.py','startup_check.py','package_scan.py','public_scan.py']:
         if name.endswith('.ps1'):(tools/name).write_text((ROOT/'tools'/name).read_text('utf-8-sig'),encoding='utf-8-sig')
         else:shutil.copy2(ROOT/'tools'/name,tools/name)
     for name in ['LICENSE','NOTICE.md','README.md','README.en.md','CHANGELOG.md','dependencies.lock.json']:shutil.copy2(ROOT/name,destination/name)

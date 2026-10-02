@@ -58,3 +58,31 @@ jobs:
             .run/startup-evidence/startup.png
             .run/startup-evidence/package-privacy.json
           if-no-files-found: error
+  fresh-windows-runtime:
+    needs: clean-windows
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-preview
+          path: downloaded
+      - name: Verify downloaded package without source or dependency checkout
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          if (Test-Path native) { throw 'Source unexpectedly present' }
+          if (Test-Path .deps) { throw 'Dependency checkout unexpectedly present' }
+          python downloaded/windows-package/tools/package_scan.py downloaded/windows-package --output .run/fresh-runtime/package-privacy.json
+          python downloaded/windows-package/tools/startup_check.py downloaded/windows-package --output .run/fresh-runtime
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fresh-windows-runtime
+          path: |
+            .run/fresh-runtime/startup.json
+            .run/fresh-runtime/startup.png
+            .run/fresh-runtime/package-privacy.json
+          if-no-files-found: error
