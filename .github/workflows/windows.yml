@@ -28,10 +28,19 @@ jobs:
         run: |
           ./tools/Build.ps1 -Tests
           ./tools/Build.ps1
+          python -m unittest discover -s tools -p test_release_tools.py
+      - name: Package and start on fresh Windows profile
+        shell: pwsh
+        run: |
+          python tools/package.py --binary native/target/debug/buwei-rinx-dual-host.exe --destination .run/windows-package
+          python tools/startup_check.py .run/windows-package --output .run/startup-evidence
       - name: Upload measured build logs and binary
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: windows-preview
-          path: native/target/debug/buwei-rinx-dual-host.exe
+          path: |
+            native/target/debug/buwei-rinx-dual-host.exe
+            .run/startup-evidence/startup.json
+            .run/startup-evidence/startup.png
           if-no-files-found: error

@@ -8,19 +8,19 @@ use buwei_host_core::article::{Article,ArticleStore};
 pub(crate) enum Command {
     Authorize,ConfirmAuthorization(String),Switch,Revoke,JoinRoom(String),InviteMember(String),SyncActivity,Create{title:String,capacity:u8,start:u8,end:u8},
     Join(Preferences),ConfirmParticipant(Preferences),ReconcilePending,Prepare,Execute,Reconcile,Accept(bool),Cancel,Expire,
-    Suggest(String),ApplySuggestion(String),Draft{title:String,markdown:String},
+    Suggest(String),ApplySuggestion(String),Explain,GenerateNote,ConfigureModel,ApplyNote{title:String,markdown:String},Draft{title:String,markdown:String},
     PrepareArticle,PublishArticle{title:String,markdown:String},ReconcileArticle,Fault,Refresh,
     #[cfg(feature="acceptance")]TestFault(String),
     #[cfg(feature="acceptance")]CollectEvidence,
 }
 #[derive(Clone,Default)]
-pub(crate) struct View {pub account:String,pub activity:String,pub people:String,pub preview:String,pub participant_preview:String,pub participant_inputs:Option<(String,Preferences)>,pub history:String,pub reply:String,pub article:String,pub draft:Option<(String,String)>,pub advice:String,pub message:String,pub sync_status:String,pub organizer:bool,pub authorized:bool,pub consent_id:Option<String>,pub consent:String,pub expires:String,pub fault:bool}
+pub(crate) struct View {pub account:String,pub activity:String,pub people:String,pub preview:String,pub participant_preview:String,pub participant_inputs:Option<(String,Preferences)>,pub history:String,pub reply:String,pub article:String,pub draft:Option<(String,String)>,pub generated_note:Option<(String,String,String)>,pub model_status:String,pub advice:String,pub message:String,pub sync_status:String,pub organizer:bool,pub authorized:bool,pub consent_id:Option<String>,pub consent:String,pub expires:String,pub fault:bool}
 pub(crate) struct Controller {
     root:PathBuf,consent:Option<consent::Consent>,authorized_until:u64,server_verified:bool,data:PathBuf,rt:Arc<Runtime>,owner:Client,participant:Client,
     selected:bool,authority:Authority,grant:Option<Grant>,article_grant:Option<Grant>,sync_grant:Option<Grant>,last_sync_status:String,
     journal:Journal,current:Option<Operation>,participant_current:Option<Operation>,article_current:Option<Operation>,
     fault:bool,model:Arc<octosense_llm_service::complete::ModelHost>,
-    suggestion:Option<(String,String,u64,ModelAdvice)>,message:String,
+    suggestion:Option<(String,String,u64,ModelAdvice)>,note:Option<(String,u64,model::Note)>,explanation:Option<String>,message:String,
 }
 impl Controller {
     pub fn open(root:&Path)->Result<Self> {
@@ -34,7 +34,7 @@ impl Controller {
         let data=root.join("data").join(format!("v{}",env!("CARGO_PKG_VERSION"))).join("native");std::fs::create_dir_all(&data).map_err(|_|"业务记录目录不可用")?;
         let authority=Authority::default();authority.set_account(Some(&account(&owner)));
         let journal=Journal::open(data.join("operations.db")).map_err(|_|"回执数据库不可用")?;
-        Ok(Self{root:root.to_path_buf(),consent:None,authorized_until:0,server_verified:true,data,rt,owner,participant,selected:false,authority,grant:None,article_grant:None,sync_grant:None,last_sync_status:"等待同步授权".into(),journal,current:None,participant_current:None,article_current:None,fault:false,model:model::host(root),suggestion:None,message:"两个本机测试身份已向服务端核验。请先授权；每次执行仍需确认确切预览。".into()})
+        Ok(Self{root:root.to_path_buf(),consent:None,authorized_until:0,server_verified:true,data,rt,owner,participant,selected:false,authority,grant:None,article_grant:None,sync_grant:None,last_sync_status:"等待同步授权".into(),journal,current:None,participant_current:None,article_current:None,fault:false,model:model::host(root),suggestion:None,note:None,explanation:None,message:"两个本机测试身份已向服务端核验。请先授权；每次执行仍需确认确切预览。".into()})
     }
     #[cfg(feature="full-host")]
     fn open_official(root:&Path)->Result<Self>{
@@ -47,7 +47,7 @@ impl Controller {
         let authority=Authority::default();authority.set_account(Some(&actor));
         let journal=Journal::open(data.join("operations.db")).map_err(|_|"回执数据库不可用")?;
         rinx_bridge::record_status(root,Some(&actor),true,false)?;
-        Ok(Self{root:root.to_path_buf(),consent:None,authorized_until:0,server_verified:true,data,rt,owner:client.clone(),participant:client,selected:false,authority,grant:None,article_grant:None,sync_grant:None,last_sync_status:"等待同步授权".into(),journal,current:None,participant_current:None,article_current:None,fault:false,model:model::host(root),suggestion:None,message:"Rinx 当前真实账号已向服务端核验。请查看授权范围；打开期间每 10 秒同步已核验状态。".into()})
+        Ok(Self{root:root.to_path_buf(),consent:None,authorized_until:0,server_verified:true,data,rt,owner:client.clone(),participant:client,selected:false,authority,grant:None,article_grant:None,sync_grant:None,last_sync_status:"等待同步授权".into(),journal,current:None,participant_current:None,article_current:None,fault:false,model:model::host(root),suggestion:None,note:None,explanation:None,message:"Rinx 当前真实账号已向服务端核验。请查看授权范围；打开期间每 10 秒同步已核验状态。".into()})
     }
     pub fn host_session_current(&self)->bool{
         #[cfg(feature="full-host")]
@@ -55,6 +55,10 @@ impl Controller {
         true
     }
     fn active(&self)->&Client{if self.selected{&self.participant}else{&self.owner}}
+    fn model_receipt(&self,reply:&Value,revision:u64)->Result<()>{
+        let proof=json!({"version":env!("CARGO_PKG_VERSION"),"returned_model":"MiniMax-M3","official_model_host":true,"schema_validated":true,"usage":reply["meta"]["usage"],"budget":reply["meta"]["budget"],"model_did_not_change_activity":self.activity()?.revision==revision,"billing_verified":false});
+        std::fs::write(self.data.join("model-receipt.json"),serde_json::to_vec_pretty(&proof).map_err(|_|"模型回执格式不合法")?).map_err(|_|"模型结果已生成，但本机回执保存失败".into())
+    }
     fn actor(&self)->String{account(self.active())}
     fn g(&self,permission:&str)->Result<Grant>{let g=self.grant.as_ref().ok_or("请先授权当前账号")?;g.check(permission,now()).map_err(|_|"授权失效，请重新授权并预览")?;if g.account()!=self.actor(){return Err("当前 SDK 账号已变化".into());}Ok(g.clone())}
     fn ag(&self)->Result<Grant>{let g=self.article_grant.as_ref().ok_or("请先授权当前账号")?;g.check("publish",now()).map_err(|_|"文章授权已失效")?;if g.account()!=self.actor(){return Err("当前 SDK 账号已变化".into());}Ok(g.clone())}
@@ -80,6 +84,12 @@ impl Controller {
             }
         }
         match command {
+            Command::ConfigureModel=>{
+                let exe=std::env::current_exe().map_err(|_|"配置工具位置不可读取")?;
+                let script=exe.ancestors().filter_map(|p|{let path=p.join("tools/Configure-Model.ps1");path.is_file().then_some(path)}).next().ok_or("配置工具未随程序安装，请使用完整运行包")?;
+                std::process::Command::new("powershell.exe").args(["-NoProfile","-ExecutionPolicy","Bypass","-File"]).arg(script).arg("-ProfileDirectory").arg(&self.root).spawn().map_err(|_|"配置窗口无法启动")?;
+                Ok("请在独立的本机配置窗口填写密钥。密钥不进入聊天、动作参数或公开材料。".into())
+            },
             #[cfg(feature="acceptance")]
             Command::TestFault(mode)=>{self.g("read")?;super::acceptance::set_fault(&mode)?;Ok("仅验收构建的单次传输故障已设置；公开运行包不包含此功能。".into())},
             #[cfg(feature="acceptance")]
@@ -106,8 +116,8 @@ impl Controller {
                 self.article_current=self.journal.recent(self.article_grant.as_ref().unwrap(),now()).map_err(|_|"文章回执不可用")?.into_iter().next();
                 Ok("已授权当前真实账号。旧的未执行确认不会自动恢复，请重新预览。".into())
             }
-            Command::Switch=>{self.selected=!self.selected;self.authority.set_account(Some(&self.actor()));self.grant=None;self.article_grant=None;self.sync_grant=None;self.current=None;self.participant_current=None;self.article_current=None;self.consent=None;self.authorized_until=0;self.last_sync_status="账号已切换，自动同步停止".into();self.suggestion=None;Ok("账号已切换；旧授权与旧确认已失效。".into())}
-            Command::Revoke=>{if let Some(g)=&self.grant{g.revoke();}if let Some(g)=&self.article_grant{g.revoke();}if let Some(g)=&self.sync_grant{g.revoke();}self.last_sync_status="授权已撤销，自动同步停止".into();self.suggestion=None;self.consent=None;self.authorized_until=0;Ok("当前账号的授权已撤销。".into())}
+            Command::Switch=>{self.selected=!self.selected;self.authority.set_account(Some(&self.actor()));self.grant=None;self.article_grant=None;self.sync_grant=None;self.current=None;self.participant_current=None;self.article_current=None;self.consent=None;self.authorized_until=0;self.last_sync_status="账号已切换，自动同步停止".into();self.suggestion=None;self.note=None;self.explanation=None;Ok("账号已切换；旧授权与旧确认已失效。".into())}
+            Command::Revoke=>{if let Some(g)=&self.grant{g.revoke();}if let Some(g)=&self.article_grant{g.revoke();}if let Some(g)=&self.sync_grant{g.revoke();}self.last_sync_status="授权已撤销，自动同步停止".into();self.suggestion=None;self.note=None;self.explanation=None;self.consent=None;self.authorized_until=0;Ok("当前账号的授权已撤销。".into())}
             Command::JoinRoom(room)=>{
                 #[cfg(feature="full-host")] if rinx_bridge::official_mode(){self.g("participate")?;let room=OwnedRoomId::try_from(room.trim()).map_err(|_|"请填写完整活动房间编号")?;if let Ok(a)=self.activity(){if a.room!=room.as_str(){return Err("本版只管理一场活动，请保留现有活动".into());}}
                     self.rt.block_on(self.active().join_room_by_id(&room)).map_err(|_|"尚不能加入；请组织者先邀请这个测试账号加入房间")?;let a=official_sync::fetch(&self.rt,self.active(),&room)?;if a.owner==self.actor(){return Err("组织者请使用创建活动入口".into());}Store::open(self.data.join("activity.db"))?.cache_verified_snapshot(&a)?;return Ok("已核验组织者并读取活动；本人登记和回复由组织者同步后生效。".into());}
@@ -164,7 +174,13 @@ impl Controller {
             Command::Suggest(text)=>{let g=self.g("model")?;let a=self.activity()?;let (advice,reply)=model::recommend(&self.model,&g,&text)?;let proof=json!({"version":env!("CARGO_PKG_VERSION"),"returned_model":"MiniMax-M3","official_model_host":true,"schema_validated":true,"usage":reply["meta"]["usage"],"budget":reply["meta"]["budget"],"model_did_not_change_activity":self.activity()?.revision==a.revision});std::fs::write(self.data.join("model-receipt.json"),serde_json::to_vec_pretty(&proof).map_err(|_|"模型回执格式不合法")?).map_err(|_|"建议已生成，但本机回执保存失败")?;self.suggestion=Some((self.actor(),advice_digest(&text,a.revision),a.revision,advice));Ok("建议已生成，尚未修改候补偏好或队列。请核对后本人确认。".into())}
             Command::ApplySuggestion(text)=>{self.g("participate")?;let a=self.activity()?;let (actor,digest,revision,advice)=self.suggestion.as_ref().ok_or("请先生成建议")?;
                 if *actor!=self.actor()||*revision!=a.revision||*digest!=advice_digest(&text,a.revision){return Err("输入、账号或活动版本已变化，请重新生成建议".into());}if advice.needs_clarification{return Err("建议需要补充信息，请先完善需求或手动填写时段".into());}
-                let p=advice.preferences();self.suggestion=None;self.apply(Command::Join(p))}
+                let p=advice.preferences();self.suggestion=None;self.note=None;self.explanation=None;self.apply(Command::Join(p))}
+
+            Command::Explain=>{let g=self.g("model")?;let a=self.activity()?;let (text,reply)=model::explain(&self.model,&g,&a)?;self.model_receipt(&reply,a.revision)?;self.explanation=Some(text);Ok("匹配说明已生成。队列、时段和容量仍由业务规则核验。".into())}
+            Command::GenerateNote=>{let g=self.g("model")?;let a=self.activity()?;let (note,reply)=model::note(&self.model,&g,&a)?;self.model_receipt(&reply,a.revision)?;self.note=Some((self.actor(),a.revision,note));Ok("活动小记已生成待审草稿。核对正文后确认保存，再单独预览发布。".into())}
+            Command::ApplyNote{title,markdown}=>{self.ag()?;let a=self.activity()?;let (actor,revision,note)=self.note.as_ref().ok_or("请先生成活动小记")?;
+                if *actor!=self.actor()||*revision!=a.revision||note.title!=title||note.markdown!=markdown{return Err("账号、活动或草稿已变化。请重新生成，或使用手动保存草稿。".into());}
+                self.apply(Command::Draft{title,markdown})?;self.note=None;Ok("已确认并保存小记草稿，尚未发布。请继续预览完整文章。".into())}
 
             Command::Draft{title,markdown}=>{let g=self.ag()?;let a=self.activity()?;let mut s=ArticleStore::open(self.article_path())?;if let Some(old)=s.load()?{let actor=self.actor();s.update(old.revision,|a|a.edit(&actor,title,markdown))?;}else{s.create(&g,&Article::new(self.actor(),a.room,title,markdown)?,now())?;}Ok("完整文章草稿已保存；旧预览不能用于修改后的正文。".into())}
             Command::PrepareArticle=>{let g=self.ag()?;let a=ArticleStore::open(self.article_path())?.load()?.ok_or("请先保存文章草稿")?;self.article_current=Some(self.journal.prepare(&g,a.action(),a.revision,now(),120).map_err(|_|"文章预览不可用")?);Ok("文章确切预览已生成；完整标题和正文将在确认后发布。".into())}
@@ -233,7 +249,7 @@ impl Controller {
     }
     pub fn is_authorized(&self)->bool{self.grant.as_ref().is_some_and(|g|g.check("read",now()).is_ok())}
     #[cfg(feature="acceptance")]
-    pub fn acceptance_snapshot(&self)->Value{json!({"version":env!("CARGO_PKG_VERSION"),"collected_at_unix":now(),"account":self.actor(),"authorized":self.is_authorized(),"consent_id":self.consent.as_ref().map(|c|&c.id),"message":self.message,"activity":self.activity().ok(),"invitation":self.current,"participant":self.participant_current,"article":self.article_current})}
+    pub fn acceptance_snapshot(&self)->Value{json!({"version":env!("CARGO_PKG_VERSION"),"collected_at_unix":now(),"account":self.actor(),"authorized":self.is_authorized(),"consent_id":self.consent.as_ref().map(|c|&c.id),"message":self.message,"sync_status":self.last_sync_status,"activity":self.activity().ok(),"invitation":self.current,"participant":self.participant_current,"article":self.article_current,"generated_note":self.note.as_ref().map(|(_,_,n)|json!({"title":n.title,"markdown":n.markdown})),"explanation":self.explanation})}
     pub fn view(&self)->View {
         let mut v=View{account:self.actor(),message:self.message.clone(),authorized:self.grant.as_ref().is_some_and(|g|g.check("read",now()).is_ok()),fault:self.fault,organizer:std::env::var("BUWEI_PROFILE").as_deref()!=Ok("participant"),sync_status:if self.is_authorized(){self.last_sync_status.clone()}else{"当前未授权，自动同步已停止".into()},..Default::default()};
         v.consent_id=self.consent.as_ref().map(|p|p.id.clone());v.consent=if self.consent.is_some(){format!("授权对象：{}\n补位：创建本场活动、邀请、本人登记与回复、读取记录、请求 AI 建议。\n自动读取回复并同步活动状态：应用打开期间每 10 秒检查；组织者同步已核验快照，参与者读取最终结果；不自动发新邀请或文章。\n文章：保存草稿并在单独确认后发布。有效期：确认后 1 小时；授权预览 2 分钟内有效。",self.actor())}else{"点击查看授权范围，再确认授权。".into()};
@@ -259,7 +275,9 @@ impl Controller {
         v.history=self.grant.as_ref().and_then(|g|self.journal.recent(g,now()).ok()).unwrap_or_default().iter().take(12).map(describe).collect::<Vec<_>>().join("\n\n");
         v.article=self.article_current.as_ref().map(describe).unwrap_or_else(||"尚未预览文章。".into());
         v.draft=ArticleStore::open(self.article_path()).ok().and_then(|s|s.load().ok().flatten()).map(|a|(a.title,a.markdown));
-        v.advice=self.suggestion.as_ref().map(|(_,_,_,a)|format!("建议可用 {}–{} 点 · {} 人\n{}\n{}",a.earliest,a.latest,a.group,a.explanation,if a.needs_clarification{"需要补充信息"}else{"核对后由本人确认"})).unwrap_or_else(||"AI 建议尚未生成。手动时段可直接使用。".into());v
+        v.model_status=model::status(&self.root,&self.model);
+        v.generated_note=self.note.as_ref().map(|(_,revision,n)|(advice_digest(&format!("{}\n{}",n.title,n.markdown),*revision),n.title.clone(),n.markdown.clone()));
+        v.advice=self.explanation.clone().or_else(||self.suggestion.as_ref().map(|(_,_,_,a)|format!("建议可用 {}–{} 点 · {} 人\n{}\n{}",a.earliest,a.latest,a.group,a.explanation,if a.needs_clarification{"需要补充信息"}else{"核对后由本人确认"}))).unwrap_or_else(||"AI 建议尚未生成。手动时段可直接使用。".into());v
     }
 }
 

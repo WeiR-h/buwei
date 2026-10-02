@@ -1,0 +1,20 @@
+{
+  "version": "0.0.15",
+  "passed": true,
+  "binary_sha256": "393fc139eb57bac982c482a1523b163821b207ff8f94ad2477e837b312d7ad8f",
+  "fresh_profile": true,
+  "system_only_path": true,
+  "model_calls": 0,
+  "actual_native_render": true,
+  "unauthenticated_and_unauthorized": true,
+  "second_writer_refused": true,
+  "known_upstream_diagnostics": [
+    {
+      "upstream_file": "makepad/widgets/src/widget_async.rs:787",
+      "diagnostic": "BUG: update_global_ui_handle while isolate SplashVmId(2) is installed; deferred",
+      "count": 1,
+      "behavior": "upstream guard deferred isolated VM update; native render and shutdown checked"
+    }
+  ],
+  "environment": "same Windows machine, fresh profile and system-only PATH; clean runner is a separate gate"
+}

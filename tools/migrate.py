@@ -32,6 +32,7 @@ def migrate(source,destination,old_version,new_version):
                 src.backup(out)
                 if out.execute('PRAGMA integrity_check').fetchone()[0]!='ok':raise RuntimeError('Database verification failed')
         if (source/'.secrets').is_dir():shutil.copytree(source/'.secrets',destination/'.secrets')
+        if (source/'data/model').is_dir():shutil.copytree(source/'data/model',destination/'data/model')
         record={'source_version':old_version,'destination_version':new_version,'copied_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'original_preserved':True,'effective_consent_inherited':False,'database_integrity':'ok','databases_verified':len(databases)}
         (destination/'migration.local.json').write_text(json.dumps(record,indent=2),'utf8')
         return record
