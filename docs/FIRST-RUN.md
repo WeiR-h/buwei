@@ -6,8 +6,7 @@
 $profileDir = Join-Path $env:LOCALAPPDATA 'BuWei/preview-organizer'
 New-Item -ItemType Directory -Force $profileDir | Out-Null
 $env:BUWEI_PROFILE='organizer'
-$env:BUWEI_RINX_MODE='official'
-./native/target/debug/buwei-rinx-dual-host.exe $profileDir --gui
+./native/target/debug/buwei-rinx-dual-host.exe $profileDir --gui --official-rinx
 ```
 
 参与者使用另一资料目录，`BUWEI_PROFILE=participant`。
