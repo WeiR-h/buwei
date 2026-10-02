@@ -25,6 +25,7 @@ pub(crate) fn open(scope:InstanceScope)->(SyncSender<Command>,Receiver<Result<Vi
                     let mut last_view_at=now();let mut last_authorized=c.is_authorized();let _=updates.send(Ok(c.view()));
                     while alive.load(Ordering::SeqCst){
                         if !c.host_session_current(){c.shutdown();let _=updates.send(Ok(View{account:"未登录".into(),message:"Rinx 会话已变化，旧授权已撤销；正在等待本人重新登录。".into(),..Default::default()}));break;}
+                        #[cfg(feature="acceptance")] if let Some(view)=super::acceptance::poll(&root,&mut c){let _=updates.send(Ok(view));}
                         match commands.recv_timeout(Duration::from_millis(250)){
                             Ok(command)=>{if !alive.load(Ordering::SeqCst){break;}let result=c.handle(command);last_view_at=now();last_authorized=result.authorized;if alive.load(Ordering::SeqCst)&&updates.send(Ok(result)).is_err(){break;}},
                             Err(std::sync::mpsc::RecvTimeoutError::Timeout)=>{if (last_authorized&&!c.is_authorized())||now().saturating_sub(last_view_at)>=10{last_authorized=c.is_authorized();last_view_at=now();let _=updates.send(Ok(c.view()));}},Err(_)=>{alive.store(false,Ordering::SeqCst);break;}

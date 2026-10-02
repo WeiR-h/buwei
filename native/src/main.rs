@@ -12,6 +12,7 @@ mod consent;
 #[cfg(feature="full-host")]mod official_sync;
 mod article;
 mod participant;
+#[cfg(feature="acceptance")]mod acceptance;
 #[cfg(feature="desktop")]mod controller;
 #[cfg(feature="desktop")]mod gui;
 #[cfg(feature="desktop")]mod host;
@@ -44,6 +45,7 @@ fn client(rt:&Runtime,session:MatrixSession)->Result<Client> {
 }
 fn account(c:&Client)->String {c.user_id().expect("host verified SDK login").to_string()}
 fn send(rt:&Runtime,c:&Client,room:&OwnedRoomId,transaction:&str,kind:&str,content:Value)->Result<OwnedEventId> {
+    #[cfg(feature="acceptance")] acceptance::before_send()?;
     #[cfg(feature="full-host")] if rinx_bridge::official_mode(){rinx_bridge::ensure_current(c)?;}
     let raw=Raw::from_json(serde_json::value::to_raw_value(&content).map_err(|_|"消息格式不合法")?);
     let request=send_message_event::v3::Request::new_raw(room.clone(),transaction.into(),MessageLikeEventType::from(kind),raw);
@@ -51,6 +53,7 @@ fn send(rt:&Runtime,c:&Client,room:&OwnedRoomId,transaction:&str,kind:&str,conte
 }
 fn event(rt:&Runtime,c:&Client,room:&OwnedRoomId,id:OwnedEventId)->Result<Value> {
     let response=rt.block_on(async {c.send(get_room_event::v3::Request::new(room.clone(),id)).await}).map_err(|_|"服务端事件暂不可核实")?;
+    #[cfg(feature="acceptance")] acceptance::after_server_event()?;
     serde_json::from_str(response.event.json().get()).map_err(|_|"服务端事件格式不合法".into())
 }
 struct SdkAdapter {runtime:Arc<Runtime>,client:Client,room:OwnedRoomId,state:PathBuf,drop_ack:bool}
@@ -141,6 +144,13 @@ fn main() {
     if std::env::args().any(|a|a=="--gui") {
         let root=root.canonicalize().expect("native host root must exist");
         if root.join("migration-failed.local.json").exists(){eprintln!("迁移尚未通过验证，请使用保留的旧版入口；新版已停止写入。");std::process::exit(1);}
+        #[cfg(windows)]
+        let _profile_lock={
+            use std::os::windows::fs::OpenOptionsExt;
+            match std::fs::OpenOptions::new().create(true).truncate(false).read(true).write(true).share_mode(0).open(root.join(".run.lock")){
+                Ok(file)=>file,Err(_)=>{eprintln!("本资料目录已由另一个宿主使用；请先关闭原窗口。");std::process::exit(1);}
+            }
+        };
         let state=root.join("data").join(format!("v{}",env!("CARGO_PKG_VERSION"))).join("shell");
         unsafe{std::env::set_var("OCTOSENSE_HOME",&state);std::env::set_var("OCTOS_APP_CORE_DIR",state.join("octos-home/.octos"));std::env::set_var("RINX_DATA_DIR",root.join("data").join(format!("v{}",env!("CARGO_PKG_VERSION"))).join("rinx"));}
         #[cfg(feature="full-host")] if rinx_bridge::official_mode(){let _=rinx_bridge::record_status(&root,None,false,false);}

@@ -14,7 +14,9 @@ def main():
     count=int(os.environ.get('GIT_CONFIG_COUNT','0'))
     os.environ['GIT_CONFIG_KEY_'+str(count)]='core.autocrlf'
     os.environ['GIT_CONFIG_VALUE_'+str(count)]='false'
-    os.environ['GIT_CONFIG_COUNT']=str(count+1)
+    os.environ['GIT_CONFIG_KEY_'+str(count+1)]='core.eol'
+    os.environ['GIT_CONFIG_VALUE_'+str(count+1)]='lf'
+    os.environ['GIT_CONFIG_COUNT']=str(count+2)
     p=argparse.ArgumentParser();p.add_argument('--source-cache',type=pathlib.Path);args=p.parse_args()
     host=ROOT/'.deps/octosense';host.parent.mkdir(exist_ok=True)
     if host.exists():
@@ -48,7 +50,7 @@ def main():
             if changed!=[changed_path]:raise RuntimeError('Unreviewed Makepad modifications')
             original=subprocess.check_output(['git','-C',str(source),'show',':'+changed_path])
             wanted=original.replace(b'path = "../smallvec"',b'path = "../../smallvec"')
-            if (source/changed_path).read_bytes()!=wanted:raise RuntimeError('Product path patch differs')
+            if (source/changed_path).read_bytes().replace(b'\r\n',b'\n')!=wanted.replace(b'\r\n',b'\n'):raise RuntimeError('Product path patch differs')
             for entry in [overlay,*overlay.get('stacked',[])]:
                 if hashlib.sha256((host/entry['patch']).read_bytes()).hexdigest()!=entry['sha256']:raise RuntimeError('Official overlay hash differs')
         elif git(source,'status','--porcelain'):raise RuntimeError('Modified framework preserved: '+name)

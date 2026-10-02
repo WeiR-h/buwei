@@ -32,6 +32,7 @@ hex = "0.4"
 default = []
 desktop = ["dep:makepad-widgets","dep:makepad-app-module","dep:octosense-shell","dep:octosense-llm-service","dep:octosense-llm-config","dep:ureq"]
 full-host = ["desktop", "octosense-shell/app-rinx", "dep:rinx"]
+acceptance = ["full-host"]
 
 # Same patched ruma source as the official OctoSense / Rinx lock.
 [patch."https://github.com/ruma/ruma"]

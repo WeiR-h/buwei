@@ -1,5 +1,6 @@
 """Copy a stopped local profile to an independent version; never copy consent."""
 import argparse, datetime, json, pathlib, shutil, sqlite3, ctypes, os
+from contextlib import closing
 
 def sqlite_database(path):
     if not path.is_file():return False
@@ -27,7 +28,7 @@ def migrate(source,destination,old_version,new_version):
         for db in databases:
             target=dest/db.relative_to(old)
             target.parent.mkdir(parents=True,exist_ok=True)
-            with sqlite3.connect('file:'+db.as_posix()+'?mode=ro',uri=True) as src,sqlite3.connect(target) as out:
+            with closing(sqlite3.connect('file:'+db.as_posix()+'?mode=ro',uri=True)) as src,closing(sqlite3.connect(target)) as out:
                 src.backup(out)
                 if out.execute('PRAGMA integrity_check').fetchone()[0]!='ok':raise RuntimeError('Database verification failed')
         if (source/'.secrets').is_dir():shutil.copytree(source/'.secrets',destination/'.secrets')

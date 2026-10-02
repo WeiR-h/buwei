@@ -146,6 +146,11 @@ impl Journal {
         tx.execute("INSERT INTO operations(id,app,account,status,body) VALUES(?1,?2,?3,?4,?5)",params![op.id,op.app,op.account,op.status.as_str(),body])?;
         tx.commit()?; Ok(op)
     }
+    /// Unsent previews may be reused only within the exact active consent.
+    pub fn preview_current(grant:&Grant,op:&Operation,now:u64)->bool {
+        Self::owns(grant,op,now).is_ok() && Self::same_context(grant,op).is_ok()
+            && matches!(op.status,Status::Prepared|Status::Queued) && now<op.expires_at
+    }
     pub fn confirm(&mut self, grant: &Grant, id: &str, adapter: &impl Adapter, now: u64) -> Result<Operation> {
         let mut op = self.get(id)?; Self::owns(grant,&op,now)?; Self::same_context(grant,&op)?;
         if matches!(op.status, Status::Queued|Status::Dispatching|Status::Unknown|Status::Confirmed) { return Ok(op); }

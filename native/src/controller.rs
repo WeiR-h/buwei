@@ -3,11 +3,14 @@ use super::*;
 use buwei_host_core::{ModelAdvice,advice_digest};
 use buwei_host_core::article::{Article,ArticleStore};
 #[derive(Clone)]
+#[cfg_attr(feature="acceptance",derive(serde::Deserialize))]
+#[cfg_attr(feature="acceptance",serde(tag="command",content="value",deny_unknown_fields))]
 pub(crate) enum Command {
     Authorize,ConfirmAuthorization(String),Switch,Revoke,JoinRoom(String),InviteMember(String),SyncActivity,Create{title:String,capacity:u8,start:u8,end:u8},
     Join(Preferences),ConfirmParticipant(Preferences),ReconcilePending,Prepare,Execute,Reconcile,Accept(bool),Cancel,Expire,
     Suggest(String),ApplySuggestion(String),Draft{title:String,markdown:String},
     PrepareArticle,PublishArticle{title:String,markdown:String},ReconcileArticle,Fault,Refresh,
+    #[cfg(feature="acceptance")]TestFault(String),
 }
 #[derive(Clone,Default)]
 pub(crate) struct View {pub account:String,pub activity:String,pub people:String,pub preview:String,pub participant_preview:String,pub participant_inputs:Option<(String,Preferences)>,pub history:String,pub reply:String,pub article:String,pub draft:Option<(String,String)>,pub advice:String,pub message:String,pub authorized:bool,pub consent_id:Option<String>,pub consent:String,pub expires:String,pub fault:bool}
@@ -67,7 +70,7 @@ impl Controller {
         #[cfg(feature="full-host")]
         if rinx_bridge::official_mode(){
             self.server_verified=false;
-            if let Err(e)=rinx_bridge::verify_current(&self.rt,self.active()){self.shutdown();return Err(e);}
+            if let Err(e)=rinx_bridge::verify_current(&self.rt,self.active()){if !self.host_session_current(){self.shutdown();}return Err(e);}
             self.server_verified=true;
             match &command{
                 Command::Switch=>return Err("请在 Rinx 中退出或切换账号；补位不能自行声明其他身份。".into()),
@@ -76,6 +79,8 @@ impl Controller {
             }
         }
         match command {
+            #[cfg(feature="acceptance")]
+            Command::TestFault(mode)=>{self.g("read")?;super::acceptance::set_fault(&mode)?;Ok("仅验收构建的单次传输故障已设置；公开运行包不包含此功能。".into())},
             Command::Authorize=>{self.consent=Some(consent::Consent::prepare(self.actor(),now()));Ok("请核对下面的账号、权限范围和有效期，再确认授权。".into())},
             Command::ConfirmAuthorization(id)=>{
                 self.consent.as_ref().ok_or("请先查看授权范围")?.check(&id,&self.actor(),now())?;
@@ -88,7 +93,7 @@ impl Controller {
                 self.article_current=self.journal.recent(self.article_grant.as_ref().unwrap(),now()).map_err(|_|"文章回执不可用")?.into_iter().next();
                 Ok("已授权当前真实账号。旧的未执行确认不会自动恢复，请重新预览。".into())
             }
-            Command::Switch=>{self.selected=!self.selected;self.authority.set_account(Some(&self.actor()));self.grant=None;self.article_grant=None;self.suggestion=None;Ok("账号已切换；旧授权与旧确认已失效。".into())}
+            Command::Switch=>{self.selected=!self.selected;self.authority.set_account(Some(&self.actor()));self.grant=None;self.article_grant=None;self.current=None;self.participant_current=None;self.article_current=None;self.consent=None;self.authorized_until=0;self.suggestion=None;Ok("账号已切换；旧授权与旧确认已失效。".into())}
             Command::Revoke=>{if let Some(g)=&self.grant{g.revoke();}if let Some(g)=&self.article_grant{g.revoke();}self.suggestion=None;self.consent=None;self.authorized_until=0;Ok("当前账号的授权已撤销。".into())}
             Command::JoinRoom(room)=>{
                 #[cfg(feature="full-host")] if rinx_bridge::official_mode(){self.g("participate")?;let room=OwnedRoomId::try_from(room.trim()).map_err(|_|"请填写完整活动房间编号")?;if let Ok(a)=self.activity(){if a.room!=room.as_str(){return Err("本版只管理一场活动，请保留现有活动".into());}}
@@ -169,7 +174,7 @@ impl Controller {
         let pending=self.journal.pending(&g,now()).map_err(|_|"待核实记录不可读取")?;
         if !pending.is_empty(){return Err("还有原编号待核实操作，请先查询回执，不会创建新交易".into());}
         let action=intent.action(&a);
-        if let Some(op)=self.journal.recent(&g,now()).map_err(|_|"历史记录不可读取")?.into_iter().find(|op|op.revision==a.revision && op.action==action && (op.status==Status::Confirmed || (matches!(op.status,Status::Prepared|Status::Queued)&&op.expires_at>now()))){
+        if let Some(op)=self.journal.recent(&g,now()).map_err(|_|"历史记录不可读取")?.into_iter().find(|op|op.revision==a.revision && op.action==action && (op.status==Status::Confirmed || Journal::preview_current(&g,op,now()))){
             self.participant_current=Some(op);return Ok("沿用本人原操作编号。核对预览后确认；已送达操作不会重发。".into());
         }
         self.participant_current=Some(self.journal.prepare(&g,action,a.revision,now(),120).map_err(|_|"本人操作预览不可用")?);
@@ -190,6 +195,8 @@ impl Controller {
         #[cfg(feature="full-host")] if rinx_bridge::official_mode(){let _=rinx_bridge::record_status(&self.root,None,false,false);}
     }
     pub fn is_authorized(&self)->bool{self.grant.as_ref().is_some_and(|g|g.check("read",now()).is_ok())}
+    #[cfg(feature="acceptance")]
+    pub fn acceptance_snapshot(&self)->Value{json!({"version":env!("CARGO_PKG_VERSION"),"collected_at_unix":now(),"account":self.actor(),"authorized":self.is_authorized(),"consent_id":self.consent.as_ref().map(|c|&c.id),"message":self.message,"activity":self.activity().ok(),"invitation":self.current,"participant":self.participant_current,"article":self.article_current})}
     pub fn view(&self)->View {
         let mut v=View{account:self.actor(),message:self.message.clone(),authorized:self.grant.as_ref().is_some_and(|g|g.check("read",now()).is_ok()),fault:self.fault,..Default::default()};
         v.consent_id=self.consent.as_ref().map(|p|p.id.clone());v.consent=if self.consent.is_some(){format!("授权对象：{}\n补位：创建本场活动、邀请、本人登记与回复、读取记录、请求 AI 建议。\n文章：保存草稿并在单独确认后发布。有效期：确认后 1 小时；本次授权预览 2 分钟内有效。\n登录由 Rinx 管理；邀请和发布仍需核对具体预览。",self.actor())}else{"点击查看授权范围，再确认授权。".into()};
