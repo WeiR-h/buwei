@@ -12,6 +12,7 @@ class ReleaseTools(unittest.TestCase):
             file=pathlib.Path(tmp)/'native.exe';data=bytearray(1024)
             data[:2]=b'MZ';struct.pack_into('<I',data,60,128);data[128:132]=b'PE\0\0'
             struct.pack_into('<H',data,132,0x8664);struct.pack_into('<H',data,152,0x20b)
+            struct.pack_into('<H',data,148,240);struct.pack_into('<I',data,260,16)
             struct.pack_into('<Q',data,224,1048576);struct.pack_into('<Q',data,232,4096)
             data[512:]=bytes(range(256))*2;file.write_bytes(data)
             proof=normalize(file)

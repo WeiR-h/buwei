@@ -8,8 +8,9 @@ uses their own Rinx identity. Model suggestions require review; deterministic
 queue, availability and capacity rules decide eligibility. Invitation delivery
 and personal acceptance are separate states.
 
-**Current source: v0.0.16 preview under development. v0.1.0 release gates have
-not passed.** See [acceptance](docs/ACCEPTANCE.md) for measured results.
+**Current source: v0.1.0 release candidate; stable assets are not yet public.
+Five real dual-account loops, decline, expiration and fault checks passed.
+Complete package release gates are still in progress.** See [acceptance](docs/ACCEPTANCE.md) for measured results.
 
 ## Build
 

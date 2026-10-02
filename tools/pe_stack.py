@@ -12,7 +12,10 @@ def normalize(file,reserve=16*1024*1024):
     header=struct.unpack_from('<I',data,60)[0]
     if data[header:header+4]!=b'PE\0\0' or struct.unpack_from('<H',data,header+4)[0]!=0x8664:raise ValueError('Expected x64 PE')
     optional=header+24
+    optional_size=struct.unpack_from('<H',data,header+20)[0]
+    if optional_size<152 or optional+optional_size>len(data):raise ValueError('Truncated PE optional header')
     if struct.unpack_from('<H',data,optional)[0]!=0x20b:raise ValueError('Expected PE32+')
+    if struct.unpack_from('<I',data,optional+108)[0]<5:raise ValueError('Missing PE security directory')
     if any(struct.unpack_from('<II',data,optional+144)):raise ValueError('Signed binary must not be changed')
     old=struct.unpack_from('<Q',data,optional+72)[0]
     commit=struct.unpack_from('<Q',data,optional+80)[0]

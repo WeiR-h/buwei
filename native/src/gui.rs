@@ -17,7 +17,7 @@ script_mod! {
         ..mod.widgets.RectView
         width:Fill height:Fill flow:Down padding:Inset{top:12 left:16 right:16 bottom:20} spacing:8
                 Heading{text:"补位 · 让想来的人，刚好有位"}
-                Small{text:#(concat!("v",env!("CARGO_PKG_VERSION")," · OctoSense 官方宿主 · 正式 Rinx 登录接入候选"))}
+                Small{text:#(concat!("v",env!("CARGO_PKG_VERSION")," · OctoSense 官方宿主 · Rinx 真实身份与服务端回执"))}
                 profile:=Small{text:"双账号联调窗口"}
                 account:=Text{text:"请先在 Rinx 完成正式账号登录…"}
                 View{width:Fill height:Fit flow:Right spacing:10
@@ -155,7 +155,7 @@ impl BuWeiView{
             self.view.text_input(cx,ids!(group)).set_text(cx,&p.group.to_string());
             self.last_participant_operation=Some(id.clone());
         }}
-        self.view.label(cx,ids!(profile)).set_text(cx,if std::env::var("BUWEI_PROFILE").as_deref()==Ok("participant"){"参与者测试窗口 · 请登录第二个真实账号"}else{"组织者测试窗口 · 登录身份由 Rinx 核验"});
+        self.view.label(cx,ids!(profile)).set_text(cx,if std::env::var("BUWEI_PROFILE").as_deref()==Ok("participant"){"参与者窗口 · 请登录本人 Rinx 账号"}else{"组织者窗口 · 登录身份由 Rinx 核验"});
         self.view.label(cx,ids!(account)).set_text(cx,&format!("当前真实账号：{} · {}",view.account,if view.authorized{"已授权"}else{"未授权"}));
         self.consent_id=view.consent_id.clone();self.view.label(cx,ids!(authorization)).set_text(cx,&view.consent);self.view.label(cx,ids!(expires)).set_text(cx,&view.expires);
         self.view.label(cx,ids!(activity)).set_text(cx,&view.activity);self.view.label(cx,ids!(people)).set_text(cx,&view.people);
