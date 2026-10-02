@@ -96,6 +96,9 @@ script_mod! {
                     markdown:=Input{height:200 is_multiline:true empty_text:"完整 Markdown 正文"}
                     View{width:Fill height:Fit flow:Right spacing:8
                         apply_note:=Action{text:"确认并保存 AI 草稿"} draft:=Action{text:"保存手动草稿"}
+                        new_article:=Action{text:"保留已发布文章并新建下一篇"}
+                    }
+                    View{width:Fill height:Fit flow:Right spacing:8
                         article_prepare:=Action{text:"预览文章"} publish:=Action{text:"确认发布"}
                         article_reconcile:=Action{text:"核实文章回执"}
                     }
@@ -209,7 +212,7 @@ impl Widget for BuWeiView{
                 else if clicked!(accept){Some(Command::Accept(true))}else if clicked!(decline){Some(Command::Accept(false))}else if clicked!(cancel){Some(Command::Cancel)}else if clicked!(expire){Some(Command::Expire)}
                 else if clicked!(suggest){Some(Command::Suggest(text!(requirement)))}else if clicked!(apply_advice){Some(Command::ApplySuggestion(text!(requirement)))}
                 else if clicked!(explain){Some(Command::Explain)}else if clicked!(generate_note){Some(Command::GenerateNote)}else if clicked!(apply_note){Some(Command::ApplyNote{title:text!(article_title),markdown:text!(markdown)})}else if clicked!(configure_model){Some(Command::ConfigureModel)}
-                else if clicked!(draft){Some(Command::Draft{title:text!(article_title),markdown:text!(markdown)})}else if clicked!(article_prepare){Some(Command::PrepareArticle)}else if clicked!(publish){Some(Command::PublishArticle{title:text!(article_title),markdown:text!(markdown)})}else if clicked!(article_reconcile){Some(Command::ReconcileArticle)}else if clicked!(fault){Some(Command::Fault)}else{None})
+                else if clicked!(draft){Some(Command::Draft{title:text!(article_title),markdown:text!(markdown)})}else if clicked!(new_article){Some(Command::NewArticle{title:text!(article_title),markdown:text!(markdown)})}else if clicked!(article_prepare){Some(Command::PrepareArticle)}else if clicked!(publish){Some(Command::PublishArticle{title:text!(article_title),markdown:text!(markdown)})}else if clicked!(article_reconcile){Some(Command::ReconcileArticle)}else if clicked!(fault){Some(Command::Fault)}else{None})
             })();match command{Ok(Some(command))=>self.send(cx,command),Err(message)=>{self.view.label(cx,ids!(message)).set_text(cx,&message);self.view.redraw(cx);},_=>{}}
         }
         self.view.handle_event(cx,event,scope);

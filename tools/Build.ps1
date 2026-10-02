@@ -1,4 +1,4 @@
-param([switch]$Release,[switch]$Offline,[switch]$Tests)
+﻿param([switch]$Release,[switch]$Offline,[switch]$Tests)
 $ErrorActionPreference='Stop'
 $buweiRoot=Split-Path $PSScriptRoot -Parent
 $buweiNativeFlags=@()
@@ -25,5 +25,16 @@ if($Tests){$buweiArguments+='--workspace'}
 if($Release){$buweiArguments+='--release'}
 if($Offline){$buweiArguments+='--offline'}
 Push-Location $buweiRoot
-try { & cargo @buweiArguments; if($LASTEXITCODE -ne 0){throw '构建或测试失败；保留现有数据。'} }
+try {
+ $buweiProofStart=Join-Path $buweiRoot '.run/build-start.json'
+ if(!$Tests){python tools/build_proof.py --start $buweiProofStart;if($LASTEXITCODE -ne 0){throw '构建来源不可核实。'}}
+ & cargo @buweiArguments; if($LASTEXITCODE -ne 0){throw '构建或测试失败；保留现有数据。'}
+ if(!$Tests){
+  $buweiTargetRoot=if($env:CARGO_TARGET_DIR){$env:CARGO_TARGET_DIR}else{Join-Path $buweiRoot 'native/target'}
+  $buweiProfile=if($Release){'release'}else{'debug'}
+  $buweiBinary=Join-Path $buweiTargetRoot ($buweiProfile+'/buwei-rinx-dual-host.exe')
+  python tools/build_proof.py --finish $buweiProofStart --binary $buweiBinary --output ($buweiBinary+'.build.json')
+  if($LASTEXITCODE -ne 0){throw '构建期间来源发生变化，禁止打包。'}
+ }
+}
 finally {Pop-Location}

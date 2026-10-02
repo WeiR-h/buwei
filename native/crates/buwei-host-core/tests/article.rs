@@ -16,3 +16,19 @@ fn path()->std::path::PathBuf{std::env::temp_dir().join(format!("buwei-article-{
 #[test]fn article_sqlite_rejects_stale_writer_and_survives_reopen(){let(_,g)=grant();let file=path();let mut first=ArticleStore::open(&file).unwrap();first.create(&g,&draft(),10).unwrap();let mut second=ArticleStore::open(&file).unwrap();first.update(1,|a|a.edit(g.account(),"新标题".into(),"正文".into())).unwrap();assert!(second.update(1,|a|a.edit(g.account(),"覆盖".into(),"覆盖".into())).is_err());drop(first);assert_eq!(ArticleStore::open(&file).unwrap().load().unwrap().unwrap().title,"新标题");}
 #[test]fn wrong_application_grant_cannot_create_article(){let authority=Authority::default();authority.set_account(Some("@author:local"));let g=authority.grant("buwei",&["create"],10,100).unwrap();assert!(ArticleStore::open(path()).unwrap().create(&g,&draft(),10).is_err());g.revoke();assert!(g.check("create",10).is_err());}
 #[test]fn article_bounds_reject_empty_or_oversized_content(){assert!(Article::new("@author:local".into(),"!opaque".into(),"".into(),"正文".into()).is_err());assert!(Article::new("@author:local".into(),"!opaque".into(),"标题".into(),"x".repeat(24001)).is_err());}
+#[test]fn next_article_archives_verified_content_and_receipt_atomically(){
+    let(_,g)=grant();let file=path();let mut store=ArticleStore::open(&file).unwrap();store.create(&g,&draft(),10).unwrap();
+    let mut j=Journal::open(path()).unwrap();let mut op=j.prepare(&g,draft().action(),1,10,100).unwrap();op.status=Status::Dispatching;
+    let sent=store.update(1,|a|a.claim(&op)).unwrap();let evidence=Evidence{operation_id:op.id.clone(),external_id:"$published".into(),account:op.account.clone(),target:op.action.target.clone(),digest:op.digest.clone()};
+    let published=store.update(sent.revision,|a|a.record(&evidence)).unwrap();let mut next=draft();next.title="下一篇".into();
+    let saved=store.start_next(&g,published.revision,next.clone(),20).unwrap();assert_eq!(saved.revision,published.revision+1);assert_eq!(saved.state,Publication::Draft);
+    assert!(store.start_next(&g,published.revision,next,21).is_err());drop(store);
+    let reopened=ArticleStore::open(file).unwrap();let history=reopened.published_history().unwrap();assert_eq!(history.len(),1);assert_eq!(history[0].title,published.title);assert_eq!(history[0].server_event,Some(evidence.external_id));assert_eq!(history[0].operation,Some(op.id));assert_eq!(reopened.load().unwrap().unwrap().title,"下一篇");
+}
+#[test]fn new_article_cannot_overwrite_uncertain_publication_or_change_author(){
+    let(_,g)=grant();let mut store=ArticleStore::open(path()).unwrap();store.create(&g,&draft(),10).unwrap();
+    let mut j=Journal::open(path()).unwrap();let mut op=j.prepare(&g,draft().action(),1,10,100).unwrap();op.status=Status::Dispatching;
+    let sent=store.update(1,|a|a.claim(&op)).unwrap();let unknown=store.update(sent.revision,|a|a.mark_unknown(&op.id)).unwrap();
+    assert!(store.start_next(&g,unknown.revision,draft(),20).is_err());assert_eq!(store.load().unwrap().unwrap().operation,Some(op.id));
+    let mut other=draft();other.author="@other:local".into();assert!(store.start_next(&g,unknown.revision,other,20).is_err());assert!(store.published_history().unwrap().is_empty());
+}

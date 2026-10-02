@@ -9,9 +9,10 @@ pub(crate) enum Command {
     Authorize,ConfirmAuthorization(String),Switch,Revoke,JoinRoom(String),InviteMember(String),SyncActivity,Create{title:String,capacity:u8,start:u8,end:u8},
     Join(Preferences),ConfirmParticipant(Preferences),ReconcilePending,Prepare,Execute,Reconcile,Accept(bool),Cancel,Expire,
     Suggest(String),ApplySuggestion(String),Explain,GenerateNote,ConfigureModel,ApplyNote{title:String,markdown:String},Draft{title:String,markdown:String},
-    PrepareArticle,PublishArticle{title:String,markdown:String},ReconcileArticle,Fault,Refresh,
+    NewArticle{title:String,markdown:String},PrepareArticle,PublishArticle{title:String,markdown:String},ReconcileArticle,Fault,Refresh,
     #[cfg(feature="acceptance")]TestFault(String),
     #[cfg(feature="acceptance")]CollectEvidence,
+    #[cfg(feature="acceptance")]TestLegacyArticle{title:String,markdown:String},
 }
 #[derive(Clone,Default)]
 pub(crate) struct View {pub account:String,pub activity:String,pub people:String,pub preview:String,pub participant_preview:String,pub participant_inputs:Option<(String,Preferences)>,pub history:String,pub reply:String,pub article:String,pub draft:Option<(String,String)>,pub generated_note:Option<(String,String,String)>,pub model_status:String,pub advice:String,pub message:String,pub sync_status:String,pub organizer:bool,pub authorized:bool,pub consent_id:Option<String>,pub consent:String,pub expires:String,pub fault:bool}
@@ -92,6 +93,20 @@ impl Controller {
             },
             #[cfg(feature="acceptance")]
             Command::TestFault(mode)=>{self.g("read")?;super::acceptance::set_fault(&mode)?;Ok("仅验收构建的单次传输故障已设置；公开运行包不包含此功能。".into())},
+            #[cfg(feature="acceptance")]
+            Command::TestLegacyArticle{title,markdown}=>{
+                let g=self.ag()?;let saved=ArticleStore::open(self.article_path())?.load()?.ok_or("基线草稿缺失")?;
+                if saved.title!=title||saved.markdown!=markdown{return Err("基线测试内容与完整预览不一致".into());}
+                let preview=self.article_current.as_ref().ok_or("基线测试必须先预览完整文章")?.clone();
+                let adapter=self.article_adapter()?;self.journal.confirm(&g,&preview.id,&adapter,now()).map_err(|_|"基线预览已失效")?;
+                // Controlled benchmark without journal execution/reconciliation:
+                // a naive retry after lost acknowledgement picks a fresh ID.
+                // Only an opted-in test build can invoke this path.
+                let mut ids=vec![];
+                for _ in 0..2{let mut attempt=preview.clone();attempt.id=new_id();ids.push(attempt.id.clone());let result=channel::publish(&self.rt,self.active(),&adapter.room,&attempt,"m.room.message");if result.is_ok(){break;}}
+                std::fs::write(self.root.join(".run/acceptance/legacy-attempts.private.json"),serde_json::to_vec(&json!({"ids":ids,"content":saved.action().payload})).unwrap()).map_err(|_|"基线证据不可保存")?;
+                Ok("受控基线测试完成；需要核对 SDK 事件数，不能作为生产执行记录。".into())
+            },
             #[cfg(feature="acceptance")]
             Command::CollectEvidence=>{
                 self.g("read")?;
@@ -183,6 +198,9 @@ impl Controller {
                 self.apply(Command::Draft{title,markdown})?;self.note=None;Ok("已确认并保存小记草稿，尚未发布。请继续预览完整文章。".into())}
 
             Command::Draft{title,markdown}=>{let g=self.ag()?;let a=self.activity()?;let mut s=ArticleStore::open(self.article_path())?;if let Some(old)=s.load()?{let actor=self.actor();s.update(old.revision,|a|a.edit(&actor,title,markdown))?;}else{s.create(&g,&Article::new(self.actor(),a.room,title,markdown)?,now())?;}Ok("完整文章草稿已保存；旧预览不能用于修改后的正文。".into())}
+            Command::NewArticle{title,markdown}=>{let g=self.ag()?;let a=self.activity()?;let mut store=ArticleStore::open(self.article_path())?;let previous=store.load()?.ok_or("第一篇文章请使用保存草稿")?;
+                store.start_next(&g,previous.revision,Article::new(self.actor(),a.room,title,markdown)?,now())?;self.article_current=None;
+                Ok("已保留原文章及服务端回执，建立下一篇草稿。请核对正文后重新预览。".into())},
             Command::PrepareArticle=>{let g=self.ag()?;let a=ArticleStore::open(self.article_path())?.load()?.ok_or("请先保存文章草稿")?;self.article_current=Some(self.journal.prepare(&g,a.action(),a.revision,now(),120).map_err(|_|"文章预览不可用")?);Ok("文章确切预览已生成；完整标题和正文将在确认后发布。".into())}
             Command::PublishArticle{title,markdown}=>{let g=self.ag()?;let saved=ArticleStore::open(self.article_path())?.load()?.ok_or("请先保存完整草稿")?;if saved.title!=title||saved.markdown!=markdown{return Err("输入内容已变化，旧确认失效。请保存完整草稿并重新预览。".into());}let id=self.article_current.as_ref().ok_or("请先预览文章")?.id.clone();let adapter=self.article_adapter()?;if self.article_current.as_ref().unwrap().status==Status::Prepared{self.journal.confirm(&g,&id,&adapter,now()).map_err(|_|"文章预览已失效")?;}self.article_current=Some(self.journal.execute(&g,&id,&adapter,now()).map_err(|_|"文章不能重复发送，待核实结果请查询回执")?);Ok("文章结果已记录；取得匹配服务端事件后才显示已发布。".into())}
             Command::ReconcileArticle=>{let g=self.ag()?;let id=self.article_current.as_ref().ok_or("文章发布记录不存在")?.id.clone();let adapter=self.article_adapter()?;self.article_current=Some(self.journal.reconcile(&g,&id,&adapter,now()).map_err(|_|"文章回执暂不可核实，原编号保留")?);Ok("文章沿原编号核实完成，没有重新发布。".into())}
@@ -213,6 +231,7 @@ impl Controller {
         let result=format!("活动同步已核验：有效 {accepted}，拒绝 {rejected}，过期释放 {expired}；进度已保存。{warning}");self.last_sync_status=result.clone();Ok(result)
     }
     pub fn automatic_sync(&mut self)->Option<View>{
+        #[cfg(feature="acceptance")]if acceptance::automatic_sync_paused(&self.root){return None;}
         if !self.is_authorized(){return None;}
         #[cfg(feature="full-host")]if rinx_bridge::official_mode(){
             if self.activity().is_err(){return None;}

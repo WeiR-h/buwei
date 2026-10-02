@@ -17,9 +17,12 @@ pub(crate) fn after_server_event(kind:&str)->Result<()>{
     if FAULT.compare_exchange(3,0,Ordering::SeqCst,Ordering::SeqCst).is_ok(){std::process::abort();}
     Ok(())
 }
-#[derive(Deserialize)]#[serde(deny_unknown_fields)]struct Config{account:String,room:String,nonce:String,expires_at:u64}
+#[derive(Deserialize)]#[serde(deny_unknown_fields)]struct Config{account:String,room:String,nonce:String,expires_at:u64,#[serde(default)]pause_automatic_sync:bool}
 #[derive(Deserialize)]#[serde(deny_unknown_fields)]struct Packet{id:String,nonce:String,action:Command}
 fn read<T:serde::de::DeserializeOwned>(path:&Path)->Option<T>{let bytes=std::fs::read(path).ok()?;if bytes.len()>65536{return None;}serde_json::from_slice(&bytes).ok()}
+pub(crate) fn automatic_sync_paused(root:&Path)->bool{
+    std::env::args().any(|a|a=="--acceptance")&&read::<Config>(&root.join(".run/acceptance/config.local.json")).is_some_and(|c|c.pause_automatic_sync)
+}
 pub(crate) fn poll(root:&Path,c:&mut Controller)->Option<View>{
     if !std::env::args().any(|a|a=="--acceptance"){return None;}
     let directory=root.join(".run/acceptance");

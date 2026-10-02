@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$ProfileDirectory)
+﻿param([Parameter(Mandatory=$true)][string]$ProfileDirectory)
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing

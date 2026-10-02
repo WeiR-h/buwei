@@ -1,4 +1,4 @@
-param(
+﻿param(
  [ValidateSet('organizer','participant')][string]$Role='organizer',
  [string]$ProfileDirectory,
  [string]$Executable

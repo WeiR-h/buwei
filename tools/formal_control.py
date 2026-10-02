@@ -31,3 +31,5 @@ class Control:
         result=self.command('ConfirmAuthorization',nonce)
         if not result.get('authorized'):raise RuntimeError('Host did not grant consent')
         return result
+    def pause_automatic_sync(self,paused):
+        self.config['pause_automatic_sync']=bool(paused);self.write('config.local.json',self.config)

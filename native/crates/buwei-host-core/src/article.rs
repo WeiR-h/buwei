@@ -60,7 +60,7 @@ impl ArticleStore {
         db.busy_timeout(std::time::Duration::from_secs(3)).map_err(|e|e.to_string())?;
         let version:u32=db.query_row("PRAGMA user_version",[],|r|r.get(0)).map_err(|e|e.to_string())?;
         if version>1{return Err("文章记录版本不受支持，原文件保留".into());}
-        db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS article(singleton INTEGER PRIMARY KEY CHECK(singleton=1),revision INTEGER NOT NULL,body TEXT NOT NULL); PRAGMA user_version=1;").map_err(|e|e.to_string())?;Ok(Self{db})
+        db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS article(singleton INTEGER PRIMARY KEY CHECK(singleton=1),revision INTEGER NOT NULL,body TEXT NOT NULL); CREATE TABLE IF NOT EXISTS published_articles(operation TEXT PRIMARY KEY,body TEXT NOT NULL); PRAGMA user_version=1;").map_err(|e|e.to_string())?;Ok(Self{db})
     }
     pub fn load(&self)->Result<Option<Article>> {
         let row:Option<(i64,String)>=self.db.query_row("SELECT revision,body FROM article WHERE singleton=1",[],|r|Ok((r.get(0)?,r.get(1)?))).optional().map_err(|e|e.to_string())?;
@@ -70,6 +70,22 @@ impl ArticleStore {
         g.check("create",now).map_err(|_|"文章创建授权已失效")?;a.validate()?;
         if g.app()!="buwei-article"||g.account()!=a.author||a.state!=Publication::Draft{return Err("文章创建身份不匹配".into());}
         self.db.execute("INSERT INTO article VALUES(1,?1,?2)",params![a.revision as i64,serde_json::to_string(a).map_err(|e|e.to_string())?]).map_err(|_|"文章已存在")?;Ok(())
+    }
+    pub fn start_next(&mut self,g:&Grant,expected:u64,mut draft:Article,now:u64)->Result<Article>{
+        g.check("create",now).map_err(|_|"新文章授权已失效")?;draft.validate()?;
+        if g.app()!="buwei-article"||g.account()!=draft.author||draft.state!=Publication::Draft{return Err("新草稿身份不匹配".into());}
+        let tx=self.db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate).map_err(|e|e.to_string())?;
+        let (revision,body):(i64,String)=tx.query_row("SELECT revision,body FROM article WHERE singleton=1",[],|r|Ok((r.get(0)?,r.get(1)?))).map_err(|e|e.to_string())?;
+        let previous:Article=serde_json::from_str(&body).map_err(|_|"原文章记录不可读取")?;previous.validate()?;
+        if revision<1||revision as u64!=expected||previous.revision!=expected||previous.author!=draft.author||previous.room!=draft.room||previous.state!=Publication::Published{return Err("先核实原文章发布结果；未发布或不明状态不能被新草稿覆盖".into());}
+        draft.revision=expected.checked_add(1).ok_or("文章版本达到上限")?;draft.validate()?;
+        tx.execute("INSERT INTO published_articles(operation,body) VALUES(?1,?2)",params![previous.operation.as_ref().ok_or("原文章编号缺失")?,body]).map_err(|e|e.to_string())?;
+        tx.execute("UPDATE article SET revision=?1,body=?2 WHERE singleton=1",params![draft.revision as i64,serde_json::to_string(&draft).map_err(|e|e.to_string())?]).map_err(|e|e.to_string())?;tx.commit().map_err(|e|e.to_string())?;Ok(draft)
+    }
+    pub fn published_history(&self)->Result<Vec<Article>>{
+        let mut query=self.db.prepare("SELECT body FROM published_articles ORDER BY rowid DESC LIMIT 40").map_err(|e|e.to_string())?;
+        let rows=query.query_map([],|r|r.get::<_,String>(0)).map_err(|e|e.to_string())?;
+        rows.map(|r|{let a:Article=serde_json::from_str(&r.map_err(|e|e.to_string())?).map_err(|_|"文章历史损坏")?;a.validate()?;Ok(a)}).collect()
     }
     pub fn update(&mut self,expected:u64,change:impl FnOnce(&mut Article)->Result<()>)->Result<Article> {
         let tx=self.db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate).map_err(|e|e.to_string())?;
