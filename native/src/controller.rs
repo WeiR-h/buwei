@@ -199,17 +199,18 @@ impl Controller {
         official_sync::check_authority(&self.rt,self.active(),&a)?;
         // The expiry watermark is captured before reading. Replies accepted by
         // the server while paging cannot be released by a later local clock.
-        let watermark=now().saturating_sub(5);let mut store=Store::open(self.data.join("activity.db"))?;
+        let watermark=official_sync::server_watermark(self.active());let mut store=Store::open(self.data.join("activity.db"))?;
         let checkpoint=store.sync_checkpoint(&a.room)?;
         let events=official_sync::timeline_since(&self.rt,self.active(),&room,checkpoint.as_deref())?;let mut accepted=0;let mut rejected=0;
         let last=events.last().and_then(|v|v["event_id"].as_str()).map(str::to_owned);
         for v in events{if !matches!(v["type"].as_str(),Some("org.buwei.join"|"org.buwei.reply"|"org.buwei.cancel")){continue;}let id=v["event_id"].as_str().ok_or("服务端编号缺失")?;match store.apply_verified_event(id,|a|official_sync::apply_participant(a,room.as_str(),&v,now()))?{Some(true)=>accepted+=1,Some(false)=>rejected+=1,None=>{}}}
         if let Some(id)=last{store.save_sync_checkpoint(&a.room,&id)?;}
         let current=store.load()?.ok_or("活动缺失")?;let mut expired=0;
-        store.update(current.revision,|a|{expired=a.expire(watermark);Ok(())})?;
+        if let Ok(watermark)=watermark.as_ref(){store.update(current.revision,|a|{expired=a.expire(*watermark);Ok(())})?;}
         let sg=self.sync_grant.as_ref().ok_or("同步授权不可用")?.clone();
         official_sync::publish(self.rt.clone(),&self.owner,self.data.join("activity.db"),&sg,&mut self.journal)?;
-        let result=format!("活动同步已核验：有效 {accepted}，拒绝 {rejected}，过期释放 {expired}；进度已保存。");self.last_sync_status=result.clone();Ok(result)
+        let warning=watermark.err().map(|e|format!(" {e}")).unwrap_or_default();
+        let result=format!("活动同步已核验：有效 {accepted}，拒绝 {rejected}，过期释放 {expired}；进度已保存。{warning}");self.last_sync_status=result.clone();Ok(result)
     }
     pub fn automatic_sync(&mut self)->Option<View>{
         if !self.is_authorized(){return None;}

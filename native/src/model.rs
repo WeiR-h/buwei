@@ -3,9 +3,10 @@ use super::*;
 use octosense_llm_service::complete::{Candidate,Providers,Transport,ModelHost,Options,Request,Class,ledger::Limits};
 use octosense_llm_config::{Provider,ApiType};
 use buwei_host_core::ModelAdvice;
-struct PrivateProvider {root:PathBuf}
+struct PrivateProvider {root:PathBuf,ledger_ready:bool}
 impl Providers for PrivateProvider {
     fn candidates(&self)->Result<Vec<Candidate>> {
+        if !self.ledger_ready{return Err("模型计数迁移不可核实，请保留旧目录并核对预算".into());}
         let key=unseal(&self.root.join(".secrets/minimax-cn.dpapi"),b"buwei/minimax-cn/v1")?;
         let key=String::from_utf8(key).map_err(|_|"模型私密配置不可用")?;
         if key.trim()!=key||key.len()<20||key.len()>4096||key.chars().any(char::is_control){return Err("模型私密配置不可用".into());}
@@ -47,12 +48,33 @@ impl Transport for BoundedM3 {
     }
 }
 static NATIVE_HOST:std::sync::OnceLock<Arc<ModelHost>>=std::sync::OnceLock::new();
+fn merge_ledger(left:Value,right:Value)->Result<Value>{
+    fn valid(v:&Value)->bool{v["day"].as_u64().is_some()&&v["apps"].as_object().is_some_and(|apps|apps.values().all(|a|a["calls"].as_u64().is_some()&&a["tokens"].as_u64().is_some()))&&v["limits"].as_object().is_some()}
+    if !valid(&left)||!valid(&right){return Err("历史模型计数损坏".into());}
+    if left["day"].as_u64()>right["day"].as_u64(){return Ok(left);}
+    if left["day"].as_u64()<right["day"].as_u64(){return Ok(right);}
+    let mut result=left;
+    for (app,count) in right["apps"].as_object().unwrap(){
+        let previous=&result["apps"][app];let calls=previous["calls"].as_u64().unwrap_or(0).max(count["calls"].as_u64().unwrap());let tokens=previous["tokens"].as_u64().unwrap_or(0).max(count["tokens"].as_u64().unwrap());
+        result["apps"][app]=json!({"calls":calls,"tokens":tokens});
+    }Ok(result)
+}
+fn prepare_ledger(root:&Path)->Result<()>{
+    let path=root.join("data/model/ledger.json");
+    let empty=json!({"day":0,"apps":{},"limits":{}});let mut value=empty.clone();let mut found=false;
+    for entry in std::fs::read_dir(root.join("data")).map_err(|_|"模型资料目录不可读取")?{
+        let entry=entry.map_err(|_|"历史模型目录不可读取")?;let old=entry.path().join("native/model-ledger.json");
+        if old.is_file(){let bytes=std::fs::read(old).map_err(|_|"历史计数不可读取")?;value=merge_ledger(value,serde_json::from_slice(&bytes).map_err(|_|"历史计数不合法")?)?;found=true;}
+    }
+    if path.is_file(){let bytes=std::fs::read(&path).map_err(|_|"模型计数不可读取")?;let current:Value=serde_json::from_slice(&bytes).map_err(|_|"模型计数不合法")?;value=merge_ledger(value,current.clone())?;if value==current{return Ok(());}found=true;}
+    if found{std::fs::create_dir_all(path.parent().unwrap()).map_err(|_|"模型计数目录不可写")?;let temporary=path.with_extension("migration.tmp");std::fs::write(&temporary,serde_json::to_vec(&value).unwrap()).map_err(|_|"模型计数迁移不可保存")?;std::fs::rename(temporary,path).map_err(|_|"模型计数迁移不可完成")?;}
+    Ok(())
+}
 pub(crate) fn host(root:&Path)->Arc<ModelHost> {
     NATIVE_HOST.get_or_init(||{
         let ledger=root.join("data/model/ledger.json");
-        // Preserve the current UTC day's largest prior count across upgrades.
-        if !ledger.exists(){let mut latest:Option<Value>=None;if let Ok(entries)=std::fs::read_dir(root.join("data")){for e in entries.flatten(){if let Ok(bytes)=std::fs::read(e.path().join("native/model-ledger.json")){if let Ok(value)=serde_json::from_slice::<Value>(&bytes){if latest.as_ref().is_none_or(|old|value["day"].as_u64()>old["day"].as_u64()){latest=Some(value);}}}}}if let Some(value)=latest{let _=std::fs::create_dir_all(ledger.parent().unwrap());let _=std::fs::write(&ledger,value.to_string());}}
-        octosense_llm_service::complete::register_with(Options::default().providers(Arc::new(PrivateProvider{root:root.to_owned()})).transport(Arc::new(BoundedM3{root:root.to_owned()})).grants(|_,_|false).limits(Limits{per_minute:3,calls_per_day:20,tokens_per_day:30000}).ledger_path(ledger))
+        let ledger_ready=prepare_ledger(root).is_ok();
+        octosense_llm_service::complete::register_with(Options::default().providers(Arc::new(PrivateProvider{root:root.to_owned(),ledger_ready})).transport(Arc::new(BoundedM3{root:root.to_owned()})).grants(|_,_|false).limits(Limits{per_minute:3,calls_per_day:20,tokens_per_day:30000}).ledger_path(ledger))
     }).clone()
 }
 pub(crate) fn status(root:&Path,host:&ModelHost)->String{
@@ -77,6 +99,12 @@ pub(crate) fn explain(host:&ModelHost,g:&Grant,a:&Activity)->Result<(String,Valu
 }
 #[cfg(test)]mod tests{
     use super::*;
+    #[test]fn upgrade_keeps_each_days_largest_counter_and_rejects_corruption(){
+        let a=json!({"day":10,"apps":{"buwei":{"calls":5,"tokens":100}},"limits":{}});let b=json!({"day":10,"apps":{"buwei":{"calls":3,"tokens":200}},"limits":{}});
+        let merged=merge_ledger(a.clone(),b).unwrap();assert_eq!(merged["apps"]["buwei"],json!({"calls":5,"tokens":200}));
+        assert_eq!(merge_ledger(merged,a.clone()).unwrap()["apps"]["buwei"]["tokens"],200);
+        assert!(merge_ledger(a.clone(),json!({"day":10})).is_err());let mut next=a;next["day"]=11.into();assert_eq!(merge_ledger(json!({"day":9,"apps":{},"limits":{}}),next).unwrap()["day"],11);
+    }
     #[test]fn summary_omits_all_identifying_fields(){let a=Activity::new("@private:server".into(),"!private".into(),"私人活动".into(),1,19,21).unwrap();let s=anonymous_summary(&a).to_string();assert!(!s.contains("private")&&!s.contains("私人")&&!s.contains("owner")&&!s.contains("room"));}
     #[test]fn draft_cannot_add_actions_identities_or_empty_content(){assert!(parse_note(&json!({"title":"活动小记","markdown":"今晚七点至九点，候补等待本人确认。"})).is_ok());for value in [json!({"title":"测试","markdown":"@private:server"}),json!({"title":"测试","markdown":""}),json!({"title":"测试","markdown":"活动","execute":true})]{assert!(parse_note(&value).is_err());}}
 }

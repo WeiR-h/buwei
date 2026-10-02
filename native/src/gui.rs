@@ -15,7 +15,7 @@ script_mod! {
     let Input=TextInput{width:Fill height:38 draw_text.text_style:theme.font_regular{font_size:13}}
     mod.widgets.BuWeiView = set_type_default() do #(BuWeiView::register_widget(vm)) {
         ..mod.widgets.RectView
-        width:Fill height:Fill flow:Down padding:Inset{top:12 left:16 right:16 bottom:76} spacing:8
+        width:Fill height:Fill flow:Down padding:Inset{top:12 left:16 right:16 bottom:20} spacing:8
                 Heading{text:"补位 · 让想来的人，刚好有位"}
                 Small{text:#(concat!("v",env!("CARGO_PKG_VERSION")," · OctoSense 官方宿主 · 正式 Rinx 登录接入候选"))}
                 profile:=Small{text:"双账号联调窗口"}
@@ -30,7 +30,6 @@ script_mod! {
                 authorization:=Small{text:"点击查看授权范围，再确认授权。"}
                 expires:=Small{text:"当前未授权"}
                 sync_status:=Small{text:"自动同步尚未授权"}
-                Small{text:"AI 建议会将填写的需求发送到 MiniMax；邀请和文章按完整预览单独确认。"}
                 message:=Text{text:"正式服务器 https://matrix.rinx.chat；浏览器认证由本人完成。"}
                 View{width:Fill height:40 flow:Right spacing:8
                     nav_activity:=Action{text:"活动与候补"}
@@ -106,6 +105,7 @@ script_mod! {
                     Heading{text:"开始使用"}
                     Text{text:"1. 在底部 Rinx 窗口完成本人登录，再回到补位。\n2. 查看授权范围并确认；关闭、撤销或到期会停止同步。\n3. 组织者创建活动并邀请房间成员；参与者加入房间并预览报名。\n4. 每项发送都在动作确认页核对。打开期间自动同步，送达与占位分别显示。\n5. 不明结果在执行记录页沿原编号恢复。只运行一个组织者宿主。"}
                     Heading{text:"模型与开发预算"}
+                    Small{text:"AI 建议会将填写的需求发送到 MiniMax；邀请和文章按完整预览单独确认。"}
                     model_status:=Text{text:"模型配置由宿主管理"}
                     configure_model:=Action{text:"填写或更新本机 MiniMax 密钥"}
                     requirement:=Input{height:85 is_multiline:true text:"我今晚七点到九点有空，一个人参加。"}

@@ -2,6 +2,19 @@
 use super::*;
 use matrix_sdk::ruma::{events::StateEventType,api::client::state::{get_state_events,send_state_event}};
 const KIND:&str="org.buwei.activity";
+fn watermark_from_date(header:&str,local:u64)->Result<u64>{
+    let server=httpdate::parse_http_date(header).map_err(|_|"服务器时间格式不可核实")?.duration_since(UNIX_EPOCH).map_err(|_|"服务器时间不合法")?.as_secs();
+    if server.abs_diff(local)>30{return Err("本机与服务器时间相差超过 30 秒；先校准时间，停止过期释放".into());}
+    Ok(server.saturating_sub(5))
+}
+pub(crate) fn server_watermark(c:&Client)->Result<u64>{
+    rinx_bridge::ensure_current(c)?;
+    // This public HTTPS response carries no identities or access token. The
+    // Date header provides a conservative server clock before SDK pagination;
+    // actual reply outcomes remain bound to Matrix origin_server_ts events.
+    let response=ureq::AgentBuilder::new().timeout(Duration::from_secs(4)).redirects(0).build().get("https://matrix.rinx.chat/_matrix/client/versions").set("Cache-Control","no-cache").call().map_err(|_|"服务器时间暂不可核实；本轮不释放过期名额")?;
+    watermark_from_date(response.header("Date").ok_or("服务器未提供时间；本轮不释放名额")?,now())
+}
 pub(crate) fn snapshot_from_events(room:&str,actor:&str,events:&[Value])->Result<Activity> {
     let create=events.iter().find(|v|v["type"]=="m.room.create"&&v["state_key"]=="").ok_or("房间创建证据缺失")?;
     let owner=create["sender"].as_str().ok_or("房间创建者缺失")?;
@@ -111,6 +124,11 @@ pub(crate) fn apply_participant(a:&mut Activity,room:&str,v:&Value,clock:u64)->R
 }
 #[cfg(test)]mod tests {
     use super::*;
+    #[test]fn expiration_uses_verified_server_clock_and_refuses_skew(){
+        let time=1_790_948_000;let date=httpdate::fmt_http_date(UNIX_EPOCH+Duration::from_secs(time));
+        assert_eq!(watermark_from_date(&date,time+2).unwrap(),time-5);
+        assert!(watermark_from_date(&date,time+31).is_err());assert!(watermark_from_date("invalid",time).is_err());
+    }
     #[test]fn projection_receipt_rejects_changed_identity_revision_content_and_operation(){
         let a=a();let authority=Authority::default();authority.set_account(Some(&a.owner));
         let grant=authority.grant("buwei-sync",&["sync_state"],100,3600).unwrap();

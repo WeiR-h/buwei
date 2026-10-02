@@ -3,8 +3,15 @@ from contextlib import closing
 from migrate import migrate
 from release_gate import check,REQUIRED
 from startup_check import inspect_log
+from package_scan import content_findings
 
 class ReleaseTools(unittest.TestCase):
+    def test_binary_key_parser_labels_are_distinct_from_embedded_key_material(self):
+        marker=b'-----BEGIN '+b'PRIVATE KEY-----'
+        self.assertNotIn('private_key',content_findings(marker,True))
+        material=marker+b'\n'+b'QUJD'*40+b'\n-----END '+b'PRIVATE KEY-----'
+        self.assertIn('private_key',content_findings(material,True))
+        self.assertIn('private_key_utf16',content_findings(material.decode().encode('utf-16le'),True))
     def test_startup_accepts_only_the_pinned_deferred_vm_guard(self):
         line='[E] public/makepad/widgets/src/widget_async.rs:787:9 - BUG: update_global_ui_handle while isolate SplashVmId(2) is installed; deferred'
         self.assertEqual(inspect_log(line)[0]['count'],1)

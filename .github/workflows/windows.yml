@@ -8,6 +8,8 @@ jobs:
   clean-windows:
     runs-on: windows-2025
     timeout-minutes: 120
+    env:
+      CARGO_HOME: ${{ github.workspace }}/.run/cargo-home
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -27,12 +29,13 @@ jobs:
         shell: pwsh
         run: |
           ./tools/Build.ps1 -Tests
-          ./tools/Build.ps1
+          ./tools/Build.ps1 -Release
           python -m unittest discover -s tools -p test_release_tools.py
       - name: Package and start on fresh Windows profile
         shell: pwsh
         run: |
-          python tools/package.py --binary native/target/debug/buwei-rinx-dual-host.exe --destination .run/windows-package
+          python tools/package.py --binary native/target/release/buwei-rinx-dual-host.exe --destination .run/windows-package
+          python tools/package_scan.py .run/windows-package --output .run/startup-evidence/package-privacy.json
           python tools/startup_check.py .run/windows-package --output .run/startup-evidence
       - name: Upload measured build logs and binary
         if: success()
@@ -40,7 +43,8 @@ jobs:
         with:
           name: windows-preview
           path: |
-            native/target/debug/buwei-rinx-dual-host.exe
+            .run/windows-package/
             .run/startup-evidence/startup.json
             .run/startup-evidence/startup.png
+            .run/startup-evidence/package-privacy.json
           if-no-files-found: error

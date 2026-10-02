@@ -1,6 +1,7 @@
 param([switch]$Release,[switch]$Offline,[switch]$Tests)
 $ErrorActionPreference='Stop'
 $buweiRoot=Split-Path $PSScriptRoot -Parent
+$buweiNativeFlags=@()
 if(!(Test-Path -LiteralPath (Join-Path $buweiRoot '.deps/octosense/.sources/makepad/Cargo.toml'))){throw '请先运行 python tools/bootstrap.py 获取固定的官方依赖。'}
 $buweiRustHost=(& rustc -vV | Select-String '^host:').ToString()
 if($buweiRustHost -match 'windows-gnu'){
@@ -10,8 +11,14 @@ if($buweiRustHost -match 'windows-gnu'){
  New-Item -ItemType Directory -Path $buweiCompat -Force | Out-Null
  Copy-Item -LiteralPath $buweiGccLibrary -Destination (Join-Path $buweiCompat 'libgcc_eh.a') -Force
  $buweiNativeFlags=@('-L',('native='+[IO.Path]::GetDirectoryName($buweiGccLibrary)),'-L',('native='+$buweiCompat),'-C','link-arg=-Wl,--stack,16777216')
- $env:CARGO_ENCODED_RUSTFLAGS=$buweiNativeFlags -join [char]31
 }
+if($Release){
+ $buweiNativeFlags+=@('--remap-path-prefix',($buweiRoot+'=/buwei'))
+ foreach($buweiPrivateRoot in @($env:USERPROFILE,$env:CARGO_HOME,$env:RUSTUP_HOME)){
+  if($buweiPrivateRoot){$buweiNativeFlags+=@('--remap-path-prefix',($buweiPrivateRoot+'=/toolchain'))}
+ }
+}
+if($buweiNativeFlags.Count){$env:CARGO_ENCODED_RUSTFLAGS=$buweiNativeFlags -join [char]31}
 $env:CARGO_BUILD_JOBS='3'
 $buweiArguments=@($(if($Tests){'test'}else{'build'}),'--manifest-path','native/Cargo.toml','--locked','--features','full-host')
 if($Tests){$buweiArguments+='--workspace'}
