@@ -45,5 +45,5 @@ python tools/bootstrap.py
 [English](README.en.md) · [隐私](docs/PRIVACY.md) · [版本记录](CHANGELOG.md) ·
 [第三方声明](NOTICE.md) · [支持](https://github.com/WeiR-h/buwei/issues)
 
-运行包由全新 Windows runner 构建和启动，检查结果见验收记录。
+运行包须在全新 Windows runner 构建和启动，检查结果见验收记录。
 本机调试包仍包含编译路径，仅用于私有测试；正式附件须通过运行包扫描。
