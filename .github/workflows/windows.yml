@@ -27,6 +27,7 @@ jobs:
         with:
           path: |
             .deps/octosense
+            .deps/rinx
             .run/cargo-home/registry
             .run/cargo-home/git
             native/target
@@ -51,6 +52,7 @@ jobs:
         with:
           path: |
             .deps/octosense
+            .deps/rinx
             .run/cargo-home/registry
             .run/cargo-home/git
             native/target

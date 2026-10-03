@@ -1,57 +1,19 @@
 # BuWei
 
-Windows activity waitlist extension in the official OctoSense / Rinx host.
-Author: WeiR-h. Team: 生生不息. License: Apache-2.0.
+BuWei helps community organizers manage sign-ups, waiting lists, invitations and last-minute replacements for badminton, board games and reading groups.
 
-One organizer manages one activity for up to 30 participants. Each participant
-uses their own Rinx identity. Model suggestions require review; deterministic
-queue, availability and capacity rules decide eligibility. Invitation delivery
-and personal acceptance are separate states.
+Author: **WeiR-h** · Team: **生生不息** · Apache-2.0
 
-**Current source: v0.1.1 preview.** Adds incomplete preference
-drafts, up to three clarification rounds, checked candidate explanations and
-62 synthetic model cases. 99 Rust and 7 tool checks passed, with clean Windows
-build and separate fresh runtime checks. The initial model run passed 59/62;
-the three failed cases passed in the 16/16 recheck. Native dialogue, edited-input
-binding and revocation checks passed without new business events.
-107,317 real tokens this round; estimated RMB 0.5049, billing unverified.
-See [model evaluation](docs/MODEL-EVAL.md), [preview acceptance](docs/ACCEPTANCE-v0.1.1.md)
-and [preview downloads](https://github.com/WeiR-h/buwei/releases/tag/v0.1.1).
-**Frozen stable release: v0.1.0.** [Downloads](https://github.com/WeiR-h/buwei/releases).
-Runtime requirements: Windows 10/11 x64 with current Microsoft Visual C++ v14
-x64 Redistributable (at least the MSVC 14.51 build tools version). No Rust or
-Visual Studio installation is needed to run the package. CI runners already
-include the runtime; see [first run](docs/FIRST-RUN.md) for the official download.
-The frozen v0.1.0 passed 85 Rust and 7 release-tool checks, five real dual-account loops, decline,
-expiration, recovery and network interruption checks passed. A clean Windows
-build and a separate fresh Windows runtime both passed. The stable tag requires
-public-download verification. See [acceptance](docs/ACCEPTANCE.md) for evidence.
+Participants use their own Rinx identities. Verified server receipts distinguish an invitation from an accepted place, and preserve operation IDs for recovery.
 
-## Build
+[Download for Windows](https://github.com/WeiR-h/buwei/releases/latest) · [Chinese guide](docs/FIRST-RUN.md) · [Privacy](docs/PRIVACY.md) · [Support](https://github.com/WeiR-h/buwei/issues)
 
-Windows x64, Git, Python 3.12+, Rust 1.98.0, and Visual Studio
-with Desktop development with C++ and Windows SDK for MSVC builds. The public
-package uses MSVC; provenance records the compiler tools. GNU / MinGW also has
-local core and real SDK checks, with GCC and Binutils recorded. First build downloads
-fixed upstream dependencies.
-Keys and signed-in profiles are not needed to build.
+Build on Windows x64 with Git, Python 3.12+, Rust 1.98.0, Visual Studio C++ Desktop tools and the Windows SDK:
 
 ```powershell
-git clone https://github.com/WeiR-h/buwei.git
-cd buwei
 python tools/bootstrap.py
 ./tools/Build.ps1 -Tests
 ./tools/Build.ps1
 ```
 
-Executable: `native/target/debug/buwei-rinx-dual-host.exe`.
-[First run](docs/FIRST-RUN.md) explains isolated profiles and Rinx login.
-Uncertain sends retain their operation ID and reconcile without blind retries.
-Sources include `action-receipts` and business adapters. Dependencies are pinned
-in `native/Cargo.lock` and `dependencies.lock.json`. Private data is ignored.
-PROVENANCE.json records source and binary-build commits separately. Documentation
-updates preserve the tested native source, dependency hashes and executable.
-No credentials or business data are included. Use repository Issues for support.
-
-[Privacy](docs/PRIVACY.md) · [Notices](NOTICE.md) ·
-[Support](https://github.com/WeiR-h/buwei/issues)
+Pinned official dependencies, source, tests and required host patches are included in this repository. AI configuration belongs to the native host and remains on the user's device.

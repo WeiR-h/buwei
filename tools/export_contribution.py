@@ -13,7 +13,7 @@ def export(destination):
     patch=destination/'action-receipts.patch';patch.write_bytes(content)
     report={'source_commit':commit,'base':'empty Git tree','base_tree':EMPTY,'paths':['native/crates/action-receipts','LICENSE'],'workspace_lock':'native/Cargo.lock from recorded source commit; redundant nested historical lock excluded','sha256':hashlib.sha256(content).hexdigest(),'upstream_submitted':False,'upstream_merged':False,'validation':'apply to an empty review directory; reproduce fixed workspace tests from the source commit'}
     (destination/'contribution.json').write_text(json.dumps(report,indent=2),'utf8')
-    (destination/'README.txt').write_text('BuWei action-receipts contribution\n\nApply in an empty Git review directory: git apply action-receipts.patch\nThe patch adds our Apache-2.0 library; it is not an upstream integration patch.\nFor reproducible dependency versions, use Cargo.lock and workspace tests from the recorded source commit.\nSee docs/CONTRIBUTION.md for real SDK fault comparisons.\n','utf8')
+    (destination/'README.txt').write_text('BuWei action-receipts contribution\n\nApply in an empty Git review directory: git apply action-receipts.patch\nThe patch adds our Apache-2.0 library; it is not an upstream integration patch.\nFor reproducible dependency versions, use Cargo.lock and workspace tests from the recorded source commit.\nSee docs/BUILD.md and native/crates/action-receipts/tests for the workflow and recovery checks.\n','utf8')
     return report
 
 if __name__=='__main__':

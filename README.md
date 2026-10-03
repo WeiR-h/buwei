@@ -2,35 +2,36 @@
 
 让想来的人，刚好有位。
 
+补位帮助羽毛球、桌游、读书会等社群组织者管理报名、候补和临时补位。
+成员使用自己的 Rinx 身份报名和回复，组织者从活动页面查看名额及结果。
+
 作者 **WeiR-h** · 队伍 **生生不息** · Apache-2.0
 
-补位是运行于官方 OctoSense / Rinx 宿主中的 Windows 原生扩展。
-组织者管理一场活动，参与者用自己的 Rinx 身份报名、接受、拒绝或取消。
-模型帮助理解需求，席位由候补顺序、时段和容量规则决定。
-邀请和文章在确切预览后由本人确认；服务端事件核实后才显示成功。
+## 实际效果
 
-**当前源码：v0.1.1 预览版。**
-新增多轮需求追问、当前候补顺序说明和真实模型测试工具。
-99 项 Rust、7 项工具检查及独立 Windows 构建与启动通过。
-62 项模型案例初测 59 项通过，三项失败在 16 项复测中全部通过；
-另完成实际原生界面追问与确认失效检查。
-本轮真实使用 107,317 Token，估算 0.5049 元，实际账单未核对。
-见 [模型辅助与测试](docs/MODEL-EVAL.md)、[预览版验收](docs/ACCEPTANCE-v0.1.1.md)
-及 [预览版下载](https://github.com/WeiR-h/buwei/releases/tag/v0.1.1)。
-**已冻结稳定版：v0.1.0。** [下载运行包与材料](https://github.com/WeiR-h/buwei/releases)。
-运行包需要 Windows 10/11 x64 和最新微软 Visual C++ v14 x64 运行库，
-官方下载入口见 [首次运行](docs/FIRST-RUN.md)。无需 Rust 或 Visual Studio。
-v0.1.0 的 85 项 Rust、7 项发布工具检查、五轮真实双账号、拒绝、过期及三类故障
-验收通过。独立 Windows 构建和另一台全新 Windows 运行环境均通过。
-稳定标签须通过公开下载复验；详细结果见 [验收记录](docs/ACCEPTANCE.md)。
+创建活动、收集候补、邀请合适成员、核验本人回复。发送中断后，补位沿用原操作编号恢复结果。
+AI 帮助理解报名意愿、说明候补结果和准备活动小记。
+
+![活动与候补](assets/screenshots/02-organizer.png)
+
+## 下载
+
+[下载正式 Windows 版本](https://github.com/WeiR-h/buwei/releases/latest)
+
+主分支正在迭代社群活动新版，新增活动卡片、多活动和自动补位。正式下载以 Release 标注的版本为准。
+
+运行环境：Windows 10/11 x64，微软 Visual C++ v14 x64 运行库。
+应用基于官方 OctoSense / Rinx 原生宿主，提供组织者和参与者入口。
+
+## 三步开始
+
+1. 解压运行包，打开组织者或参与者入口，在 Rinx 完成本人登录。
+2. 打开补位，核对账号并确认所需权限。
+3. 组织者创建活动；参与者报名、查看邀请并确认自己的回复。
+
+[使用指南](docs/FIRST-RUN.md) · [隐私说明](docs/PRIVACY.md)
 
 ## 源码构建
-
-需要 Windows x64、Git、Python 3.12+ 和 Rust 1.98.0。公开运行包采用
-MSVC，安装 Visual Studio 的“使用 C++ 的桌面开发”和 Windows SDK。
-Visual Studio / MSVC 工具版本记录在构建来源中。GNU / MinGW 另有本机
-核心检查与真实 SDK 验证；其 GCC / Binutils 版本也在构建来源中记录。
-首次构建需要网络下载固定依赖，不需要模型密钥或 Rinx 登录。
 
 ```powershell
 git clone https://github.com/WeiR-h/buwei.git
@@ -40,25 +41,10 @@ python tools/bootstrap.py
 ./tools/Build.ps1
 ```
 
-构建完成后运行 `native/target/debug/buwei-rinx-dual-host.exe`。
-独立资料目录及 `--gui` 入口见 [首次运行](docs/FIRST-RUN.md)。
-不要把资料目录放入源码仓库。
+构建需要 Windows x64、Git、Python 3.12+、Rust 1.98.0、Visual Studio C++ 桌面工具和 Windows SDK。
+首次构建会获取固定版本的官方依赖。运行与模型配置步骤见使用指南。
 
-`native/` 包含扩展和两个 Rust 核心库。`.deps/` 是被忽略的官方依赖目录。
-依赖补丁、工具链和固定提交全部列明，无需相邻旧工程。
+核心包含可复用的授权、持久化执行与回执框架，应用源码和必要的构建补丁完整提供。
 
-## 范围
-
-- Windows，一场活动，最多 30 人，一个组织者宿主。
-- SDK 身份、授权、摘要、业务版本和有效期共同绑定确认。
-- 发送前保存操作；不明结果保留原编号，核实恢复，禁止盲目重发。
-- 报名、回复、取消、邀请与文章共用 `action-receipts`。
-- MiniMax 通过官方模型宿主调用，未配置时可手动使用。
-- 真实恢复、原文章编辑器和干净环境结果见 [验收记录](docs/ACCEPTANCE.md)。
-
-[English](README.en.md) · [隐私](docs/PRIVACY.md) · [版本记录](CHANGELOG.md) ·
-[第三方声明](NOTICE.md) · [支持](https://github.com/WeiR-h/buwei/issues)
-
-运行包来自干净 Windows CI，源码和二进制构建提交分别记录在 PROVENANCE.json。
-文档更新不会改变已验证的原生源码、依赖和可执行文件。正式附件经隐私扫描，
-不包含登录、模型密钥或业务数据。支持渠道为仓库 Issues。
+[English](README.en.md) · [版本记录](CHANGELOG.md) · [第三方声明](NOTICE.md) ·
+[问题反馈](https://github.com/WeiR-h/buwei/issues) · [参赛说明](docs/SUBMISSION.md)

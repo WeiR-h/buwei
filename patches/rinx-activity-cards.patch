@@ -1,0 +1,230 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index c60878d..6ffa24a 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -22,21 +22,21 @@ uuid = { version = "1", features = ["v4"] }
+ ## The assistant (ADR 0007): the scoped service contract a host injects. The
+ ## local-runtime and remote connectors are optional (`octos-local`,
+ ## `octos-remote`), so a hosted build links no runtime of its own.
+-octosense-app-peers = { git = "https://github.com/OctoSense-org/OctoSense.git", rev = "35d9d1218e1b8b165977a4f019fdea9f2675dc90" }
+-octoscript-ui-l0 = { git = "https://github.com/OctoSense-org/Octoscript.git", rev = "68f6a9df55692b5d8ef8873a12721e279a3f40d6" }
+-octoscript-makepad = { git = "https://github.com/OctoSense-org/Octoscript-Makepad.git", rev = "6881fb6c3c3220e407633b0ba5211c3d42c7e625" }
+-octoscript-widgets = { git = "https://github.com/OctoSense-org/Octoscript-Makepad.git", rev = "6881fb6c3c3220e407633b0ba5211c3d42c7e625" }
++octosense-app-peers = { path = "../octosense/crates/app-peers" }
++octoscript-ui-l0 = { path = "../octosense/.sources/octoscript/crates/octoscript-ui-l0" }
++octoscript-makepad = { path = "../octosense/.sources/octoscript-makepad/crates/octoscript-makepad" }
++octoscript-widgets = { path = "../octosense/.sources/octoscript-makepad/crates/octoscript-widgets" }
+ octosense-app-policy = { git = "https://github.com/OctoSense-org/OctoSense-App-Hub", rev = "e8601b80ce104db2e48208094714bdcffdce6b5a", features = ["splash"] }
+ article-makepad = { path = "crates/article-makepad" }
+ ## The OctoSense module contract. Only a host build uses it, and the host redirects
+ ## all of makepad to its own copy (OctoSense-org/makepad rinx/octosense-module-windows).
+-makepad-app-module = { git = "https://github.com/OctoSense-org/makepad", rev = "6cf03859630761f5cb99ce7fcdfd8c30475d9ab8", optional = true }
++makepad-app-module = { path = "../octosense/.sources/makepad/libs/app_module", optional = true }
+ makepad-html-renderer = { package = "makepad-html", git = "https://github.com/OctoSense-org/makepad-html", rev = "b16565ae1e56dd7c3a87f00455ae327df599ca3b", optional = true, features = ["makepad"] }
+ # makepad-widgets = { git = "https://github.com/makepad/makepad", branch = "dev", features = ["serde"] }
+ # makepad-code-editor = { git = "https://github.com/makepad/makepad", branch = "dev" }
+ 
+-makepad-widgets = { git = "https://github.com/kevinaboos/makepad", branch = "button-grab-key-focus", features = ["serde"] }
+-makepad-code-editor = { git = "https://github.com/kevinaboos/makepad", branch = "button-grab-key-focus" }
++makepad-widgets = { path = "../octosense/.sources/makepad/widgets", features = ["serde"] }
++makepad-code-editor = { path = "../octosense/.sources/makepad/code_editor" }
+ 
+ 
+ robius-directories = { git = "https://github.com/project-robius/robius" }
+@@ -500,12 +500,12 @@ makepad-code-editor = { git = "https://www.github.com/OctoSense-org/makepad.git"
+ makepad-widgets = { git = "https://www.github.com/OctoSense-org/makepad.git", rev = "6cf03859630761f5cb99ce7fcdfd8c30475d9ab8" }
+ 
+ [patch."https://github.com/OctoSense-org/Octoscript.git"]
+-octoscript-ui-l0 = { git = "https://www.github.com/OctoSense-org/Octoscript.git", rev = "68f6a9df55692b5d8ef8873a12721e279a3f40d6" }
++octoscript-ui-l0 = { path = "../octosense/.sources/octoscript/crates/octoscript-ui-l0" }
+ 
+ [patch."https://github.com/OctoSense-org/Octoscript"]
+-octoscript-ui-l0 = { git = "https://www.github.com/OctoSense-org/Octoscript.git", rev = "68f6a9df55692b5d8ef8873a12721e279a3f40d6" }
++octoscript-ui-l0 = { path = "../octosense/.sources/octoscript/crates/octoscript-ui-l0" }
+ 
+ [patch."https://github.com/OctoSense-org/Octoscript-Makepad.git"]
+-octoscript-makepad = { git = "https://www.github.com/OctoSense-org/Octoscript-Makepad.git", rev = "6881fb6c3c3220e407633b0ba5211c3d42c7e625" }
+-octoscript-widgets = { git = "https://www.github.com/OctoSense-org/Octoscript-Makepad.git", rev = "6881fb6c3c3220e407633b0ba5211c3d42c7e625" }
++octoscript-makepad = { path = "../octosense/.sources/octoscript-makepad/crates/octoscript-makepad" }
++octoscript-widgets = { path = "../octosense/.sources/octoscript-makepad/crates/octoscript-widgets" }
+ octoscript-node = { git = "https://www.github.com/OctoSense-org/Octoscript-Makepad.git", rev = "6881fb6c3c3220e407633b0ba5211c3d42c7e625" }
+diff --git a/build.rs b/build.rs
+index 058fee5..89345dd 100644
+--- a/build.rs
++++ b/build.rs
+@@ -39,7 +39,7 @@ fn main() {
+         println!("cargo:rustc-link-arg-bin=rinx=-Wl,-sectcreate,__TEXT,__info_plist,{}", plist.display());
+     }
+ 
+-    if target_os == "windows" {
++    if target_os == "windows" && std::env::var_os("CARGO_FEATURE_STANDALONE").is_some() {
+         #[cfg(windows)]
+         {
+             let mut res = winresource::WindowsResource::new();
+diff --git a/crates/article-core/Cargo.toml b/crates/article-core/Cargo.toml
+index beb7f34..5bfe8e2 100644
+--- a/crates/article-core/Cargo.toml
++++ b/crates/article-core/Cargo.toml
+@@ -12,7 +12,7 @@ default = []
+ l0 = ["dep:octoscript-ui-l0"]
+ 
+ [dependencies]
+-makepad-markdown = { git = "https://github.com/OctoSense-org/makepad", rev = "db4691d0e07dc9d1e498f0430ecfaadc4ae15f8f", features = ["editormd"] }
++makepad-markdown = { path = "../../../octosense/.sources/makepad/libs/markdown", features = ["editormd"] }
+ serde = { version = "1", features = ["derive"] }
+ serde_json = "1"
+ rand = "0.8.5"
+@@ -21,7 +21,7 @@ image = { version = "0.25.9", default-features = false, features = ["png", "jpeg
+ pulldown-cmark = "0.13.0"
+ unicode-segmentation = "1.11.0"
+ url = "2.5.0"
+-octoscript-ui-l0 = { git = "https://github.com/OctoSense-org/Octoscript", rev = "86a51a30767da5bf1f2e87559730f8539300b5d0", optional = true }
++octoscript-ui-l0 = { path = "../../../octosense/.sources/octoscript/crates/octoscript-ui-l0", optional = true }
+ 
+ [dev-dependencies]
+ html5ever = "0.39.0"
+diff --git a/crates/article-makepad/Cargo.toml b/crates/article-makepad/Cargo.toml
+index 5e78ce9..1cde538 100644
+--- a/crates/article-makepad/Cargo.toml
++++ b/crates/article-makepad/Cargo.toml
+@@ -8,12 +8,12 @@ description = "Reusable native Makepad article editing and viewing widgets"
+ [workspace]
+ 
+ [dependencies]
+-makepad-markdown-widgets = { git = "https://github.com/OctoSense-org/makepad", rev = "3fda5b6f9b48f390bd5396938a95d30ad035cd6d", features = ["full", "editormd"] }
++makepad-markdown-widgets = { path = "../../../octosense/.sources/makepad/libs/markdown_widgets", features = ["full", "editormd"] }
+ article-core = { path = "../article-core" }
+-makepad-widgets = { git = "https://github.com/kevinaboos/makepad", branch = "button-grab-key-focus", features = ["serde"] }
++makepad-widgets = { path = "../../../octosense/.sources/makepad/widgets", features = ["serde"] }
+ unicode-segmentation = "1.11.0"
+ libc = "0.2"
+ 
+ # Keep all Makepad widgets on the same compatibility revision as the renderer.
+ [patch."https://github.com/kevinaboos/makepad"]
+-makepad-widgets = { git = "https://github.com/OctoSense-org/makepad", rev = "3fda5b6f9b48f390bd5396938a95d30ad035cd6d" }
++makepad-widgets = { path = "../../../octosense/.sources/makepad/widgets" }
+diff --git a/src/event_preview.rs b/src/event_preview.rs
+index d29d04b..3398cdf 100644
+--- a/src/event_preview.rs
++++ b/src/event_preview.rs
+@@ -280,7 +280,7 @@ fn text_preview_of_message(
+                 htmlize::escape_text(&video.body)
+             }
+         ),
+-        message if matches!(message.msgtype(), crate::mini_app::MSGTYPE | crate::article_app::MSGTYPE) => {
++        message if matches!(message.msgtype(), crate::mini_app::MSGTYPE | crate::article_app::MSGTYPE | crate::mini_app::BUWEI_MSGTYPE) => {
+             crate::mini_app::SharedMiniApp::from_message(message)
+                 .map(|app| format!("[Mini app] {}", htmlize::escape_text(app.title())))
+                 .unwrap_or_else(|_| "[Mini app] Unsupported card".into())
+diff --git a/src/home/room_screen.rs b/src/home/room_screen.rs
+index b1a453c..8cbf049 100644
+--- a/src/home/room_screen.rs
++++ b/src/home/room_screen.rs
+@@ -4890,7 +4890,7 @@ fn populate_message_view(
+                     new_drawn_status.content_drawn = true;
+                     (item, false)
+                 }
+-                message if matches!(message.msgtype(), crate::mini_app::MSGTYPE | crate::article_app::MSGTYPE) => {
++                message if matches!(message.msgtype(), crate::mini_app::MSGTYPE | crate::article_app::MSGTYPE | crate::mini_app::BUWEI_MSGTYPE) => {
+                     has_html_body = false;
+                     let template = if mobile {
+                         if event_tl_item.is_own() { id!(MobileOwnMiniAppMessage) } else { id!(MobileMiniAppMessage) }
+diff --git a/src/mini_app.rs b/src/mini_app.rs
+index 6f0ae10..617c328 100644
+--- a/src/mini_app.rs
++++ b/src/mini_app.rs
+@@ -16,6 +16,7 @@ use crate::{
+     utils::RoomNameId,
+ };
+ 
++pub const BUWEI_MSGTYPE:&str="org.buwei.activity.card";
+ pub const MSGTYPE: &str = "rs.robius.robrix.mini_app";
+ const BROWSER: LiveId = live_id!(robrix_web_mini_app);
+ const CAPTION_PADDING: f64 = if cfg!(target_os = "macos") { 28.0 } else { 0.0 };
+@@ -25,7 +26,7 @@ pub fn is_timeline_event(event: &ruma::events::AnySyncTimelineEvent) -> bool {
+         return false;
+     };
+     event.original_content().is_some_and(|content| matches!(content,
+-        ruma::events::AnyMessageLikeEventContent::RoomMessage(message) if matches!(message.msgtype.msgtype(), MSGTYPE | crate::article_app::MSGTYPE)))
++        ruma::events::AnyMessageLikeEventContent::RoomMessage(message) if matches!(message.msgtype.msgtype(), MSGTYPE | crate::article_app::MSGTYPE | BUWEI_MSGTYPE)))
+ }
+ 
+ #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+@@ -100,21 +101,40 @@ impl WebMiniApp {
+     }
+ }
+ 
++/// A BuWei card is a pointer. Account identity and all permissions are rechecked by the receiving host.
++#[derive(Clone,Debug,Deserialize)]
++#[serde(deny_unknown_fields)]
++pub struct BuWeiCard {pub protocol:u8,pub activity_id:String,pub room:String,pub title:String,pub start:u64,pub end:u64,pub location:String,pub free:usize}
++impl BuWeiCard {
++    fn description(&self)->String {
++        let beijing = chrono::FixedOffset::east_opt(8 * 3600).unwrap();
++        let display = |value:u64| chrono::DateTime::from_timestamp(value as i64,0).map(|t|t.with_timezone(&beijing).format("%Y-%m-%d %H:%M").to_string()).unwrap_or_else(||"时间待核实".into());
++        format!("{} 至 {} · 北京时间\n地点：{}\n分享时剩余 {} 个名额 · 打开后核验最新状态\n补位 · 查看并报名",display(self.start),display(self.end),self.location,self.free)
++    }
++    fn from_message(message:&MessageType)->Result<Self,String>{
++        let data=message.data();let value=data.get("buwei").ok_or("Missing activity card")?;
++        if value.to_string().len()>8192{return Err("Activity card too large".into());}
++        let card:Self=serde_json::from_value(value.clone()).map_err(|_|"Invalid activity card")?;
++        if card.protocol!=2||card.activity_id.len()!=32||!card.activity_id.bytes().all(|b|b.is_ascii_hexdigit())||ruma::OwnedRoomId::try_from(card.room.as_str()).is_err()||card.title.trim().is_empty()||card.title.chars().count()>80||card.location.chars().count()>120||card.start>=card.end||card.free>30{return Err("Invalid activity card".into());}Ok(card)
++    }
++}
+ /// Shared native packages and web cards keep distinct launch paths.
+ #[derive(Clone, Debug)]
+-pub enum SharedMiniApp { Web(WebMiniApp), Article(crate::article_app::ArticlePackage), PublishedArticle { title: String, room: ruma::OwnedRoomId, event: ruma::OwnedEventId } }
++pub enum SharedMiniApp { BuWei(BuWeiCard), Web(WebMiniApp), Article(crate::article_app::ArticlePackage), PublishedArticle { title: String, room: ruma::OwnedRoomId, event: ruma::OwnedEventId } }
+ impl SharedMiniApp {
+     pub fn from_message(message: &MessageType) -> Result<Self, String> {
++        if message.msgtype()==BUWEI_MSGTYPE{return BuWeiCard::from_message(message).map(Self::BuWei);}
+         if message.msgtype() == crate::article_app::MSGTYPE {
+             crate::article_app::ArticlePackage::from_message(message).map(Self::Article)
+         } else { WebMiniApp::from_message(message).map(Self::Web) }
+     }
+-    pub fn title(&self) -> &str { match self {Self::PublishedArticle{title,..}=>title, Self::Web(app)=>&app.title, Self::Article(_)=>crate::i18n::tr("Article editor")} }
+-    fn origin(&self) -> String {match self {Self::PublishedArticle{..}=>crate::i18n::tr("Read full article").into(),Self::Web(app)=>app.origin(),Self::Article(_)=>crate::i18n::tr("Markdown · Native preview").into()}}
++    pub fn title(&self) -> &str { match self {Self::BuWei(card)=>&card.title,Self::PublishedArticle{title,..}=>title, Self::Web(app)=>&app.title, Self::Article(_)=>crate::i18n::tr("Article editor")} }
++    fn origin(&self) -> String {match self {Self::BuWei(card)=>card.description(),Self::PublishedArticle{..}=>crate::i18n::tr("Read full article").into(),Self::Web(app)=>app.origin(),Self::Article(_)=>crate::i18n::tr("Markdown · Native preview").into()}}
+ }
+ 
+ #[derive(Clone, Debug)]
+ pub enum MiniAppAction {
++    BuWeiOpen{room:String,activity_id:String},
+     Compose(TimelineKind),
+     Open {
+         app: WebMiniApp,
+@@ -145,7 +165,7 @@ script_mod! {
+                 draw_text +: {color: #x191919 text_style: theme.font_bold{font_size: 14}}
+             }
+             card_origin := Label {
+-                width: Fill max_lines: 1 text_overflow: Ellipsis
++                width: Fill max_lines: 6 flow: Flow.Right{wrap: true}
+                 draw_text +: {color: #x777777 text_style: theme.font_regular{font_size: 10}}
+             }
+             View {width: Fill height: 1 show_bg: true draw_bg.color: #xe8e8e8}
+@@ -243,6 +263,7 @@ impl Widget for MiniAppCard {
+             {
+                 if let (Some(app), Some(timeline)) = (&self.app, &self.timeline) {
+                     match app {
++                        SharedMiniApp::BuWei(card)=>cx.action(MiniAppAction::BuWeiOpen{room:card.room.clone(),activity_id:card.activity_id.clone()}),
+                         SharedMiniApp::Web(app) => cx.action(MiniAppAction::Open { app: app.clone(), timeline: timeline.clone() }),
+                         SharedMiniApp::Article(_) => cx.action(crate::article_app::ArticleAction::Open),
+                         SharedMiniApp::PublishedArticle{room,event,..} => cx.action(crate::article_app::ArticleAction::Read { room: room.clone(), event: event.clone() }),
+@@ -585,6 +606,7 @@ impl MiniAppPanelRef {
+         let Some(mut inner) = self.borrow_mut() else {
+             return;
+         };
++        if matches!(action, MiniAppAction::BuWeiOpen{..}) {return;}
+         if matches!(action, MiniAppAction::Close) {
+             inner.close_browser(cx);
+             inner.owner = None;
+@@ -613,7 +635,7 @@ impl MiniAppPanelRef {
+                     .set_text(cx, &app.title);
+                 inner.show_web(cx, app.clone());
+             }
+-            MiniAppAction::Close => unreachable!(),
++            MiniAppAction::Close | MiniAppAction::BuWeiOpen{..} => unreachable!(),
+         }
+         modal.open(cx);
+     }

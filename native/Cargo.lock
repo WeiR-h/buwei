@@ -351,7 +351,6 @@ dependencies = [
 [[package]]
 name = "article-core"
 version = "0.1.0"
-source = "git+https://github.com/hagency-org/Rinx.git?rev=68afcf796d303aaf646eeb832d65c450a56c92b5#68afcf796d303aaf646eeb832d65c450a56c92b5"
 dependencies = [
  "blake3",
  "image",
@@ -368,7 +367,6 @@ dependencies = [
 [[package]]
 name = "article-makepad"
 version = "0.1.0"
-source = "git+https://github.com/hagency-org/Rinx.git?rev=68afcf796d303aaf646eeb832d65c450a56c92b5#68afcf796d303aaf646eeb832d65c450a56c92b5"
 dependencies = [
  "article-core",
  "libc",
@@ -945,7 +943,7 @@ dependencies = [
 
 [[package]]
 name = "buwei-rinx-dual-host"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "action-receipts",
  "buwei-host-core",
@@ -8452,7 +8450,6 @@ dependencies = [
 [[package]]
 name = "rinx"
 version = "1.0.0-beta.1"
-source = "git+https://github.com/hagency-org/Rinx.git?rev=68afcf796d303aaf646eeb832d65c450a56c92b5#68afcf796d303aaf646eeb832d65c450a56c92b5"
 dependencies = [
  "anyhow",
  "arboard",
@@ -8526,7 +8523,6 @@ dependencies = [
 [[package]]
 name = "rinx-miniapp-catalog"
 version = "0.1.0"
-source = "git+https://github.com/hagency-org/Rinx.git?rev=68afcf796d303aaf646eeb832d65c450a56c92b5#68afcf796d303aaf646eeb832d65c450a56c92b5"
 dependencies = [
  "octosense-app-hub",
  "octosense-app-policy",
@@ -8538,7 +8534,6 @@ dependencies = [
 [[package]]
 name = "rinx-miniapp-core"
 version = "0.1.0"
-source = "git+https://github.com/hagency-org/Rinx.git?rev=68afcf796d303aaf646eeb832d65c450a56c92b5#68afcf796d303aaf646eeb832d65c450a56c92b5"
 dependencies = [
  "serde",
  "serde_json",
@@ -8547,7 +8542,6 @@ dependencies = [
 [[package]]
 name = "rinx-system-apps"
 version = "0.1.0"
-source = "git+https://github.com/hagency-org/Rinx.git?rev=68afcf796d303aaf646eeb832d65c450a56c92b5#68afcf796d303aaf646eeb832d65c450a56c92b5"
 dependencies = [
  "octosense-app-policy",
  "serde",

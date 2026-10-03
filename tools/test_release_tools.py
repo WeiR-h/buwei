@@ -1,7 +1,7 @@
 import json,pathlib,sqlite3,tempfile,unittest,struct,subprocess,sys,hashlib,os,shutil
 from contextlib import closing
 from migrate import migrate
-from release_gate import check,REQUIRED
+from release_gate import check,REQUIRED,COMMUNITY_REQUIRED
 from startup_check import inspect_log
 from package_scan import content_findings
 from pe_stack import normalize
@@ -68,4 +68,12 @@ class ReleaseTools(unittest.TestCase):
             proof=path.parent/'measured-report.json';proof.write_text(json.dumps({'version':'0.0.16','passed':True}));self.assertFalse(check(path)['stable_release_allowed'])
             proof.write_text(json.dumps({'version':'0.1.0','passed':True}));self.assertTrue(check(path)['stable_release_allowed'])
             record['formal_outage_recovery']['evidence']='';path.write_text(json.dumps(record));self.assertFalse(check(path)['stable_release_allowed'])
+    def test_community_release_requires_independent_model_accuracy_and_no_authority(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=pathlib.Path(tmp)/'acceptance.json';proof=path.parent/'measured.json';proof.write_text(json.dumps({'version':'0.2.0','passed':True}),'utf8')
+            record={'version':'0.2.0',**{name:{'passed':True,'evidence':'measured.json'} for name in REQUIRED+COMMUNITY_REQUIRED}}
+            path.write_text(json.dumps(record),'utf8');self.assertFalse(check(path)['stable_release_allowed'])
+            measured={'version':'0.2.0','passed':True,'independent_cases':100,'critical_information_accuracy':0.96,'unauthorized_actions':0};proof.write_text(json.dumps(measured),'utf8');self.assertTrue(check(path)['stable_release_allowed'])
+            for field,value in [('independent_cases',99),('critical_information_accuracy',0.94),('unauthorized_actions',1)]:
+                proof.write_text(json.dumps({**measured,field:value}),'utf8');self.assertFalse(check(path)['stable_release_allowed'])
 if __name__=='__main__':unittest.main()

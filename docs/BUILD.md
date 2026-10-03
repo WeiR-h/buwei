@@ -1,0 +1,19 @@
+# 从源码构建
+
+Windows x64，Git、Python 3.12+、Rust 1.98.0、Visual Studio C++ 桌面工具和 Windows SDK。
+
+```powershell
+git clone https://github.com/WeiR-h/buwei.git
+cd buwei
+python tools/bootstrap.py
+./tools/Build.ps1 -Tests
+./tools/Build.ps1 -Release
+```
+
+`dependencies.lock.json` 固定官方 OctoSense、Rinx、Makepad、OctoScript 及相关框架提交。依赖保存在被忽略的 `.deps`；获取脚本核对提交和产品补丁摘要，并逐文件验证补丁结果。Rust 工具链和 Cargo.lock 随源码固定。
+
+构建后使用 `tools/Start-BuWei.ps1 -Role organizer -Executable native/target/release/buwei-rinx-dual-host.exe`。参与者将角色改为 `participant`。首次运行不含登录、模型密钥或业务授权。
+
+正式构建使用 `full-host`。本地测试接口仅在显式 `acceptance` 功能和启动参数同时开启时使用，公开运行包不包含该接口。源码检查、干净 Windows 构建、独立运行环境启动及包摘要核验由 Windows 工作流完成。
+
+参见 [使用指南](FIRST-RUN.md) 和 [许可声明](../NOTICE.md)。

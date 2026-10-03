@@ -16,5 +16,10 @@
         "platform/src/os/windows/d3d11.rs"
       ]
     }
-  ]
+  ],
+  "rinx": {
+    "commit": "68afcf796d303aaf646eeb832d65c450a56c92b5",
+    "patch": "patches/rinx-activity-cards.patch",
+    "patch_sha256": "57729d1244e08caddb17eb95365ccfa6bf31de9ef02fffe29b4b5c931763e99a"
+  }
 }

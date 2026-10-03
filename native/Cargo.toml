@@ -1,6 +1,6 @@
 [package]
 name = "buwei-rinx-dual-host"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 license = "Apache-2.0"
 publish = false
@@ -103,3 +103,6 @@ octosense-llm-config = { path = "../.deps/octosense/apps/ai-providers/config" }
 
 [patch."crates-io"]
 nix = { git = "https://github.com/octos-org/octos.git", rev = "18fcd3f16e527d2b601d7ae244f056fb711bb6b8" }
+
+[patch."https://github.com/hagency-org/Rinx.git"]
+rinx = { path = "../.deps/rinx" }
