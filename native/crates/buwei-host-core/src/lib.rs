@@ -74,6 +74,8 @@ impl Activity {
     }
     pub fn confirmed(&self)->usize { self.people.iter().filter(|p|p.status==PersonStatus::Confirmed).count() }
     pub fn held(&self)->usize { self.invitations.iter().filter(|i|i.holds()).count() }
+    /// Shared ordering for the visible roster and deidentified model summary.
+    pub fn ordered_people(&self)->Vec<&Person> {let mut people=self.people.iter().collect::<Vec<_>>();people.sort_by_key(|p|p.joined);people}
     pub fn free(&self)->usize { (self.capacity as usize).saturating_sub(self.confirmed()+self.held()) }
     pub fn validate(&self)->Result<()> {
         if self.revision==0 || self.revision>i64::MAX as u64 || self.serial>i64::MAX as u64 || !account_valid(&self.owner) || !room_valid(&self.room) || self.title.trim().is_empty() || self.title.chars().count()>80 || !(1..=30).contains(&self.capacity) || self.start>=self.end || self.end>24 {return Err("活动信息不合法".into());}

@@ -105,7 +105,7 @@ pub(crate) fn status(root:&Path,host:&ModelHost)->String{
     format!("实际模型：MiniMax-M3 · {}\n今日 {} / {} 次，{} / {} tokens（UTC 日重置）。\n本目录开发预算预留 {:.2} / 10 元；按标准价格估算 {:.4} 元，实际扣费需在 MiniMax 账单核对。",if root.join(".secrets/minimax-cn.dpapi").is_file(){"已配置本机加密密钥"}else{"尚未配置，手动流程可用"},budget.calls_today,budget.calls_per_day,budget.tokens_today,budget.tokens_per_day,cost.as_ref().and_then(|v|v["reserved_rmb"].as_f64()).unwrap_or(0.0),cost.as_ref().and_then(|v|v["estimated_rmb"].as_f64()).unwrap_or(0.0))
 }
 pub(crate) fn anonymous_summary(a:&Activity)->Value{
-    let mut people=a.people.iter().collect::<Vec<_>>();people.sort_by_key(|p|p.joined);
+    let people=a.ordered_people();
     let next=a.candidate().and_then(|candidate|people.iter().position(|p|p.account==candidate)).map(|n|n+1);
     json!({"start_hour":a.start,"end_hour":a.end,"capacity":a.capacity,"accepted":a.confirmed(),"held":a.held(),"free":a.free(),"paused":a.paused,"next_candidate_position":next,"queue":people.iter().enumerate().map(|(n,p)|json!({"position":n+1,"earliest":p.preferences.earliest,"latest":p.preferences.latest,"group":p.preferences.group,"status":p.status,"preferences_confirmed":p.preferences_confirmed,"has_active_hold":a.invitations.iter().any(|i|i.recipient==p.account&&i.reply==buwei_host_core::Reply::Pending&&i.delivery!=buwei_host_core::Delivery::Rejected)})).collect::<Vec<_>>()})
 }
