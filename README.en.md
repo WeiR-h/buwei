@@ -8,9 +8,11 @@ uses their own Rinx identity. Model suggestions require review; deterministic
 queue, availability and capacity rules decide eligibility. Invitation delivery
 and personal acceptance are separate states.
 
-**Current source: v0.1.0 release candidate; stable assets are not yet public.
-Five real dual-account loops, decline, expiration and fault checks passed.
-Complete package release gates are still in progress.** See [acceptance](docs/ACCEPTANCE.md) for measured results.
+**Current source: v0.1.0.** [Downloads](https://github.com/WeiR-h/buwei/releases).
+85 Rust and 7 release-tool checks, five real dual-account loops, decline,
+expiration, recovery and network interruption checks passed. A clean Windows
+build and a separate fresh Windows runtime both passed. The stable tag requires
+public-download verification. See [acceptance](docs/ACCEPTANCE.md) for evidence.
 
 ## Build
 
@@ -34,6 +36,9 @@ Executable: `native/target/debug/buwei-rinx-dual-host.exe`.
 Uncertain sends retain their operation ID and reconcile without blind retries.
 Sources include `action-receipts` and business adapters. Dependencies are pinned
 in `native/Cargo.lock` and `dependencies.lock.json`. Private data is ignored.
+PROVENANCE.json records source and binary-build commits separately. Documentation
+updates preserve the tested native source, dependency hashes and executable.
+No credentials or business data are included. Use repository Issues for support.
 
 [Privacy](docs/PRIVACY.md) · [Notices](NOTICE.md) ·
 [Support](https://github.com/WeiR-h/buwei/issues)

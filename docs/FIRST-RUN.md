@@ -1,6 +1,6 @@
 # 首次运行
 
-本预览通过 `--gui` 进入官方宿主，构建状态以验收记录为准。
+v0.1.0 通过 `--gui` 进入官方宿主；运行包已在独立全新 Windows 环境启动。
 
 ```powershell
 $profileDir = Join-Path $env:LOCALAPPDATA 'BuWei/v0.1.0-organizer'

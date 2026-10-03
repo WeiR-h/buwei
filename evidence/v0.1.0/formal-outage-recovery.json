@@ -1,0 +1,10 @@
+{
+  "version": "0.1.0",
+  "passed": true,
+  "scope": "combined actual SDK recovery checks with exact candidate native source",
+  "reports": [
+    "restored-faults.json",
+    "before-send.json",
+    "actual-network-outages.json"
+  ]
+}

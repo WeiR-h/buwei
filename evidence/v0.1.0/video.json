@@ -1,0 +1,56 @@
+{
+  "version": "0.1.0",
+  "passed": true,
+  "duration_seconds": 180,
+  "presentation": "reviewed actual native screenshot sequence; real SDK flow driven by explicitly opted-in acceptance controller; not continuous screen recording",
+  "private_fields_masked": true,
+  "all_selected_captures_manually_reviewed": true,
+  "video_sha256": "e09c6c1abc3228348399e514054ba6acf4c2cd871f8f51e60ac2627ee37dc618",
+  "slides": [
+    {
+      "file": "00.png",
+      "duration_seconds": 20,
+      "sha256": "c671b7fef05698cf98f623c4db3b95f492a1dce9dcc6cef9359b14696062349c"
+    },
+    {
+      "file": "01.png",
+      "duration_seconds": 20,
+      "sha256": "c4298b4783dd37c007f940b95b2df856e13ac855411a11825f072416385bfe04"
+    },
+    {
+      "file": "02.png",
+      "duration_seconds": 20,
+      "sha256": "34bbc9756ebc1d7b04b7896d70c73608290ac2c8f9da90ad32d1c71f40a95d7d"
+    },
+    {
+      "file": "03.png",
+      "duration_seconds": 20,
+      "sha256": "0d1045410b626419340270aa783a41bc849c8829b9ec974ca43458c57bc93bd8"
+    },
+    {
+      "file": "04.png",
+      "duration_seconds": 20,
+      "sha256": "3f11ac46666a3412f9f45caa0339ead7b41d0ac853f9662824d4647bcf63255e"
+    },
+    {
+      "file": "05.png",
+      "duration_seconds": 20,
+      "sha256": "35c6127d992b7d5f92cf8f01413aa5c78212689559323f5a1d553f490362b10b"
+    },
+    {
+      "file": "06.png",
+      "duration_seconds": 25,
+      "sha256": "5bb8de6109c927b4e570733f39f9735e07f8d451c0f39f2b766e56f294c2ee00"
+    },
+    {
+      "file": "07.png",
+      "duration_seconds": 20,
+      "sha256": "3cfbc6bbe981ccd25f91f07f80c1f7600606341a149d91c72afc2761fd96f5f7"
+    },
+    {
+      "file": "08.png",
+      "duration_seconds": 15,
+      "sha256": "10d43e750e766a912e1f59559466369d0c3ddc2a9784a60550eb071443abb2b0"
+    }
+  ]
+}
