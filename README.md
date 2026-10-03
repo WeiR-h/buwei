@@ -16,7 +16,7 @@
 ## 源码构建
 
 需要 Windows x64、Git、Python 3.12+ 和 Rust 1.98.0。公开运行包采用
-MSVC，安装 Visual Studio 2022 的“使用 C++ 的桌面开发”和 Windows SDK。
+MSVC，安装 Visual Studio 的“使用 C++ 的桌面开发”和 Windows SDK。
 Visual Studio / MSVC 工具版本记录在构建来源中。GNU / MinGW 另有本机
 核心检查与真实 SDK 验证；其 GCC / Binutils 版本也在构建来源中记录。
 首次构建需要网络下载固定依赖，不需要模型密钥或 Rinx 登录。

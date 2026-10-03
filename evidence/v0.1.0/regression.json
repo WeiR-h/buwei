@@ -2,7 +2,7 @@
   "version": "0.1.0",
   "passed": true,
   "rust_tests_passed": 85,
-  "tool_tests_passed": 6,
+  "tool_tests_passed": 7,
   "variant": "private candidate with identical intended final native sources; public full-host release build remains required",
   "native_source_sha256": "b773a011c86d6eeaf470d1f19a6c4c751e4501893df3a0d6a437dd4775c2925f",
   "private_test_log_sha256": "6db397b2f0a8ffd8af6d8c6563f79680b0497da8f9c69e0cebec76171e57c7ae",

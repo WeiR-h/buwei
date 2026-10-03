@@ -1,4 +1,4 @@
-import json,pathlib,sqlite3,tempfile,unittest,struct
+import json,pathlib,sqlite3,tempfile,unittest,struct,subprocess,sys,hashlib,os,shutil
 from contextlib import closing
 from migrate import migrate
 from release_gate import check,REQUIRED
@@ -7,6 +7,17 @@ from package_scan import content_findings
 from pe_stack import normalize
 
 class ReleaseTools(unittest.TestCase):
+    def test_packaged_inspector_leaves_downloaded_package_unchanged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);folder=root/'tools';folder.mkdir()
+            shutil.copy2(pathlib.Path(__file__).parent/'package_scan.py',folder/'package_scan.py')
+            (folder/'public_scan.py').write_text('PATTERNS={}\n','utf8')
+            hashes={p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in folder.iterdir()}
+            (root/'release.json').write_text(json.dumps({'version':'0.1.0','sha256':hashes}),'utf8')
+            env=os.environ.copy();env.pop('PYTHONDONTWRITEBYTECODE',None)
+            result=subprocess.run([sys.executable,str(folder/'package_scan.py'),str(root)],env=env,capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+            self.assertFalse((folder/'__pycache__').exists())
     def test_stack_normalization_preserves_code_and_rejects_signed_binary(self):
         with tempfile.TemporaryDirectory() as tmp:
             file=pathlib.Path(tmp)/'native.exe';data=bytearray(1024)

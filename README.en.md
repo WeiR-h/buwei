@@ -14,7 +14,7 @@ Complete package release gates are still in progress.** See [acceptance](docs/AC
 
 ## Build
 
-Windows x64, Git, Python 3.12+, Rust 1.98.0, and Visual Studio 2022
+Windows x64, Git, Python 3.12+, Rust 1.98.0, and Visual Studio
 with Desktop development with C++ and Windows SDK for MSVC builds. The public
 package uses MSVC; provenance records the compiler tools. GNU / MinGW also has
 local core and real SDK checks, with GCC and Binutils recorded. First build downloads

@@ -1,5 +1,8 @@
 """Check each staged file including executable bytes; print no matched content."""
 import argparse,hashlib,json,pathlib,re,sys
+# Inspection must leave downloaded package bytes unchanged. A packaged import
+# must not create an unlisted __pycache__ file before the manifest check.
+sys.dont_write_bytecode=True
 from public_scan import PATTERNS
 FORBIDDEN={'.run','.secrets','profiles','data','logs','.git','.deps','target'}
 SUFFIX={'.dpapi','.db','.sqlite','.sqlite3','.key','.pem','.log'}
