@@ -1,4 +1,5 @@
 * text=auto eol=lf
+native/tests/fixtures/independent-model-cases.json -text
 *.png -text
 *.jpg -text
 *.mp4 -text

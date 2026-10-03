@@ -17,3 +17,5 @@ python tools/bootstrap.py
 正式构建使用 `full-host`。本地测试接口仅在显式 `acceptance` 功能和启动参数同时开启时使用，公开运行包不包含该接口。源码检查、干净 Windows 构建、独立运行环境启动及包摘要核验由 Windows 工作流完成。
 
 参见 [使用指南](FIRST-RUN.md) 和 [许可声明](../NOTICE.md)。
+
+独立模型验收的 100 个虚构案例保存在 `native/tests/fixtures/independent-model-cases.json`。普通测试只检查案例格式；真实评测须由开发者显式开启模型评测模式，使用本人配置的模型服务。模型原始回答及评测记录保存在本机，应用操作仍须经过宿主授权。

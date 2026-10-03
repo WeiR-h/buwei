@@ -420,6 +420,27 @@ pub(crate) fn run(root: &Path, suite_path: &Path, report_path: &Path) -> Result<
 mod tests {
     use super::*;
     #[test]
+    fn frozen_independent_cases_have_unique_ids_and_valid_expectations() {
+        let bytes = include_bytes!("../tests/fixtures/independent-model-cases.json");
+        assert_eq!(
+            hex::encode(Sha256::digest(bytes)),
+            "cd6c1d53b1648626b487d09da3d6ef843c41dcd27a94c950d8f1e9363d76ca62"
+        );
+        let suite: Suite = serde_json::from_slice(bytes).unwrap();
+        assert_eq!(suite.data_class, "synthetic");
+        assert_eq!(suite.cases.len(), 100);
+        let mut ids = BTreeSet::new();
+        for case in suite.cases {
+            assert!(ids.insert(case.id));
+            if let CaseKind::Dated { expected, .. } = case.kind {
+                assert_eq!(expected.ready, expected.preferences.is_some());
+                if let Some(p) = expected.preferences {
+                    p.validate().unwrap();
+                }
+            }
+        }
+    }
+    #[test]
     fn synthetic_scenarios_keep_valid_business_state_without_identifiers_in_requests() {
         for s in [
             Scenario::Empty,

@@ -15,6 +15,7 @@ struct Lease {
     alive: Arc<AtomicBool>,
     timer: Option<Timer>,
     commands: SyncSender<Command>,
+    interlock: automation_guard::Interlock,
 }
 static LEASE: Mutex<Option<Lease>> = Mutex::new(None);
 static CARD: Mutex<Option<(String, String)>> = Mutex::new(None);
@@ -25,6 +26,7 @@ pub(crate) fn open(scope: InstanceScope) -> (SyncSender<Command>, Receiver<Resul
     let (tx, commands) = sync_channel(2);
     let (updates, rx) = channel();
     let alive = Arc::new(AtomicBool::new(true));
+    let interlock = automation_guard::Interlock::default();
     {
         let mut lease = LEASE.lock().unwrap();
         if lease
@@ -39,6 +41,7 @@ pub(crate) fn open(scope: InstanceScope) -> (SyncSender<Command>, Receiver<Resul
             alive: alive.clone(),
             timer: None,
             commands: tx.clone(),
+            interlock: interlock.clone(),
         });
     }
     let root = ROOT.get().cloned();
@@ -55,6 +58,7 @@ pub(crate) fn open(scope: InstanceScope) -> (SyncSender<Command>, Receiver<Resul
             for _ in commands.try_iter() {}
             match Controller::open(&root) {
                 Ok(mut c) => {
+                    c.automation_interlock = interlock.clone();
                     for _ in commands.try_iter() {}
                     let mut last_view_at = now();
                     let mut last_authorized = c.is_authorized();
@@ -166,10 +170,20 @@ pub(crate) fn close(scope: InstanceScope) -> Option<Timer> {
     let mut lease = LEASE.lock().unwrap();
     if lease.as_ref().is_some_and(|l| l.scope == scope) {
         let l = lease.take().unwrap();
+        l.interlock.invalidate_all();
         l.alive.store(false, Ordering::SeqCst);
         l.timer
     } else {
         None
+    }
+}
+pub(crate) fn invalidate_automation(scope: InstanceScope, activity: Option<&str>) {
+    if let Some(l) = LEASE.lock().unwrap().as_ref().filter(|l| l.scope == scope) {
+        if let Some(id) = activity {
+            l.interlock.invalidate(id);
+        } else {
+            l.interlock.invalidate_all();
+        }
     }
 }
 pub(crate) fn open_card(room: String, activity_id: String) {

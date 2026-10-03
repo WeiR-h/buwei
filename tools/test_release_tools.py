@@ -6,18 +6,27 @@ from startup_check import inspect_log
 from package_scan import content_findings
 from pe_stack import normalize
 from fault_acceptance import FaultSuite
+from dual_acceptance import Suite
+from unittest.mock import patch
 
 class ReleaseTools(unittest.TestCase):
-    def test_fault_recovery_reads_the_selected_activity_journal(self):
+    def test_failed_history_read_never_reuses_old_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);file=root/'.run/acceptance/events.private.json';file.parent.mkdir(parents=True);file.write_text(json.dumps({'collected_at_unix':1,'events':[]}),'utf8')
+            suite=Suite.__new__(Suite);suite.owner=root;suite.o=object();suite.call=lambda *args:{'success':False,'message':'offline'}
+            with patch('dual_acceptance.time.sleep'):
+                with self.assertRaises(RuntimeError):suite.collect_evidence()
+            suite.call=lambda *args:{'success':True}
+            with self.assertRaisesRegex(RuntimeError,'stale'):suite.collect_evidence()
+    def test_fault_recovery_checks_activity_in_the_account_journal(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=pathlib.Path(tmp);actor=root/'data/v0.2.0/native/rinx/actor';actor.mkdir(parents=True)
-            selected=actor/'activities'/('a'*32);selected.mkdir(parents=True)
-            for path,ident in [(actor/'operations.db','legacy'),(selected/'operations.db','selected')]:
-                with closing(sqlite3.connect(path)) as db:
-                    db.execute('create table operations(id text,status text,body text)')
-                    db.execute('insert into operations values(?,?,?)',(ident,'unknown',json.dumps({'id':ident,'status':'unknown'})))
-                    db.commit()
-            suite=FaultSuite.__new__(FaultSuite);suite.owner=root;suite.participant=root;suite.version='0.2.0';suite.activity_id='a'*32
+            with closing(sqlite3.connect(actor/'operations.db')) as db:
+                db.execute('create table operations(id text,status text,body text)')
+                for ident,target in [('legacy','other-room'),('selected','selected-room')]:
+                    db.execute('insert into operations values(?,?,?)',(ident,'unknown',json.dumps({'id':ident,'status':'unknown','action':{'target':target}})))
+                db.commit()
+            suite=FaultSuite.__new__(FaultSuite);suite.owner=root;suite.participant=root;suite.version='0.2.0';suite.activity_id='a'*32;suite.room='selected-room'
             self.assertEqual(suite.persisted_operation('organizer','selected')['id'],'selected')
             with self.assertRaises(AssertionError):suite.persisted_operation('organizer','legacy')
     def test_packaged_inspector_leaves_downloaded_package_unchanged(self):

@@ -32,6 +32,7 @@ pub(crate) enum Command {
         settings: buwei_host_core::automation::Settings,
     },
     PauseAutomation,
+    PauseAutomationFor(String),
     CreateWithAi(String),
     ApplyActivityDraft,
     Ask(String),
@@ -103,6 +104,8 @@ pub(crate) enum Command {
     #[cfg(feature = "acceptance")]
     CollectEvidence,
     #[cfg(feature = "acceptance")]
+    CollectEvidenceSince(String),
+    #[cfg(feature = "acceptance")]
     TestLegacyArticle {
         title: String,
         markdown: String,
@@ -150,8 +153,17 @@ pub(crate) struct Controller {
     dated_dialogue: Option<(String, Vec<String>)>,
     selected_activity: Option<String>,
     sync_rotation: usize,
+    sync_results: std::collections::BTreeMap<String, String>,
     policies: std::collections::HashMap<String, buwei_host_core::automation::Policy>,
-    policy_preview: Option<(String, String, buwei_host_core::automation::Settings, u64)>,
+    pub(super) automation_interlock: automation_guard::Interlock,
+    policy_permits: std::collections::HashMap<String, automation_guard::Permit>,
+    policy_preview: Option<(
+        String,
+        String,
+        buwei_host_core::automation::Settings,
+        u64,
+        automation_guard::Permit,
+    )>,
     contacts: Vec<(String, String)>,
     share_current: Option<Operation>,
     incoming_card: Option<(String, String)>,
@@ -215,7 +227,10 @@ impl Controller {
             dated_dialogue: None,
             selected_activity,
             sync_rotation: 0,
+            sync_results: Default::default(),
             policies: Default::default(),
+            automation_interlock: Default::default(),
+            policy_permits: Default::default(),
             policy_preview: None,
             contacts: vec![],
             share_current: None,
@@ -270,7 +285,10 @@ impl Controller {
             dated_dialogue: None,
             selected_activity,
             sync_rotation: 0,
+            sync_results: Default::default(),
             policies: Default::default(),
+            automation_interlock: Default::default(),
+            policy_permits: Default::default(),
             policy_preview: None,
             contacts: vec![],
             share_current: None,
@@ -362,6 +380,7 @@ impl Controller {
             room,
             state: self.state_path(),
             drop_ack: self.fault,
+            automation_permit: None,
         })
     }
     fn article_path(&self) -> PathBuf {
@@ -405,6 +424,39 @@ impl Controller {
         view
     }
     fn apply(&mut self, command: Command) -> Result<String> {
+        // Revocation and pause must work even if identity preflight is offline.
+        if matches!(&command, Command::Revoke) {
+            self.automation_interlock.invalidate_all();
+            self.policies.clear();
+            self.policy_permits.clear();
+            self.policy_preview = None;
+            self.dated_suggestion = None;
+            self.dated_dialogue = None;
+            for g in [&self.grant, &self.article_grant, &self.sync_grant]
+                .into_iter()
+                .flatten()
+            {
+                g.revoke();
+            }
+            self.authorized_until = 0;
+            self.consent = None;
+            self.suggestion = None;
+            self.note = None;
+            self.explanation = None;
+            self.last_sync_status = "授权已撤销，自动同步停止".into();
+            return Ok("当前账号的授权已撤销。".into());
+        }
+        if let Some(id) = match &command {
+            Command::PauseAutomation => self.selected_activity.clone(),
+            Command::PauseAutomationFor(id) => Some(id.clone()),
+            _ => None,
+        } {
+            self.automation_interlock.invalidate(&id);
+            self.policies.remove(&id);
+            self.policy_permits.remove(&id);
+            self.policy_preview = None;
+            return Ok("自动补位已暂停。".into());
+        }
         #[cfg(feature = "full-host")]
         if rinx_bridge::official_mode() {
             self.server_verified = false;
@@ -531,13 +583,22 @@ impl Controller {
                 Ok("受控基线测试完成；需要核对 SDK 事件数，不能作为生产执行记录。".into())
             }
             #[cfg(feature = "acceptance")]
-            Command::CollectEvidence => {
+            command @ (Command::CollectEvidence | Command::CollectEvidenceSince(_)) => {
                 self.g("read")?;
                 let a = self.activity()?;
                 let room = OwnedRoomId::try_from(a.room.as_str()).map_err(|_| "活动房间不合法")?;
-                let values = official_sync::timeline(&self.rt, self.active(), &room)?;
+                let anchor = match command {
+                    Command::CollectEvidenceSince(id) => Some(id),
+                    _ => None,
+                };
+                let values = official_sync::timeline_since(
+                    &self.rt,
+                    self.active(),
+                    &room,
+                    anchor.as_deref(),
+                )?;
                 let events=values.into_iter().filter(|v|matches!(v["type"].as_str(),Some("org.buwei.invitation"|"org.buwei.join"|"org.buwei.reply"|"org.buwei.cancel"|"m.room.message"|"org.buwei.activity"|"org.octosense.article"))).map(|v|json!({"event_id":v["event_id"],"sender":v["sender"],"type":v["type"],"origin_server_ts":v["origin_server_ts"],"content":v["content"]})).collect::<Vec<_>>();
-                let evidence = json!({"collected_at_unix":now(),"complete_sdk_history":true,"room":a.room,"events":events});
+                let evidence = json!({"collected_at_unix":now(),"complete_sdk_history":anchor.is_none(),"complete_since_anchor":anchor,"room":a.room,"events":events});
                 let dir = self.root.join(".run/acceptance");
                 std::fs::write(
                     dir.join("events.private.json"),
@@ -1298,6 +1359,7 @@ impl Controller {
         ))
     }
     pub fn shutdown(&mut self) {
+        self.automation_interlock.invalidate_all();
         self.dated_dialogue = None;
         self.dated_suggestion = None;
         self.policies.clear();
@@ -1326,7 +1388,7 @@ impl Controller {
     #[cfg(feature = "acceptance")]
     pub fn acceptance_snapshot(&self) -> Value {
         let view = self.view();
-        json!({"version":env!("CARGO_PKG_VERSION"),"collected_at_unix":now(),"account":self.actor(),"authorized":self.is_authorized(),"consent_id":self.consent.as_ref().map(|c|&c.id),"message":self.message,"sync_status":self.last_sync_status,"automation_status":view.automation_status,"reply_status":view.reply,"activity":self.activity().ok(),"invitation":self.current,"participant":self.participant_current,"article":self.article_current,"generated_note":self.note.as_ref().map(|(_,_,n)|json!({"title":n.title,"markdown":n.markdown})),"explanation":self.explanation,"policy_consent_id":self.policy_preview.as_ref().map(|p|p.0.clone()),"share":self.share_current,"contacts":self.contacts,"ai_result":self.ai_result,"activities":buwei_host_core::catalog::Catalog::open(&self.data).and_then(|c|c.list()).ok()})
+        json!({"version":env!("CARGO_PKG_VERSION"),"collected_at_unix":now(),"account":self.actor(),"authorized":self.is_authorized(),"consent_id":self.consent.as_ref().map(|c|&c.id),"message":self.message,"sync_status":self.last_sync_status,"automation_status":view.automation_status,"reply_status":view.reply,"activity":self.activity().ok(),"invitation":self.current,"participant":self.participant_current,"article":self.article_current,"generated_note":self.note.as_ref().map(|(_,_,n)|json!({"title":n.title,"markdown":n.markdown})),"explanation":self.explanation,"policy_consent_id":view.policy_consent_id,"share":self.share_current,"contacts":self.contacts,"ai_result":self.ai_result,"activities":buwei_host_core::catalog::Catalog::open(&self.data).and_then(|c|c.list()).ok()})
     }
     pub fn view(&self) -> View {
         let mut v = View {

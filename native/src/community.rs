@@ -90,6 +90,7 @@ pub(super) fn is_community_command(c: &Command) -> bool {
             | Command::PreviewAutomation(_)
             | Command::ConfirmAutomation { .. }
             | Command::PauseAutomation
+            | Command::PauseAutomationFor(_)
             | Command::CreateWithAi(_)
             | Command::ApplyActivityDraft
             | Command::Ask(_)
@@ -312,13 +313,15 @@ impl Controller {
                     return Err("只有组织者可以启用自动补位".into());
                 }
                 self.policies.remove(&id);
-                self.policy_preview = Some((new_id(), id, settings, now() + 120));
+                let permit = self.automation_interlock.issue(&id);
+                self.policy_preview = Some((new_id(), id, settings, now() + 120, permit));
                 Ok("请核对活动、发送时段、邀请期限与次数上限，再确认启用。".into())
             }
             Command::ConfirmAutomation { id, settings } => {
-                let (nonce, activity_id, preview, until) =
+                let (nonce, activity_id, preview, until, permit) =
                     self.policy_preview.as_ref().ok_or("请先查看自动补位规则")?;
-                if id != *nonce
+                if !permit.valid()
+                    || id != *nonce
                     || settings != *preview
                     || now() >= *until
                     || self.selected_activity.as_ref() != Some(activity_id)
@@ -334,10 +337,14 @@ impl Controller {
                     self.authorized_until,
                 )?;
                 self.policies.insert(activity_id.clone(), policy);
+                self.policy_permits.insert(
+                    activity_id.clone(),
+                    self.automation_interlock.issue(activity_id),
+                );
                 self.policy_preview = None;
                 Ok("自动补位已启用，系统会按确认的规则邀请候补并核实回复。".into())
             }
-            Command::PauseAutomation => {
+            Command::PauseAutomation | Command::PauseAutomationFor(_) => {
                 if let Some(id) = &self.selected_activity {
                     self.policies.remove(id);
                 }
@@ -521,8 +528,12 @@ impl Controller {
                 )
             })
             .unwrap_or_default();
-        v.policy_consent_id = self.policy_preview.as_ref().map(|p| p.0.clone());
-        v.policy_preview=self.policy_preview.as_ref().map(|(_,id,s,_)|format!("账号：{}\n活动：{}\n按报名顺序选择时间覆盖且剩余名额足够的同行报名；整组保留。\n邀请 {} 分钟；发送时段 {:02}:00–{:02}:00；本次最多 {} 次。\n只邀请本场主动报名成员，截止不超过活动开始；授权最长一小时。",self.actor(),self.activity().map(|a|a.title).unwrap_or_else(|_|id.clone()),s.invitation_minutes,s.quiet_start,s.quiet_end,s.max_invitations)).unwrap_or_default();
+        v.policy_consent_id = self
+            .policy_preview
+            .as_ref()
+            .filter(|p| p.4.valid())
+            .map(|p| p.0.clone());
+        v.policy_preview=self.policy_preview.as_ref().filter(|p|p.4.valid()).map(|(_,id,s,_,_)|format!("账号：{}\n活动：{}\n按报名顺序选择时间覆盖且剩余名额足够的同行报名；整组保留。\n邀请 {} 分钟；发送时段 {:02}:00–{:02}:00；本次最多 {} 次。\n只邀请本场主动报名成员，截止不超过活动开始；授权最长一小时。",self.actor(),self.activity().map(|a|a.title).unwrap_or_else(|_|id.clone()),s.invitation_minutes,s.quiet_start,s.quiet_end,s.max_invitations)).unwrap_or_default();
         v.automation_status = self
             .selected_activity
             .as_ref()
@@ -532,11 +543,13 @@ impl Controller {
                     .grant
                     .as_ref()
                     .zip(self.activity().ok().as_ref())
-                    .is_some_and(|(g, a)| p.check(g, a, now()).is_ok());
+                    .is_some_and(|(g, a)| p.check(g, a, now()).is_ok())
+                    && self.policy_permits.get(&p.activity_id).is_some_and(|p|p.valid());
                 format!(
-                    "自动补位{} · 邀请 {} 分钟 · 到期 {}{}",
+                    "自动补位{} · 邀请 {} 分钟 · 北京时间 {:02}:00–{:02}:00 · 本次上限 {} · 到期 {}{}",
                     if running { "运行中" } else { "已暂停" },
                     p.settings.invitation_minutes,
+                    p.settings.quiet_start,p.settings.quiet_end,p.settings.max_invitations,
                     calendar::display(p.expires_at),
                     if p.expires_at.saturating_sub(now()) <= 300 {
                         " · 请续期授权并重新启用规则"
@@ -566,6 +579,9 @@ impl Controller {
                     a.free(),
                     a.capacity
                 );
+                if let Some(status) = self.sync_results.get(&m.activity_id) {
+                    v.activity.push_str(&format!("\n本场同步：{status}"));
+                }
             }
             v.people = a
                 .ordered_people()
@@ -671,8 +687,16 @@ impl Controller {
         let participant = self.participant_current.take();
         let article = self.article_current.take();
         self.selected_activity = a.metadata.as_ref().map(|m| m.activity_id.clone());
+        let started = std::time::Instant::now();
         let result = self.sync_activity().and_then(|_| self.automatic_invite());
+        let succeeded = result.is_ok();
         let message = result.unwrap_or_else(|e| e);
+        let id = a.metadata.as_ref().unwrap().activity_id.clone();
+        self.sync_results.insert(id.clone(), message.clone());
+        let diagnostic = self.data.join("sync-status");
+        if std::fs::create_dir_all(&diagnostic).is_ok() {
+            let _ = std::fs::write(diagnostic.join(format!("{id}.json")), serde_json::to_vec(&serde_json::json!({"collected_at_unix":now(),"elapsed_ms":started.elapsed().as_millis(),"success":succeeded,"message":message})).unwrap_or_default());
+        }
         self.last_sync_status = format!("最近同步 {}：{}", a.title, message);
         self.selected_activity = saved;
         self.current = current;
@@ -687,6 +711,14 @@ impl Controller {
         let Some(policy) = self.policies.get(&id).cloned() else {
             return Ok("已同步".into());
         };
+        let permit = self
+            .policy_permits
+            .get(&id)
+            .cloned()
+            .ok_or("自动规则需重新确认")?;
+        if !permit.valid() {
+            return Err("规则已修改，自动补位已暂停".into());
+        }
         let g = self.g("invite")?;
         let a = self.activity()?;
         policy.check(&g, &a, now())?;
@@ -707,6 +739,9 @@ impl Controller {
             }
         }
         for _ in 0..3 {
+            if !permit.valid() {
+                return Err("规则已修改，自动补位已暂停".into());
+            }
             let a = self.activity()?;
             if a.candidate().is_none() {
                 break;
@@ -722,7 +757,8 @@ impl Controller {
                 &policy.digest(),
                 policy.settings.max_invitations,
             )?;
-            let adapter = self.adapter()?;
+            let mut adapter = self.adapter()?;
+            adapter.automation_permit = Some(permit.clone());
             policy.check(&g, &self.activity()?, now())?;
             self.journal
                 .confirm(&g, &op.id, &adapter, now())

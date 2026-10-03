@@ -530,6 +530,21 @@ impl Activity {
     }
     /// The caller must pass sender and room read from the native SDK's event,
     /// never a `sender` field claimed by message content or model output.
+    /// A native adapter uses this only when dispatch was cancelled before transmission.
+    pub fn reject_unsent(&mut self, id: &str) -> Result<()> {
+        let i = self
+            .invitations
+            .iter_mut()
+            .find(|i| i.operation_id == id)
+            .ok_or("邀请记录缺失")?;
+        if i.delivery != Delivery::Pending || i.reply != Reply::Pending || i.server_event.is_some()
+        {
+            return Err("发送状态不能证明尚未发送，保留名额等待核实".into());
+        }
+        i.delivery = Delivery::Rejected;
+        self.revision += 1;
+        Ok(())
+    }
     pub fn record_delivery(
         &mut self,
         id: &str,

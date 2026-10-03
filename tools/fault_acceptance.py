@@ -53,11 +53,11 @@ class FaultSuite(Suite):
     def persisted_operation(self,role,operation_id):
         profile=self.owner if role=='organizer' else self.participant
         db=next((profile/'data'/('v'+self.version)/'native/rinx').glob('*/operations.db'))
-        if self.activity_id:db=db.parent/'activities'/self.activity_id/'operations.db'
         with closing(sqlite3.connect('file:'+db.as_posix()+'?mode=ro',uri=True)) as connection:
             row=connection.execute('select status,body from operations where id=?',(operation_id,)).fetchone()
         if row is None:raise AssertionError('Operation missing from durable journal')
         body=json.loads(row[1]);assert row[0]==body['status'] and body['id']==operation_id
+        if self.activity_id and body['action']['target']!=self.room:raise AssertionError('Operation belongs to a different activity')
         return body
     def fault_dispatch(self,role,mode,name,value,key,operation):
         control=self.o if role=='organizer' else self.p;self.call(control,'TestFault',mode)

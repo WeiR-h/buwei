@@ -31,6 +31,7 @@ use tokio::runtime::Runtime;
 mod acceptance;
 mod activity_card;
 mod article;
+mod automation_guard;
 mod channel;
 #[cfg(feature = "desktop")]
 mod community_model;
@@ -166,14 +167,41 @@ fn send(
     kind: &str,
     content: Value,
 ) -> Result<OwnedEventId> {
+    send_guarded(rt, c, room, transaction, kind, content, None).map_err(|e| match e {
+        SendFailure::CancelledBeforeSend => "自动补位规则已变化，发送已取消".into(),
+        SendFailure::Uncertain(message) => message,
+    })
+}
+enum SendFailure {
+    CancelledBeforeSend,
+    Uncertain(String),
+}
+fn send_guarded(
+    rt: &Runtime,
+    c: &Client,
+    room: &OwnedRoomId,
+    transaction: &str,
+    kind: &str,
+    content: Value,
+    permit: Option<&automation_guard::Permit>,
+) -> std::result::Result<OwnedEventId, SendFailure> {
+    if permit.is_some_and(|p| !p.valid()) {
+        return Err(SendFailure::CancelledBeforeSend);
+    }
     #[cfg(feature = "acceptance")]
-    acceptance::before_send()?;
+    acceptance::before_send().map_err(SendFailure::Uncertain)?;
     #[cfg(feature = "full-host")]
     if rinx_bridge::official_mode() {
-        rinx_bridge::ensure_current(c)?;
+        rinx_bridge::ensure_current(c).map_err(SendFailure::Uncertain)?;
     }
-    let raw =
-        Raw::from_json(serde_json::value::to_raw_value(&content).map_err(|_| "消息格式不合法")?);
+    // The identity read can block. Check cancellation again at submission.
+    if permit.is_some_and(|p| !p.valid()) {
+        return Err(SendFailure::CancelledBeforeSend);
+    }
+    let raw = Raw::from_json(
+        serde_json::value::to_raw_value(&content)
+            .map_err(|_| SendFailure::Uncertain("消息格式不合法".into()))?,
+    );
     let request = send_message_event::v3::Request::new_raw(
         room.clone(),
         transaction.into(),
@@ -183,12 +211,12 @@ fn send(
     rt.block_on(async { c.send(request).await })
         .map(|r| r.event_id)
         .map_err(|e| {
-            format!(
+            SendFailure::Uncertain(format!(
                 "消息发送结果待核实；HTTP {}",
                 e.as_client_api_error()
                     .map(|e| e.status_code.as_u16())
                     .unwrap_or(0)
-            )
+            ))
         })
 }
 fn event(rt: &Runtime, c: &Client, room: &OwnedRoomId, id: OwnedEventId) -> Result<Value> {
@@ -212,6 +240,7 @@ struct SdkAdapter {
     room: OwnedRoomId,
     state: PathBuf,
     drop_ack: bool,
+    automation_permit: Option<automation_guard::Permit>,
 }
 impl SdkAdapter {
     fn proof(&self, op: &Operation, value: &Value) -> Result<Evidence> {
@@ -246,6 +275,9 @@ impl SdkAdapter {
 }
 impl Adapter for SdkAdapter {
     fn validate(&self, action: &Action, revision: u64) -> action_receipts::Result<()> {
+        if self.automation_permit.as_ref().is_some_and(|p| !p.valid()) {
+            return Err(Error::Authorization);
+        }
         let a = Store::open(&self.state)
             .and_then(|s| s.load())
             .map_err(|_| Error::Integrity)?
@@ -260,6 +292,9 @@ impl Adapter for SdkAdapter {
         Ok(())
     }
     fn dispatch(&self, op: &Operation) -> Dispatch {
+        if self.automation_permit.as_ref().is_some_and(|p| !p.valid()) {
+            return Dispatch::Rejected("自动补位已暂停，未发送".into());
+        }
         if account(&self.client) != op.account {
             return Dispatch::Rejected("SDK 账号已变化".into());
         }
@@ -269,16 +304,30 @@ impl Adapter for SdkAdapter {
             return Dispatch::Rejected("活动版本或候补规则已变化".into());
         }
         let content = json!({"operation_id":op.id,"digest":op.digest,"action":op.action});
-        let result = send(
+        let sent = send_guarded(
             &self.runtime,
             &self.client,
             &self.room,
             &op.id,
             "org.buwei.invitation",
             content,
-        )
-        .and_then(|id| event(&self.runtime, &self.client, &self.room, id))
-        .and_then(|v| self.proof(op, &v));
+            self.automation_permit.as_ref(),
+        );
+        if matches!(&sent, Err(SendFailure::CancelledBeforeSend)) {
+            let released = Store::open(&self.state).and_then(|mut s| {
+                let a = s.load()?.ok_or("活动缺失")?;
+                s.update(a.revision, |a| a.reject_unsent(&op.id))
+            });
+            return if released.is_ok() {
+                Dispatch::Rejected("自动补位已暂停，未发送；名额已释放".into())
+            } else {
+                Dispatch::Uncertain("发送已取消，名额记录需恢复；原编号保留".into())
+            };
+        }
+        let result = sent
+            .map_err(|_| "发送结果待核实".to_owned())
+            .and_then(|id| event(&self.runtime, &self.client, &self.room, id))
+            .and_then(|v| self.proof(op, &v));
         match result {
             Ok(proof) if !self.drop_ack => match self.record(&proof) {
                 Ok(()) => Dispatch::Verified(proof),
@@ -353,6 +402,7 @@ fn seed(
             room,
             state,
             drop_ack,
+            automation_permit: None,
         },
     ))
 }

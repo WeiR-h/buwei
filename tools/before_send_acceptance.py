@@ -13,8 +13,7 @@ def copy_pair(source,destination,version):
     for role in ('organizer','participant'):migrate(source/role,destination/role,version,version)
 
 def read_events(s):
-    s.call(s.o,'CollectEvidence')
-    return json.loads((s.owner/'.run/acceptance/events.private.json').read_text('utf8'))
+    return s.collect_evidence()
 
 def uncertain(s,role,command,value,key,operation):
     control=s.o if role=='organizer' else s.p

@@ -319,9 +319,9 @@ pub(crate) fn timeline_since(
     let mut seen = std::collections::BTreeSet::new();
     // Small pages keep a single slow room from monopolizing the host while
     // retaining the same 2000-event history bound and complete checkpoints.
-    for _ in 0..80 {
+    for _ in 0..400 {
         let mut request = get_message_events::v3::Request::backward(room.clone());
-        request.limit = 25u32.into();
+        request.limit = 5u32.into();
         request.from = from.clone();
         let response = rt
             .block_on(async {

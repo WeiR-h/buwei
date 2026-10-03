@@ -303,6 +303,37 @@ fn automation_quota_is_durable_and_deduplicated() {
     assert!(s.audit_policy(&id, &new_id(), &digest, 1).is_err());
     assert!(s.audit_policy(&id, &op, &"b".repeat(64), 1).is_err());
 }
+
+#[test]
+fn definite_cancellation_releases_only_a_never_sent_reservation() {
+    use buwei_host_core::Delivery;
+    let mut a = activity(3);
+    add(&mut a, "first", 3);
+    let id = reserve(&mut a);
+    assert_eq!(a.held(), 3);
+    assert!(a.reject_unsent(&id).is_err());
+    a.invitations[0].delivery = Delivery::Unknown;
+    a.invitations[0].server_event = None;
+    assert!(a.reject_unsent(&id).is_err());
+    assert_eq!(a.held(), 3);
+    a.invitations[0].delivery = Delivery::Pending;
+    a.reject_unsent(&id).unwrap();
+    assert_eq!(a.held(), 0);
+    assert_eq!(a.free(), 3);
+    assert_eq!(a.candidate(), Some("@first:server"));
+    a.validate().unwrap();
+}
+
+#[test]
+fn switching_the_host_account_invalidates_existing_automation() {
+    let a = activity(3);
+    let auth = Authority::default();
+    auth.set_account(Some(&a.owner));
+    let grant = auth.grant("buwei", &["invite"], clock(), 3600).unwrap();
+    let policy = Policy::issue(&grant, &a, Settings::default(), clock(), clock() + 3600).unwrap();
+    auth.set_account(Some("@other:server"));
+    assert!(policy.check(&grant, &a, clock()).is_err());
+}
 #[test]
 fn five_activity_states_and_cursors_are_isolated() {
     let root = std::env::temp_dir().join(format!("catalog-{}", new_id()));

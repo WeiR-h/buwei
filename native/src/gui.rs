@@ -93,9 +93,9 @@ script_mod! {
                         Heading{text:"自动补位"}
                         automation_status:=Text{}
                         View{width:Fill height:Fit flow:Right spacing:8
-                            Small{text:"邀请分钟"} invitation_minutes:=Input{text:"10" width:60}
-                            Small{text:"发送时段"} quiet_start:=Input{text:"8" width:60} quiet_end:=Input{text:"22" width:60}
-                            Small{text:"本次上限"} max_invitations:=Input{text:"30" width:60}
+                            Small{text:"邀请分钟" width:70} invitation_minutes:=Input{text:"10" width:60}
+                            Small{text:"发送时段" width:70} quiet_start:=Input{text:"8" width:60} Small{text:"至" width:20} quiet_end:=Input{text:"22" width:60}
+                            Small{text:"本次上限" width:70} max_invitations:=Input{text:"30" width:60}
                         }
                         View{width:Fill height:Fit flow:Right spacing:8
                             preview_automation:=Action{text:"查看自动补位规则"} confirm_automation:=Action{text:"确认启用"} pause_automation:=Action{text:"暂停自动补位"}
@@ -224,10 +224,15 @@ pub struct BuWeiView {
     #[rust]
     pending_creation: bool,
     #[rust]
-    pending_policy_pause: bool,
+    pending_policy_pause: Option<String>,
+    #[rust]
+    pending_revoke: bool,
+    #[rust]
+    current_activity: String,
 }
 impl BuWeiView {
     fn display(&mut self, cx: &mut Cx, view: HostView) {
+        self.current_activity = view.activity_identity.clone();
         let context = format!("{}:{}", view.account, view.activity_identity);
         if self.last_account.as_deref() != Some(context.as_str()) {
             let (title, markdown) = view.draft.clone().unwrap_or_default();
@@ -511,7 +516,44 @@ impl BuWeiView {
             .set_visible(cx, self.tab == 4);
         self.view.redraw(cx);
     }
+    fn flush_critical(&mut self) {
+        if let Some(tx) = &self.sender {
+            if self.pending_revoke && tx.try_send(Command::Revoke).is_ok() {
+                self.pending_revoke = false;
+            }
+            if let Some(id) = self.pending_policy_pause.clone() {
+                if tx.try_send(Command::PauseAutomationFor(id)).is_ok() {
+                    self.pending_policy_pause = None;
+                }
+            }
+        }
+    }
     fn send(&mut self, cx: &mut Cx, command: Command) {
+        if matches!(&command, Command::Revoke) {
+            if let Some(scope) = self.scope {
+                super::host::invalidate_automation(scope, None);
+            }
+            self.pending_revoke = true;
+            self.flush_critical();
+            self.view.label(cx, ids!(message)).set_text(
+                cx,
+                "正在撤销授权，自动发送已暂停。已发送的结果保留原编号核实。",
+            );
+            self.view.redraw(cx);
+            return;
+        }
+        if matches!(&command, Command::PauseAutomation) {
+            if let Some(scope) = self.scope {
+                super::host::invalidate_automation(scope, Some(&self.current_activity));
+            }
+            self.pending_policy_pause = Some(self.current_activity.clone());
+            self.flush_critical();
+            self.view
+                .label(cx, ids!(message))
+                .set_text(cx, "自动发送已暂停，正在记录暂停结果。");
+            self.view.redraw(cx);
+            return;
+        }
         if self.busy {
             return;
         }
@@ -555,13 +597,7 @@ impl Widget for BuWeiView {
                     }
                 }
             }
-            if self.pending_policy_pause {
-                if let Some(tx) = &self.sender {
-                    if tx.try_send(Command::PauseAutomation).is_ok() {
-                        self.pending_policy_pause = false;
-                    }
-                }
-            }
+            self.flush_critical();
         }
         if let Event::Actions(actions) = event {
             if [
@@ -574,7 +610,11 @@ impl Widget for BuWeiView {
             .any(|path| self.view.text_input(cx, *path).changed(actions).is_some())
             {
                 self.policy_consent_id = None;
-                self.pending_policy_pause = true;
+                if let Some(scope) = self.scope {
+                    super::host::invalidate_automation(scope, Some(&self.current_activity));
+                }
+                self.pending_policy_pause = Some(self.current_activity.clone());
+                self.flush_critical();
                 self.view.label(cx, ids!(message)).set_text(
                     cx,
                     "规则已修改，正在暂停自动补位；请重新查看规则并确认。已发出的邀请继续核实。",
