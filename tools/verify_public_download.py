@@ -47,7 +47,22 @@ def verify(a):
     source=a.destination/'source';extract(a.destination/'BuWei-v0.1.0-source.zip',source)
     build_proof.ROOT=source/'buwei-v0.1.0'
     if source_fingerprint()!=proof['native_source_sha256']:raise ValueError('Downloaded source differs from the binary build source')
+    source_lock=hashlib.sha256((build_proof.ROOT/'dependencies.lock.json').read_bytes()).hexdigest()
+    if source_lock!=proof['dependency_lock_sha256']:raise ValueError('Downloaded fixed dependencies differ from provenance')
+    binary=hashlib.sha256((package/'native/buwei-rinx-dual-host.exe').read_bytes()).hexdigest()
+    if binary!=proof['native_binary_sha256']:raise ValueError('Downloaded binary differs from provenance')
+    tag=url.path.rsplit('/',1)[1]
+    def public_api(path):
+        request=urllib.request.Request('https://api.github.com/repos/WeiR-h/buwei/'+path,headers={'Accept':'application/vnd.github+json','User-Agent':'BuWei-release-verifier'})
+        with urllib.request.urlopen(request,timeout=60) as response:return json.load(response)
+    ref=public_api('git/ref/tags/'+urllib.parse.quote(tag,safe=''))['object']
+    for _ in range(4):
+        if ref['type']=='commit':break
+        if ref['type']!='tag':raise ValueError('Public tag does not refer to a commit')
+        ref=public_api('git/tags/'+ref['sha'])['object']
+    if ref['type']!='commit' or ref['sha']!=proof['source_commit']:raise ValueError('Public tag differs from the archived source commit')
     report={'version':'0.1.0','passed':True,'public_base_url':a.base_url,'http_credentials_used':False,'assets_sha256':hashes,'source_commit':proof['source_commit'],'binary_build_source_commit':proof['binary_build_source_commit'],'native_source_sha256':proof['native_source_sha256'],'package_privacy':privacy,'actual_downloaded_native_startup':runtime,'environment':'existing Windows machine, fresh profile and system-only PATH; separate clean Windows runner evidence remains required'}
+    report.update(public_tag_commit_verified=True,dependency_lock_sha256=source_lock,native_binary_sha256=binary)
     a.output.parent.mkdir(parents=True,exist_ok=True);a.output.write_text(json.dumps(report,indent=2),'utf8')
     return {'version':'0.1.0','passed':True,'public_assets_verified':len(hashes)}
 

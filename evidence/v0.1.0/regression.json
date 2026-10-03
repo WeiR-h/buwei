@@ -3,7 +3,7 @@
   "passed": true,
   "rust_tests_passed": 85,
   "tool_tests_passed": 7,
-  "variant": "private candidate with identical intended final native sources; public full-host release build remains required",
+  "variant": "85 Rust checks on identical native sources: private GNU SDK candidate and clean Windows MSVC full-host; 7 release-tool checks",
   "native_source_sha256": "b773a011c86d6eeaf470d1f19a6c4c751e4501893df3a0d6a437dd4775c2925f",
   "private_test_log_sha256": "6db397b2f0a8ffd8af6d8c6563f79680b0497da8f9c69e0cebec76171e57c7ae",
   "test_names": [
@@ -92,5 +92,7 @@
     "consent::tests::consent_binds_account_nonce_and_deadline",
     "official_sync::tests::projection_receipt_rejects_changed_identity_revision_content_and_operation",
     "rinx_bridge::tests::app_supplied_sdk_session_cannot_replace_a_rinx_login"
-  ]
+  ],
+  "clean_windows_ci_run": 37082493252,
+  "clean_windows_build_source_commit": "4c246b295108131708547562a90a03f25b3568f6"
 }

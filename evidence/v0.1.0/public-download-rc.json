@@ -1,0 +1,51 @@
+{
+  "version": "0.1.0",
+  "passed": true,
+  "public_base_url": "https://github.com/WeiR-h/buwei/releases/download/v0.1.0-rc.1",
+  "http_credentials_used": false,
+  "assets_sha256": {
+    "BuWei-v0.1.0-contribution.zip": "3e85aaa0b712616fc872db984cb857c4b6ad74bbc0c205adc90f20266a47afbc",
+    "BuWei-v0.1.0-demo.mp4": "e09c6c1abc3228348399e514054ba6acf4c2cd871f8f51e60ac2627ee37dc618",
+    "BuWei-v0.1.0-evidence.zip": "f4a13c77965bde14570bd119aee5068556634096b4c06409a15aaa8711ab926f",
+    "BuWei-v0.1.0-source.zip": "78998dde5a244fa5cfc71c79ba01a1d61803eb2f1a66fb811540435b608f25c1",
+    "BuWei-v0.1.0-windows-x64.zip": "a0ccbe3f68b04d1a60e7aabbbf2091c3d5b5c569d5beee0a0306f87078a2df5b",
+    "buwei.ico": "1410bb04e18b25e5d4400788f57edeb28cb26b301e0b614e41801a85c4235fba",
+    "icon.png": "c5c986c8ca84bc5761e608f8f144136793f1d2e9d5d1b5c32845102f184c1fc1",
+    "icon.svg": "de737f054b8824b26c913fba9c3aa47623aead2f33436b03a9faefb15750996c",
+    "PROVENANCE.json": "770b36cf92ccae05566ed7d5afb5f0ff42c954f827b9db7fc9ff61d9d5ca829a"
+  },
+  "source_commit": "9f6a77d8d08aa68093a5af5fbc9e67cbeecfadb8",
+  "binary_build_source_commit": "4c246b295108131708547562a90a03f25b3568f6",
+  "native_source_sha256": "b773a011c86d6eeaf470d1f19a6c4c751e4501893df3a0d6a437dd4775c2925f",
+  "package_privacy": {
+    "version": "0.1.0",
+    "passed": true,
+    "files": 1484,
+    "findings": [],
+    "coverage": "file allowlist, SHA-256, source patterns and binary ASCII/UTF16; screenshots reviewed separately"
+  },
+  "actual_downloaded_native_startup": {
+    "version": "0.1.0",
+    "passed": true,
+    "binary_sha256": "a00d4b11154d0f1981189d8a0ad66bacfd2477af0672f514b31469ff8bad5645",
+    "fresh_profile": true,
+    "system_only_path": true,
+    "model_calls": 0,
+    "actual_native_render": true,
+    "unauthenticated_and_unauthorized": true,
+    "second_writer_refused": true,
+    "renderer": "hardware D3D11",
+    "known_upstream_diagnostics": [
+      {
+        "upstream_file": "makepad/widgets/src/widget_async.rs:787",
+        "diagnostic": "isolated VM global UI update safely deferred",
+        "count": 1,
+        "behavior": "upstream guard deferred isolated VM update; native render and shutdown checked"
+      }
+    ]
+  },
+  "environment": "existing Windows machine, fresh profile and system-only PATH; separate clean Windows runner evidence remains required",
+  "public_tag_commit_verified": true,
+  "dependency_lock_sha256": "3caa08a023b177814f0c24d43ea4c9dde0bb0b0d48a820e990992b3c25f7af4f",
+  "native_binary_sha256": "a00d4b11154d0f1981189d8a0ad66bacfd2477af0672f514b31469ff8bad5645"
+}
