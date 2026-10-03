@@ -1,5 +1,5 @@
 """Start an actual packaged native host on a fresh profile and system-only PATH."""
-import argparse,hashlib,json,os,pathlib,re,socket,subprocess,tempfile,time,urllib.request
+import argparse,hashlib,json,os,pathlib,re,socket,struct,subprocess,tempfile,time,urllib.request,zlib
 
 def inspect_log(content):
     # The pinned upstream guard deliberately defers an isolated VM call. Keep
@@ -23,6 +23,41 @@ def rendered_window(snapshot,status,version):
         text='\n'.join(labels)
         if '补位' in text and 'v'+version in text and '未授权' in text:return window['i']
     return None
+def frame_visibility(raw):
+    """Check actual light-theme body pixels, excluding the shell's top menu."""
+    if not raw.startswith(b'\x89PNG\r\n\x1a\n'):raise ValueError('Native capture is not PNG')
+    offset=8;compressed=[];header=None
+    while offset+12<=len(raw):
+        size=struct.unpack_from('>I',raw,offset)[0];kind=raw[offset+4:offset+8];body=raw[offset+8:offset+8+size]
+        if len(body)!=size:raise ValueError('Incomplete native PNG')
+        if kind==b'IHDR':header=struct.unpack('>IIBBBBB',body)
+        elif kind==b'IDAT':compressed.append(body)
+        offset+=size+12
+        if kind==b'IEND':break
+    if header is None:raise ValueError('Native PNG header missing')
+    width,height,depth,color,compression,filtering,interlace=header
+    if depth!=8 or color not in (2,6) or compression or filtering or interlace or not 0<width*height<=16_000_000:raise ValueError('Unexpected native PNG format')
+    channels=4 if color==6 else 3;stride=width*channels;decoder=zlib.decompressobj()
+    pixels=decoder.decompress(b''.join(compressed),(stride+1)*height+1)
+    if len(pixels)!=(stride+1)*height or not decoder.eof:raise ValueError('Incomplete native PNG pixels')
+    previous=bytearray(stride);bright=samples=0
+    def paeth(a,b,c):
+        p=a+b-c;da,db,dc=abs(p-a),abs(p-b),abs(p-c)
+        return a if da<=db and da<=dc else b if db<=dc else c
+    for y in range(height):
+        start=y*(stride+1);method=pixels[start];row=bytearray(pixels[start+1:start+1+stride])
+        if method not in range(5):raise ValueError('Invalid native PNG row filter')
+        if method:
+            for x in range(stride):
+                left=row[x-channels] if x>=channels else 0;up=previous[x];corner=previous[x-channels] if x>=channels else 0
+                predictor=left if method==1 else up if method==2 else (left+up)//2 if method==3 else paeth(left,up,corner)
+                row[x]=(row[x]+predictor)&255
+        if y>height//10 and y%8==0:
+            for x in range(0,width,8):
+                i=x*channels;samples+=1;bright+=int(sum(row[i:i+3])>=300)
+        previous=row
+    fraction=bright/max(samples,1)
+    return {'width':width,'height':height,'body_visible_fraction':round(fraction,4),'visible':fraction>=0.03}
 def check(package,output):
     package=package.resolve();output.mkdir(parents=True,exist_ok=True)
     release=json.loads((package/'release.json').read_text('utf8'));exe=package/'native/buwei-rinx-dual-host.exe'
@@ -32,7 +67,7 @@ def check(package,output):
     for key in ['CARGO_HOME','RUSTUP_HOME','CARGO_MANIFEST_DIR','RINX_DATA_DIR','OCTOSENSE_HOME','OCTOS_APP_CORE_DIR','MAKEPAD_REMOTE','MAKEPAD_FOCUS']:env.pop(key,None)
     env['PATH']=';'.join(str(p) for p in [system/'System32',system,system/'System32/WindowsPowerShell/v1.0']);env['MAKEPAD_HIDE_WINDOWS']='1'
     opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    def get(route):return opener.open(f'http://127.0.0.1:{port}/{route}',timeout=5).read()
+    def get(route):return opener.open(f'http://127.0.0.1:{port}/{route}',timeout=15 if route.startswith('g?') else 5).read()
     report={'version':release['version'],'passed':False,'binary_sha256':digest,'fresh_profile':True,'system_only_path':True,'model_calls':0,'actual_native_render':False}
     with tempfile.TemporaryDirectory(prefix='buwei-clean-') as folder,open(output/'startup.private.log','wb') as log:
         command=[str(exe),folder,'--gui','--official-rinx',f'--remote={port}'];process=subprocess.Popen(command,cwd=exe.parent,env=env,stdout=log,stderr=subprocess.STDOUT)
@@ -58,12 +93,17 @@ def check(package,output):
             else:raise TimeoutError('Native startup/render timed out')
             binding=json.loads((pathlib.Path(folder)/'data'/('v'+release['version'])/'rinx-binding-status.json').read_text('utf8'))
             assert not binding['server_identity_verified'] and not binding['action_authorized']
-            report['unauthenticated_and_unauthorized']=True;report['actual_native_render']=True;report['captured_window']=window
+            report['unauthenticated_and_unauthorized']=True;report['captured_window']=window
             second=subprocess.run(command,cwd=exe.parent,env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=10)
             assert second.returncode!=0;report['second_writer_refused']=True
-            raw=get('g?w='+str(window)+'&raw=1')
-            assert raw.startswith(b'\x89PNG\r\n\x1a\n')
-            (output/'startup.png').write_bytes(raw)
+            deadline=time.monotonic()+60
+            while time.monotonic()<deadline:
+                raw=get('g?w='+str(window)+'&raw=1');visibility=frame_visibility(raw)
+                (output/'startup.png').write_bytes(raw);report['captured_frame']=visibility
+                if visibility['visible']:break
+                time.sleep(.5)
+            else:raise TimeoutError('Native UI labels exist but the actual frame has no visible application body')
+            report['actual_native_render']=True
             get('quit');assert process.wait(timeout=25)==0
             log.flush();content=(output/'startup.private.log').read_text('utf8',errors='replace')
             report['renderer']='Windows WARP software rendering' if 'using Windows WARP software rendering' in content else 'hardware D3D11'

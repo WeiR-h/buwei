@@ -1,8 +1,8 @@
-import json,pathlib,sqlite3,tempfile,unittest,struct,subprocess,sys,hashlib,os,shutil
+import json,pathlib,sqlite3,tempfile,unittest,struct,subprocess,sys,hashlib,os,shutil,zlib
 from contextlib import closing
 from migrate import migrate
 from release_gate import check,REQUIRED,COMMUNITY_REQUIRED
-from startup_check import inspect_log,rendered_window
+from startup_check import inspect_log,rendered_window,frame_visibility
 from package_scan import content_findings
 from pe_stack import normalize
 from fault_acceptance import FaultSuite
@@ -11,6 +11,15 @@ from verify_public_download import formal_checksums
 from unittest.mock import patch
 
 class ReleaseTools(unittest.TestCase):
+    def test_startup_refuses_blank_shell_or_top_menu_without_actual_body(self):
+        def png(rows):
+            def chunk(kind,body):return struct.pack('>I',len(body))+kind+body+struct.pack('>I',zlib.crc32(kind+body)&0xffffffff)
+            return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',64,64,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(b''.join(b'\0'+r for r in rows)))+chunk(b'IEND',b'')
+        dark=bytes([10,10,10,255])*64;light=bytes([220,230,225,255])*64
+        self.assertFalse(frame_visibility(png([dark]*64))['visible'])
+        self.assertFalse(frame_visibility(png([light]*6+[dark]*58))['visible'])
+        self.assertTrue(frame_visibility(png([dark]*6+[light]*58))['visible'])
+        with self.assertRaises(ValueError):frame_visibility(png([dark]*63))
     def test_formal_download_refuses_development_or_duplicate_attachments(self):
         lines='a'*64+'  BuWei-v0.2.0-windows-x64.zip\n'+'b'*64+'  BuWei-v0.2.0-demo.mp4\n'
         self.assertEqual(len(formal_checksums(lines,'0.2.0')),2)
