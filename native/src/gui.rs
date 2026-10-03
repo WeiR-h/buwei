@@ -21,29 +21,22 @@ script_mod! {
         ..mod.widgets.RectView
         width:Fill height:Fill flow:Down padding:Inset{top:12 left:16 right:16 bottom:20} spacing:8
                 Heading{text:"补位 · 让想来的人，刚好有位"}
-                Small{text:#(concat!("v",env!("CARGO_PKG_VERSION")," · 社群活动助手"))}
-                profile:=Small{text:"双账号联调窗口"}
-                account:=Text{text:"请先在 Rinx 完成正式账号登录…"}
-                View{width:Fill height:Fit flow:Right spacing:10
-                    switch:=Action{text:"账号切换说明"}
-                    authorize:=Action{text:"查看授权范围"}
-                    confirm_authorization:=Action{text:"确认授权 1 小时"}
-                    revoke:=Action{text:"撤销授权"}
-                    refresh:=Action{text:"刷新记录"}
+                View{width:Fill height:Fit flow:Right spacing:16
+                    Small{width:200 text:#(concat!("v",env!("CARGO_PKG_VERSION")," · 社群活动助手"))}
+                    profile:=Small{text:"本人登录身份由 Rinx 核验"}
                 }
-                authorization:=Small{text:"点击查看授权范围，再确认授权。"}
-                expires:=Small{text:"当前未授权"}
-                sync_status:=Small{text:"自动同步尚未授权"}
+                account:=Text{text:"请先在 Rinx 完成正式账号登录…"}
+                expires:=Small{text:"请在账号与设置中查看权限并确认授权。"}
                 message:=Text{text:"正式服务器 https://matrix.rinx.chat；浏览器认证由本人完成。"}
                 View{width:Fill height:40 flow:Right spacing:8
                     nav_activity:=Action{text:"我的活动"}
                     nav_confirm:=Action{text:"当前确认" visible:false}
                     nav_history:=Action{text:"活动记录"}
                     nav_article:=Action{text:"活动小记"}
-                    nav_help:=Action{text:"设置与帮助"}
+                    nav_help:=Action{text:"账号与设置"}
                 }
                 page_activity:=ScrollYView{width:Fill height:Fill flow:Down spacing:12 padding:16 show_bg:true draw_bg.color:#xf2f6ef
-                    Heading{text:"我的活动"}
+                    activity_heading:=Heading{text:"我的活动"}
                     card_status:=Text{}
                     join_card:=Action{text:"确认加入并查看活动" visible:false}
                     home_current:=Text{}
@@ -52,15 +45,26 @@ script_mod! {
                     participant_actions:=View{width:Fill height:Fit flow:Right spacing:8
                         accept:=Action{text:"预览本人接受"} decline:=Action{text:"预览本人拒绝"} cancel:=Action{text:"预览本人取消"}
                     }
+                    View{width:Fill height:Fit flow:Right spacing:8
+                        open_current:=Action{text:"查看当前活动"}
+                        back_to_activities:=Action{text:"返回活动列表" visible:false}
+                    }
+                    organizer_new_actions:=View{width:Fill height:Fit flow:Right spacing:8
+                        new_activity:=Action{text:"新建活动"} copy_activity:=Action{text:"复制下一场"} archive_activity:=Action{text:"归档本场"}
+                    }
+                    activity_cards:=View{width:Fill height:Fit flow:Down spacing:12
                     activity_0:=Action{width:Fill height:64 visible:false}
                     activity_1:=Action{width:Fill height:64 visible:false}
                     activity_2:=Action{width:Fill height:64 visible:false}
                     activity_3:=Action{width:Fill height:64 visible:false}
                     activity_4:=Action{width:Fill height:64 visible:false}
                     activity_pagination:=View{width:Fill height:Fit flow:Right spacing:8 activity_prev:=Action{text:"上一页"} activity_next:=Action{text:"下一页"}}
+                    }
+                    activity_details:=View{width:Fill height:Fit flow:Down spacing:12 visible:false
                     activity:=Text{text:"尚无活动"}
-                    organizer_new_actions:=View{width:Fill height:Fit flow:Right spacing:8
-                        new_activity:=Action{text:"新建活动"} copy_activity:=Action{text:"复制下一场"} archive_activity:=Action{text:"归档本场"}
+                    people:=Text{text:"尚无候补"}
+                    organizer_invite_entry:=View{width:Fill height:Fit flow:Right
+                        prepare:=Action{text:"预览手动邀请"}
                     }
                     organizer_setup:=View{width:Fill height:Fit flow:Down spacing:8
                         creation_form:=View{width:Fill height:Fit flow:Down spacing:8
@@ -116,7 +120,6 @@ script_mod! {
                             join:=Action{text:"预览本人报名"}
                         }
                     }
-                    people:=Text{text:"尚无候补"}
                     Heading{text:"活动助手"}
                     requirement:=Input{height:70 is_multiline:true empty_text:"描述活动安排或本人报名意愿"}
                     clarification:=Input{height:55 is_multiline:true empty_text:"补充或更正时间、人数与地点"}
@@ -129,13 +132,14 @@ script_mod! {
                     ai_result:=Text{}
                     question:=Input{empty_text:"问问这场活动，例如：几点开始、还有多少名额？"}
                     ask:=Action{text:"询问本场活动"}
+                    }
                 }
                 page_confirm:=ScrollYView{visible:false width:Fill height:240 flow:Down spacing:12 padding:16 show_bg:true draw_bg.color:#xfffbf3
                     Heading{text:"核对并确认本次操作"}
                     Small{text:"核对本人账号、活动、时间与人数后确认。修改内容后请重新预览。"}
                     organizer_actions:=View{width:Fill height:Fit flow:Right spacing:8
                         sync_activity:=Action{text:"同步活动与回复"}
-                        prepare:=Action{text:"预览邀请"} execute:=Action{text:"确认邀请"}
+                        execute:=Action{text:"确认邀请"}
                         reconcile:=Action{text:"核实邀请回执"} expire:=Action{text:"检查过期邀请"}
                     }
                     preview:=Text{text:"尚未预览邀请。"}
@@ -166,6 +170,16 @@ script_mod! {
                     article:=Text{text:"尚未预览文章"}
                 }
                 page_help:=ScrollYView{visible:false width:Fill height:Fill flow:Down spacing:12 padding:16 show_bg:true draw_bg.color:#xf2f6ef
+                    Heading{text:"账号与授权"}
+                    View{width:Fill height:Fit flow:Right spacing:10
+                        switch:=Action{text:"账号切换说明"}
+                        authorize:=Action{text:"查看授权范围"}
+                        confirm_authorization:=Action{text:"确认授权 1 小时"}
+                        revoke:=Action{text:"撤销授权"}
+                        refresh:=Action{text:"刷新记录"}
+                    }
+                    authorization:=Text{text:"查看本人账号的权限范围，核对后确认授权。"}
+                    sync_status:=Small{text:"自动同步尚未授权"}
                     Heading{text:"开始使用"}
                     Text{text:"1. 在 Rinx 完成本人登录，查看权限并确认授权。\n2. 组织者新建活动，选择联系人分享活动卡片。\n3. 成员从卡片进入活动，核对时段和同行人数后报名。\n4. 组织者核对规则并启用自动补位，成员亲自回复邀请。\n5. 不明结果在活动记录中沿原编号恢复。同场仅使用一个组织者宿主。"}
                     Heading{text:"模型设置"}
@@ -307,6 +321,9 @@ impl BuWeiView {
             .set_visible(cx, self.creating || view.activity_list.is_empty());
         self.view
             .view(cx, ids!(organizer_new_actions))
+            .set_visible(cx, view.organizer);
+        self.view
+            .view(cx, ids!(organizer_invite_entry))
             .set_visible(cx, view.organizer);
         self.activity_count = view.activity_list.len();
         self.view
@@ -499,6 +516,27 @@ impl BuWeiView {
     }
     fn pages(&mut self, cx: &mut Cx) {
         self.view
+            .view(cx, ids!(activity_cards))
+            .set_visible(cx, self.tab == 0);
+        self.view.view(cx, ids!(activity_details)).set_visible(
+            cx,
+            self.tab == 1 || self.creating || self.activity_count == 0,
+        );
+        self.view
+            .button(cx, ids!(open_current))
+            .set_visible(cx, self.tab == 0 && self.activity_count > 0);
+        self.view
+            .button(cx, ids!(back_to_activities))
+            .set_visible(cx, self.tab == 1);
+        self.view.label(cx, ids!(activity_heading)).set_text(
+            cx,
+            if self.tab == 1 {
+                "活动详情"
+            } else {
+                "我的活动"
+            },
+        );
+        self.view
             .view(cx, ids!(page_activity))
             .set_visible(cx, self.tab == 0 || self.tab == 1);
         self.view.view(cx, ids!(page_confirm)).set_visible(
@@ -625,9 +663,9 @@ impl Widget for BuWeiView {
                     self.view.button(cx, ids!($id)).clicked(actions)
                 };
             }
-            if let Some(tab) = if clicked!(nav_activity) {
+            if let Some(tab) = if clicked!(nav_activity) || clicked!(back_to_activities) {
                 Some(0)
-            } else if clicked!(nav_confirm) {
+            } else if clicked!(nav_confirm) || clicked!(open_current) || clicked!(join_card) {
                 Some(1)
             } else if clicked!(nav_history) {
                 Some(2)
@@ -640,7 +678,9 @@ impl Widget for BuWeiView {
             } {
                 self.tab = tab;
                 self.pages(cx);
-                return;
+                if !clicked!(join_card) {
+                    return;
+                }
             }
             macro_rules! text {
                 ($id:ident) => {
@@ -649,6 +689,8 @@ impl Widget for BuWeiView {
             }
             if clicked!(new_activity) {
                 self.creating = true;
+                self.tab = 1;
+                self.pages(cx);
                 self.view
                     .view(cx, ids!(creation_form))
                     .set_visible(cx, true);
@@ -668,6 +710,8 @@ impl Widget for BuWeiView {
                 || clicked!(create_with_ai)
             {
                 self.creating = true;
+                self.tab = 1;
+                self.pages(cx);
             }
             if clicked!(create) {
                 self.pending_creation = true;
@@ -721,6 +765,8 @@ impl Widget for BuWeiView {
             } else {
                 None
             } {
+                self.tab = 1;
+                self.pages(cx);
                 self.send(cx, Command::SelectActivity(self.activity_page * 3 + index));
                 return;
             }

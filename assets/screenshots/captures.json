@@ -1,42 +1,42 @@
 [
   {
     "file": "01-organizer.png",
-    "caption": "本人报名后，组织者依据服务端事件加入候补",
-    "read_only_native_capture": true,
-    "private_fields_covered": 3,
-    "published_sha256": "d88b0c6a87f4f7c578791aa086a428370cb577468b9cd3798ebf8dd99173a6d8",
+    "version": "0.2.0",
+    "source": "actual Sky capture of final native Windows host; opted-in real SDK test flow",
+    "published_sha256": "272920e1567b9ca7f4ea6975d6ffa4d2d36bd1aa4b0aae8bd0e8422ca7da4cab",
+    "private_fields_masked": true,
     "manually_reviewed": true
   },
   {
     "file": "02-organizer.png",
-    "caption": "名额已保留、邀请已送达；接受状态分别记录",
-    "read_only_native_capture": true,
-    "private_fields_covered": 3,
-    "published_sha256": "8fb62897cc02da34b7fe96c128eda4a5c94a82c69b2d58e830eb422498091588",
+    "version": "0.2.0",
+    "source": "actual Sky capture of final native Windows host; opted-in real SDK test flow",
+    "published_sha256": "4bedbb8d6fd14a1379374957634f5d0b148a765c9d4916d06e62843db2b2d160",
+    "private_fields_masked": true,
     "manually_reviewed": true
   },
   {
     "file": "03-participant.png",
-    "caption": "参与者使用自己的 Rinx 登录接收邀请",
-    "read_only_native_capture": true,
-    "private_fields_covered": 4,
-    "published_sha256": "70d09428ef7a97877830fc9862f95694f4362c15ff9f9b4737a853336bfabcac",
+    "version": "0.2.0",
+    "source": "actual Sky capture of final native Windows host; opted-in real SDK test flow",
+    "published_sha256": "80743ab00427dbb0b252a002736579619a5381d69bbbf1747490b8951a985260",
+    "private_fields_masked": true,
     "manually_reviewed": true
   },
   {
     "file": "04-organizer.png",
-    "caption": "本人回复经组织者核验后，席位才最终确认",
-    "read_only_native_capture": true,
-    "private_fields_covered": 3,
-    "published_sha256": "9ba5e1abb05f109501875ca2c49b088931ed753671366ec3a2b89fddc3794f85",
+    "version": "0.2.0",
+    "source": "actual Sky capture of final native Windows host; opted-in real SDK test flow",
+    "published_sha256": "59933029c1eafcb14eeada6165f6a0bc6247318fc725091d7d93184365e5783e",
+    "private_fields_masked": true,
     "manually_reviewed": true
   },
   {
     "file": "05-organizer.png",
-    "caption": "本人取消，组织者核验并释放名额",
-    "read_only_native_capture": true,
-    "private_fields_covered": 3,
-    "published_sha256": "02d5b60efd123abdcc132c5307c65e315812057bef3f5c2a20f8ab3116c997de",
+    "version": "0.2.0",
+    "source": "actual Sky capture of final native Windows host; opted-in real SDK test flow",
+    "published_sha256": "a9d218cc05e1975494783485fb60c64d2be8f06238cf199af5c873a0ffa2c559",
+    "private_fields_masked": true,
     "manually_reviewed": true
   }
 ]

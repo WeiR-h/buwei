@@ -97,6 +97,25 @@ fn normal_and_repeated_execute_have_one_effect() {
     assert_eq!(b.calls.load(Ordering::SeqCst), 1);
 }
 #[test]
+fn confirmation_visibility_agrees_with_expiry_and_new_consent() {
+    let (a, g, mut j) = setup();
+    let backend = Backend::new(0);
+    let preview = j.prepare(&g, action(), 0, 100, 10).unwrap();
+    assert!(Journal::preview_current(&g, &preview, 109));
+    assert!(!Journal::preview_current(&g, &preview, 110));
+    let renewed = a.grant("buwei", &["invite"], 104, 1000).unwrap();
+    assert!(!Journal::preview_current(&renewed, &preview, 105));
+    assert!(j.confirm(&renewed, &preview.id, &backend, 105).is_err());
+    g.revoke();
+    assert!(!Journal::preview_current(&g, &preview, 105));
+    assert!(j.confirm(&g, &preview.id, &backend, 105).is_err());
+    assert_eq!(
+        j.receipt(&renewed, &preview.id, 105).unwrap().status,
+        Status::Prepared
+    );
+    assert_eq!(backend.calls.load(Ordering::SeqCst), 0);
+}
+#[test]
 fn account_switch_and_switch_back_invalidate_old_context() {
     let (a, g, mut j) = setup();
     let b = Backend::new(0);

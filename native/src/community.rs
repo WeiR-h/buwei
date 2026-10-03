@@ -470,22 +470,21 @@ impl Controller {
         }
     }
     pub(super) fn community_view(&self, v: &mut View) {
-        v.confirmation_ready = self.current.as_ref().is_some_and(|o| {
-            matches!(
-                o.status,
-                Status::Prepared | Status::Queued | Status::Unknown
-            )
-        }) || self.participant_current.as_ref().is_some_and(|o| {
-            matches!(
-                o.status,
-                Status::Prepared | Status::Queued | Status::Unknown
-            )
-        }) || self.share_current.as_ref().is_some_and(|o| {
-            matches!(
-                o.status,
-                Status::Prepared | Status::Queued | Status::Unknown
-            )
-        });
+        let selected = self.activity().ok();
+        let clock = now();
+        let visible = |op: &Operation| {
+            selected
+                .as_ref()
+                .is_some_and(|a| a.room == op.action.target)
+                && self.grant.as_ref().is_some_and(|g| {
+                    Journal::preview_current(g, op, clock)
+                        || (matches!(op.status, Status::Unknown | Status::Dispatching)
+                            && op.account == self.actor()
+                            && g.check(&op.action.permission, clock).is_ok())
+                })
+        };
+        v.confirmation_ready = self.current.as_ref().is_some_and(visible)
+            || self.participant_current.as_ref().is_some_and(visible);
         v.activity_list = Catalog::open(&self.data)
             .and_then(|c| c.list())
             .unwrap_or_default()
