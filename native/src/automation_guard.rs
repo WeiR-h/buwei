@@ -32,6 +32,15 @@ impl Permit {
         let state = self.host.0.lock().unwrap();
         self.generation == (state.0, *state.1.get(&self.activity).unwrap_or(&0))
     }
+    /// Linearize cancellation with the first SDK poll. The callback must only
+    /// hand off an async request; it must not wait for network completion.
+    pub(crate) fn submit<T>(&self, handoff: impl FnOnce() -> T) -> Option<T> {
+        let state = self.host.0.lock().ok()?;
+        if self.generation != (state.0, *state.1.get(&self.activity).unwrap_or(&0)) {
+            return None;
+        }
+        Some(handoff())
+    }
 }
 #[cfg(test)]
 mod tests {
@@ -56,5 +65,38 @@ mod tests {
         assert!(!first.valid());
         assert!(!second.valid());
         assert!(host.issue("first").valid());
+    }
+    #[test]
+    fn revoked_permit_never_hands_a_request_to_the_sdk() {
+        let host = Interlock::default();
+        let permit = host.issue("first");
+        let mut submissions = 0;
+        host.invalidate_all();
+        assert!(permit.submit(|| submissions += 1).is_none());
+        assert_eq!(submissions, 0);
+    }
+    #[test]
+    fn revoke_and_sdk_handoff_have_one_order() {
+        let host = Interlock::default();
+        let permit = host.issue("first");
+        let revoke_host = host.clone();
+        let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+        let (revoked_tx, revoked_rx) = std::sync::mpsc::channel();
+        let revoke = std::thread::spawn(move || {
+            entered_rx.recv().unwrap();
+            revoke_host.invalidate_all();
+            revoked_tx.send(()).unwrap();
+        });
+        assert_eq!(
+            permit.submit(|| {
+                entered_tx.send(()).unwrap();
+                assert!(revoked_rx.try_recv().is_err());
+                "handed to SDK"
+            }),
+            Some("handed to SDK")
+        );
+        revoke.join().unwrap();
+        revoked_rx.recv().unwrap();
+        assert!(permit.submit(|| "second request").is_none());
     }
 }

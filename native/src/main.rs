@@ -194,10 +194,6 @@ fn send_guarded(
     if rinx_bridge::official_mode() {
         rinx_bridge::ensure_current(c).map_err(SendFailure::Uncertain)?;
     }
-    // The identity read can block. Check cancellation again at submission.
-    if permit.is_some_and(|p| !p.valid()) {
-        return Err(SendFailure::CancelledBeforeSend);
-    }
     let raw = Raw::from_json(
         serde_json::value::to_raw_value(&content)
             .map_err(|_| SendFailure::Uncertain("消息格式不合法".into()))?,
@@ -208,16 +204,43 @@ fn send_guarded(
         MessageLikeEventType::from(kind),
         raw,
     );
-    rt.block_on(async { c.send(request).await })
-        .map(|r| r.event_id)
-        .map_err(|e| {
-            SendFailure::Uncertain(format!(
-                "消息发送结果待核实；HTTP {}",
-                e.as_client_api_error()
-                    .map(|e| e.status_code.as_u16())
-                    .unwrap_or(0)
-            ))
-        })
+    use std::{
+        future::{Future, poll_fn},
+        task::Poll,
+    };
+    let mut sending = std::pin::pin!(async { c.send(request).await });
+    let mut handed_to_sdk = false;
+    rt.block_on(poll_fn(|cx| {
+        let mut handoff = || {
+            sending.as_mut().poll(cx).map(|result| {
+                result.map_err(|e| {
+                    SendFailure::Uncertain(format!(
+                        "消息发送结果待核实；HTTP {}",
+                        e.as_client_api_error()
+                            .map(|e| e.status_code.as_u16())
+                            .unwrap_or(0)
+                    ))
+                })
+            })
+        };
+        if handed_to_sdk {
+            handoff()
+        } else if let Some(permit) = permit {
+            // Hold the cancellation lock only for the first async poll. Once
+            // submitted, the persisted transaction must be reconciled.
+            match permit.submit(handoff) {
+                Some(result) => {
+                    handed_to_sdk = true;
+                    result
+                }
+                None => Poll::Ready(Err(SendFailure::CancelledBeforeSend)),
+            }
+        } else {
+            handed_to_sdk = true;
+            handoff()
+        }
+    }))
+    .map(|r| r.event_id)
 }
 fn event(rt: &Runtime, c: &Client, room: &OwnedRoomId, id: OwnedEventId) -> Result<Value> {
     let response = rt

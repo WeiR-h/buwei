@@ -591,7 +591,7 @@ impl Controller {
                     Command::CollectEvidenceSince(id) => Some(id),
                     _ => None,
                 };
-                let values = official_sync::timeline_since(
+                let values = official_sync::evidence_since(
                     &self.rt,
                     self.active(),
                     &room,

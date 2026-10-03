@@ -314,17 +314,36 @@ pub(crate) fn timeline_since(
     room: &OwnedRoomId,
     checkpoint: Option<&str>,
 ) -> Result<Vec<Value>> {
+    timeline_read(rt, c, room, checkpoint, 1)
+}
+#[cfg(feature = "acceptance")]
+pub(crate) fn evidence_since(
+    rt: &Runtime,
+    c: &Client,
+    room: &OwnedRoomId,
+    checkpoint: Option<&str>,
+) -> Result<Vec<Value>> {
+    timeline_read(rt, c, room, checkpoint, 3)
+}
+fn timeline_read(
+    rt: &Runtime,
+    c: &Client,
+    room: &OwnedRoomId,
+    checkpoint: Option<&str>,
+    attempts: usize,
+) -> Result<Vec<Value>> {
     let mut all = vec![];
     let mut from = None;
     let mut seen = std::collections::BTreeSet::new();
     // Small pages keep a single slow room from monopolizing the host while
     // retaining the same 2000-event history bound and complete checkpoints.
     for _ in 0..400 {
-        let mut request = get_message_events::v3::Request::backward(room.clone());
-        request.limit = 5u32.into();
-        request.from = from.clone();
-        let response = rt
-            .block_on(async {
+        let mut received = None;
+        for attempt in 0..attempts {
+            let mut request = get_message_events::v3::Request::backward(room.clone());
+            request.limit = 5u32.into();
+            request.from = from.clone();
+            match rt.block_on(async {
                 c.send(request)
                     .with_request_config(
                         RequestConfig::new()
@@ -332,8 +351,22 @@ pub(crate) fn timeline_since(
                             .timeout(Duration::from_secs(10)),
                     )
                     .await
-            })
-            .map_err(|_| "参与者消息暂不可读取")?;
+            }) {
+                Ok(response) => {
+                    received = Some(response);
+                    break;
+                }
+                Err(error) => {
+                    let status = error.as_client_api_error().map(|e| e.status_code.as_u16());
+                    if status.is_some_and(|s| (400..500).contains(&s) && s != 429)
+                        || attempt + 1 == attempts
+                    {
+                        return Err("参与者消息暂不可读取".into());
+                    }
+                }
+            }
+        }
+        let response = received.ok_or("参与者消息暂不可读取")?;
         let empty = response.chunk.is_empty();
         for raw in response.chunk {
             let v: Value = serde_json::from_str(raw.json().get()).map_err(|_| "消息格式不合法")?;
