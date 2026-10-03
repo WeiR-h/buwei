@@ -9,7 +9,9 @@
 模型帮助理解需求，席位由候补顺序、时段和容量规则决定。
 邀请和文章在确切预览后由本人确认；服务端事件核实后才显示成功。
 
-**当前源码：v0.1.0。** [下载运行包与材料](https://github.com/WeiR-h/buwei/releases)。
+**当前源码：v0.1.1 小版本，验收中。**
+新增多轮需求追问和 62 项合成模型测试，见 [模型辅助与测试](docs/MODEL-EVAL.md)。
+**已冻结稳定版：v0.1.0。** [下载运行包与材料](https://github.com/WeiR-h/buwei/releases)。
 运行包需要 Windows 10/11 x64 和最新微软 Visual C++ v14 x64 运行库，
 官方下载入口见 [首次运行](docs/FIRST-RUN.md)。无需 Rust 或 Visual Studio。
 85 项 Rust、7 项发布工具检查、五轮真实双账号、拒绝、过期及三类故障

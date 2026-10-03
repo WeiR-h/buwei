@@ -117,6 +117,9 @@ script_mod! {
                         explain:=Action{text:"解释候补匹配规则"}
                     }
                     advice:=Text{text:"未生成建议。手动填写时段也可使用。"}
+                    clarification:=Input{height:70 is_multiline:true empty_text:"有待补充问题时，在这里回答，例如：今天 19–21 点，我一个人。"}
+                    clarify:=Action{text:"提交补充，继续理解需求"}
+                    Small{text:"最多补充三轮。修改原需求后重新生成；分钟、跨天和其他日期请改写为今天的整数时段。"}
                     Small{text:"AI 只辅助建议或草稿；轮询不调用模型。活动摘要去除账号、房间、名字和标题。错误输出不能改变队列或容量。"}
                     fault:=Action{text:"正式服务关闭故障注入"}
                 }
@@ -210,7 +213,9 @@ impl Widget for BuWeiView{
                 else if clicked!(participant_confirm){Some(Command::ConfirmParticipant(Preferences{earliest:parse(text!(earliest))?,latest:parse(text!(latest))?,group:parse(text!(group))?}))}else if clicked!(pending_reconcile){Some(Command::ReconcilePending)}
                 else if clicked!(prepare){Some(Command::Prepare)}else if clicked!(execute){Some(Command::Execute)}else if clicked!(reconcile){Some(Command::Reconcile)}
                 else if clicked!(accept){Some(Command::Accept(true))}else if clicked!(decline){Some(Command::Accept(false))}else if clicked!(cancel){Some(Command::Cancel)}else if clicked!(expire){Some(Command::Expire)}
-                else if clicked!(suggest){Some(Command::Suggest(text!(requirement)))}else if clicked!(apply_advice){Some(Command::ApplySuggestion(text!(requirement)))}
+                else if clicked!(suggest){let requirement=text!(requirement);self.view.text_input(cx,ids!(clarification)).set_text(cx,"");Some(Command::Suggest(requirement))}
+                else if clicked!(clarify){Some(Command::Clarify{requirement:text!(requirement),answer:text!(clarification)})}
+                else if clicked!(apply_advice){Some(Command::ApplySuggestion(buwei_host_core::preference_draft::dialogue_binding(&text!(requirement),&text!(clarification))))}
                 else if clicked!(explain){Some(Command::Explain)}else if clicked!(generate_note){Some(Command::GenerateNote)}else if clicked!(apply_note){Some(Command::ApplyNote{title:text!(article_title),markdown:text!(markdown)})}else if clicked!(configure_model){Some(Command::ConfigureModel)}
                 else if clicked!(draft){Some(Command::Draft{title:text!(article_title),markdown:text!(markdown)})}else if clicked!(new_article){Some(Command::NewArticle{title:text!(article_title),markdown:text!(markdown)})}else if clicked!(article_prepare){Some(Command::PrepareArticle)}else if clicked!(publish){Some(Command::PublishArticle{title:text!(article_title),markdown:text!(markdown)})}else if clicked!(article_reconcile){Some(Command::ReconcileArticle)}else if clicked!(fault){Some(Command::Fault)}else{None})
             })();match command{Ok(Some(command))=>self.send(cx,command),Err(message)=>{self.view.label(cx,ids!(message)).set_text(cx,&message);self.view.redraw(cx);},_=>{}}

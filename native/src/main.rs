@@ -17,6 +17,7 @@ mod participant;
 #[cfg(feature="desktop")]mod gui;
 #[cfg(feature="desktop")]mod host;
 #[cfg(feature="desktop")]mod model;
+#[cfg(feature="desktop")]mod model_eval;
 #[cfg(feature="desktop")]mod shell_app;
 type Result<T>=std::result::Result<T,String>;
 fn now()->u64 {SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()}
@@ -140,6 +141,19 @@ fn run(root:&Path)->Result<Value> {
 fn main() {
     let _=rustls::crypto::ring::default_provider().install_default();
     let root=std::env::args().nth(1).map(PathBuf::from).unwrap_or_else(||std::env::current_dir().unwrap());
+    #[cfg(feature="desktop")]
+    if let Some(index)=std::env::args().position(|a|a=="--model-eval") {
+        let args=std::env::args().collect::<Vec<_>>();
+        if args.len()!=index+3 {eprintln!("请提供合成测试 JSON 和结果文件路径");std::process::exit(1);}
+        let root=root.canonicalize().expect("model evaluation profile must exist");
+        #[cfg(windows)] let _profile_lock={
+            use std::os::windows::fs::OpenOptionsExt;
+            match std::fs::OpenOptions::new().create(true).truncate(false).read(true).write(true).share_mode(0).open(root.join(".run.lock")){
+                Ok(file)=>file,Err(_)=>{eprintln!("此资料目录正在运行；请关闭宿主后进行模型评估。");std::process::exit(1);}
+            }
+        };
+        match model_eval::run(&root,Path::new(&args[index+1]),Path::new(&args[index+2])){Ok(())=>return,Err(reason)=>{eprintln!("{reason}");std::process::exit(1);}}
+    }
     #[cfg(feature="desktop")]
     if std::env::args().any(|a|a=="--gui") {
         let root=root.canonicalize().expect("native host root must exist");

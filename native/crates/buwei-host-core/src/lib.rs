@@ -9,6 +9,7 @@ use std::{collections::BTreeSet, path::Path};
 pub type Result<T> = std::result::Result<T, String>;
 pub mod article;
 pub mod participation;
+pub mod preference_draft;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Preferences { pub earliest: u8, pub latest: u8, pub group: u8 }

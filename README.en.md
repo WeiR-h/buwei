@@ -8,7 +8,10 @@ uses their own Rinx identity. Model suggestions require review; deterministic
 queue, availability and capacity rules decide eligibility. Invitation delivery
 and personal acceptance are separate states.
 
-**Current source: v0.1.0.** [Downloads](https://github.com/WeiR-h/buwei/releases).
+**Current source: v0.1.1 preview, under validation.** Adds incomplete preference
+drafts, up to three clarification rounds, checked candidate explanations and
+62 synthetic model cases. See [model evaluation](docs/MODEL-EVAL.md).
+**Frozen stable release: v0.1.0.** [Downloads](https://github.com/WeiR-h/buwei/releases).
 Runtime requirements: Windows 10/11 x64 with current Microsoft Visual C++ v14
 x64 Redistributable (at least the MSVC 14.51 build tools version). No Rust or
 Visual Studio installation is needed to run the package. CI runners already

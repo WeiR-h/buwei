@@ -1,6 +1,6 @@
 //! Serialized native host. UI commands contain neither credentials nor actors.
 use super::*;
-use buwei_host_core::{ModelAdvice,advice_digest};
+use buwei_host_core::{advice_digest,preference_draft::{PreferenceDraft,dialogue_binding}};
 use buwei_host_core::article::{Article,ArticleStore};
 #[derive(Clone)]
 #[cfg_attr(feature="acceptance",derive(serde::Deserialize))]
@@ -8,7 +8,7 @@ use buwei_host_core::article::{Article,ArticleStore};
 pub(crate) enum Command {
     Authorize,ConfirmAuthorization(String),Switch,Revoke,JoinRoom(String),InviteMember(String),SyncActivity,Create{title:String,capacity:u8,start:u8,end:u8},
     Join(Preferences),ConfirmParticipant(Preferences),ReconcilePending,Prepare,Execute,Reconcile,Accept(bool),Cancel,Expire,
-    Suggest(String),ApplySuggestion(String),Explain,GenerateNote,ConfigureModel,ApplyNote{title:String,markdown:String},Draft{title:String,markdown:String},
+    Suggest(String),Clarify{requirement:String,answer:String},ApplySuggestion(String),Explain,GenerateNote,ConfigureModel,ApplyNote{title:String,markdown:String},Draft{title:String,markdown:String},
     NewArticle{title:String,markdown:String},PrepareArticle,PublishArticle{title:String,markdown:String},ReconcileArticle,Fault,Refresh,
     #[cfg(feature="acceptance")]TestFault(String),
     #[cfg(feature="acceptance")]CollectEvidence,
@@ -21,7 +21,7 @@ pub(crate) struct Controller {
     selected:bool,authority:Authority,grant:Option<Grant>,article_grant:Option<Grant>,sync_grant:Option<Grant>,last_sync_status:String,
     journal:Journal,current:Option<Operation>,participant_current:Option<Operation>,article_current:Option<Operation>,
     fault:bool,model:Arc<octosense_llm_service::complete::ModelHost>,
-    suggestion:Option<(String,String,u64,ModelAdvice)>,note:Option<(String,u64,model::Note)>,explanation:Option<String>,message:String,
+    suggestion:Option<(String,String,u64,PreferenceDraft,Vec<String>)>,note:Option<(String,u64,model::Note)>,explanation:Option<String>,message:String,
 }
 impl Controller {
     pub fn open(root:&Path)->Result<Self> {
@@ -186,10 +186,21 @@ impl Controller {
                 #[cfg(feature="full-host")]if rinx_bridge::official_mode(){return self.sync_activity();}
                 let a=self.activity()?;Store::open(self.data.join("activity.db"))?.update(a.revision,|a|{a.expire(now());Ok(())})?;Ok("已检查过期；不明发送继续保留名额".into())
             }
-            Command::Suggest(text)=>{let g=self.g("model")?;let a=self.activity()?;let (advice,reply)=model::recommend(&self.model,&g,&text)?;let proof=json!({"version":env!("CARGO_PKG_VERSION"),"returned_model":"MiniMax-M3","official_model_host":true,"schema_validated":true,"usage":reply["meta"]["usage"],"budget":reply["meta"]["budget"],"model_did_not_change_activity":self.activity()?.revision==a.revision});std::fs::write(self.data.join("model-receipt.json"),serde_json::to_vec_pretty(&proof).map_err(|_|"模型回执格式不合法")?).map_err(|_|"建议已生成，但本机回执保存失败")?;self.suggestion=Some((self.actor(),advice_digest(&text,a.revision),a.revision,advice));Ok("建议已生成，尚未修改候补偏好或队列。请核对后本人确认。".into())}
-            Command::ApplySuggestion(text)=>{self.g("participate")?;let a=self.activity()?;let (actor,digest,revision,advice)=self.suggestion.as_ref().ok_or("请先生成建议")?;
+            Command::Suggest(text)=>{let g=self.g("model")?;let a=self.activity()?;let (advice,reply)=model::recommend(&self.model,&g,&text)?;self.model_receipt(&reply,a.revision)?;let clarify=advice.needs_clarification;self.explanation=None;self.suggestion=Some((self.actor(),advice_digest(&text,a.revision),a.revision,advice,vec![text]));Ok(if clarify{"请按列出的问题填写补充回答，再继续理解需求。"}else{"建议已生成。核对后预览本人报名，再单独确认发送。"}.into())}
+            Command::Clarify{requirement,answer}=>{
+                let g=self.g("model")?;let a=self.activity()?;
+                let (actor,_,revision,advice,turns)=self.suggestion.as_ref().ok_or("请先生成需求草稿")?;
+                if *actor!=self.actor()||*revision!=a.revision||turns.first()!=Some(&requirement){return Err("原需求、账号或活动版本已变化，请重新生成建议".into());}
+                if !advice.needs_clarification{return Err("信息已完整，可以核对后预览报名；修改需求时请重新生成".into());}
+                let mut turns=turns.clone();turns.push(answer.clone());
+                let (draft,reply)=model::recommend_dialogue(&self.model,&g,&turns)?;self.model_receipt(&reply,a.revision)?;
+                let ready=!draft.needs_clarification;self.explanation=None;
+                self.suggestion=Some((self.actor(),advice_digest(&dialogue_binding(&requirement,&answer),a.revision),a.revision,draft,turns));
+                Ok(if ready{"补充信息已合并。核对完整时段和人数后预览本人报名。"}else{"仍有信息待补充，请查看问题；也可以修改原需求重新生成。"}.into())
+            }
+            Command::ApplySuggestion(text)=>{self.g("participate")?;let a=self.activity()?;let (actor,digest,revision,advice,_)=self.suggestion.as_ref().ok_or("请先生成建议")?;
                 if *actor!=self.actor()||*revision!=a.revision||*digest!=advice_digest(&text,a.revision){return Err("输入、账号或活动版本已变化，请重新生成建议".into());}if advice.needs_clarification{return Err("建议需要补充信息，请先完善需求或手动填写时段".into());}
-                let p=advice.preferences();self.suggestion=None;self.note=None;self.explanation=None;self.apply(Command::Join(p))}
+                let p=advice.preferences()?;self.suggestion=None;self.note=None;self.explanation=None;self.apply(Command::Join(p))}
 
             Command::Explain=>{let g=self.g("model")?;let a=self.activity()?;let (text,reply)=model::explain(&self.model,&g,&a)?;self.model_receipt(&reply,a.revision)?;self.explanation=Some(text);Ok("匹配说明已生成。队列、时段和容量仍由业务规则核验。".into())}
             Command::GenerateNote=>{let g=self.g("model")?;let a=self.activity()?;let (note,reply)=model::note(&self.model,&g,&a)?;self.model_receipt(&reply,a.revision)?;self.note=Some((self.actor(),a.revision,note));Ok("活动小记已生成待审草稿。核对正文后确认保存，再单独预览发布。".into())}
@@ -298,7 +309,7 @@ impl Controller {
         v.draft=ArticleStore::open(self.article_path()).ok().and_then(|s|s.load().ok().flatten()).map(|a|(a.title,a.markdown));
         v.model_status=model::status(&self.root,&self.model);
         v.generated_note=self.note.as_ref().map(|(_,revision,n)|(advice_digest(&format!("{}\n{}",n.title,n.markdown),*revision),n.title.clone(),n.markdown.clone()));
-        v.advice=self.explanation.clone().or_else(||self.suggestion.as_ref().map(|(_,_,_,a)|format!("建议可用 {}–{} 点 · {} 人\n{}\n{}",a.earliest,a.latest,a.group,a.explanation,if a.needs_clarification{"需要补充信息"}else{"核对后由本人确认"}))).unwrap_or_else(||"AI 建议尚未生成。手动时段可直接使用。".into());v
+        v.advice=self.explanation.clone().or_else(||self.suggestion.as_ref().map(|(_,_,_,a,_)|a.display())).unwrap_or_else(||"AI 建议尚未生成。手动时段可直接使用。".into());v
     }
 }
 
