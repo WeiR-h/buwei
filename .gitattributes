@@ -1,4 +1,5 @@
 * text=auto eol=lf
+dependencies.lock.json -text
 native/tests/fixtures/independent-model-cases.json -text
 *.png -text
 *.jpg -text
