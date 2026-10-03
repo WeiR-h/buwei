@@ -1,0 +1,23 @@
+{
+  "version": "0.1.1",
+  "passed": true,
+  "binary_sha256": "caacac0d85a9f6348cb6ba54eca650ed6a4babdb99bf2800f60a3c612d4c72b6",
+  "variant": "ordinary public CI full-host; acceptance control excluded",
+  "scope": "same Windows user; separately migrated roles; restored distinct real SDK identities; no inherited authorization; no business or model actions",
+  "records": [
+    {
+      "role": "organizer",
+      "sdk_server_identity_verified": true,
+      "same_expected_local_identity": true,
+      "effective_authorization_inherited": false
+    },
+    {
+      "role": "participant",
+      "sdk_server_identity_verified": true,
+      "same_expected_local_identity": true,
+      "effective_authorization_inherited": false
+    }
+  ],
+  "model_counters_preserved": true,
+  "old_directories_preserved": true
+}
