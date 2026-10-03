@@ -42,7 +42,7 @@
   },
   "public_download_verified": {
     "passed": true,
-    "evidence": "public-download-rc.json"
+    "evidence": "public-download-stable.json"
   },
-  "public_download_stage": "v0.1.0-rc.1: same tested native source, fixed dependencies and binary; stable attachments rechecked after publication"
+  "public_download_stage": "stable v0.1.0 publicly downloaded and verified; frozen tag and attachments retained"
 }

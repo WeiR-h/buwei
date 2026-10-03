@@ -1,0 +1,17 @@
+{
+  "version": "0.1.0",
+  "passed": true,
+  "release_url": "https://github.com/WeiR-h/buwei/releases/tag/v0.1.0",
+  "draft": false,
+  "prerelease": false,
+  "tag_commit": "0fa91c4139f9ad9bc17521cbf74441f773899a09",
+  "binary_build_source_commit": "4c246b295108131708547562a90a03f25b3568f6",
+  "native_binary_sha256": "a00d4b11154d0f1981189d8a0ad66bacfd2477af0672f514b31469ff8bad5645",
+  "native_source_sha256": "b773a011c86d6eeaf470d1f19a6c4c751e4501893df3a0d6a437dd4775c2925f",
+  "public_assets_verified": 9,
+  "checksum_manifest_additionally_downloaded": true,
+  "frozen_tag_and_assets_retained": true,
+  "post_publication_evidence_changes_only": true,
+  "organizer_submission_accepted": false,
+  "upstream_contribution_merged": false
+}
