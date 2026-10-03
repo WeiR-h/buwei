@@ -10,6 +10,8 @@
 邀请和文章在确切预览后由本人确认；服务端事件核实后才显示成功。
 
 **当前源码：v0.1.0。** [下载运行包与材料](https://github.com/WeiR-h/buwei/releases)。
+运行包需要 Windows 10/11 x64 和最新微软 Visual C++ v14 x64 运行库，
+官方下载入口见 [首次运行](docs/FIRST-RUN.md)。无需 Rust 或 Visual Studio。
 85 项 Rust、7 项发布工具检查、五轮真实双账号、拒绝、过期及三类故障
 验收通过。独立 Windows 构建和另一台全新 Windows 运行环境均通过。
 稳定标签须通过公开下载复验；详细结果见 [验收记录](docs/ACCEPTANCE.md)。

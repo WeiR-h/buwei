@@ -9,6 +9,10 @@ queue, availability and capacity rules decide eligibility. Invitation delivery
 and personal acceptance are separate states.
 
 **Current source: v0.1.0.** [Downloads](https://github.com/WeiR-h/buwei/releases).
+Runtime requirements: Windows 10/11 x64 with current Microsoft Visual C++ v14
+x64 Redistributable (at least the MSVC 14.51 build tools version). No Rust or
+Visual Studio installation is needed to run the package. CI runners already
+include the runtime; see [first run](docs/FIRST-RUN.md) for the official download.
 85 Rust and 7 release-tool checks, five real dual-account loops, decline,
 expiration, recovery and network interruption checks passed. A clean Windows
 build and a separate fresh Windows runtime both passed. The stable tag requires

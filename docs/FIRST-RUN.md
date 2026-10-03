@@ -35,6 +35,14 @@ Rinx 登录服务器为 `matrix.rinx.chat`，浏览器认证由本人完成。
 
 ## Windows 运行包
 
+运行环境：Windows 10/11 x64，系统图形与媒体组件，以及最新
+[Microsoft Visual C++ v14 x64 运行库](https://aka.ms/vc14/vc_redist.x64.exe)。
+正式程序确实导入 `VCRUNTIME140.dll`，运行库应不早于构建所用 MSVC
+14.51。安装依据见 [微软说明](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)。
+运行包不要求安装 Rust 或 Visual Studio。干净 Windows CI runner 已有
+微软运行库；该检查不表示在没有运行库的原始 Windows 安装上也能直接启动。
+若首次启动提示缺少 VCRUNTIME140.dll，先安装上述微软运行库再运行。
+
 解压完整目录后双击“启动组织者.cmd”或“启动参与者.cmd”。首次启动
 不含登录、授权或模型密钥；两个入口使用独立的资料目录。不能单独移动
 可执行文件，字体、图片与配置工具必须保留。模型配置工具只在本机弹窗
