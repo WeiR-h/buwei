@@ -7,9 +7,15 @@ from package_scan import content_findings
 from pe_stack import normalize
 from fault_acceptance import FaultSuite
 from dual_acceptance import Suite
+from verify_public_download import formal_checksums
 from unittest.mock import patch
 
 class ReleaseTools(unittest.TestCase):
+    def test_formal_download_refuses_development_or_duplicate_attachments(self):
+        lines='a'*64+'  BuWei-v0.2.0-windows-x64.zip\n'+'b'*64+'  BuWei-v0.2.0-demo.mp4\n'
+        self.assertEqual(len(formal_checksums(lines,'0.2.0')),2)
+        for invalid in [lines+lines.splitlines()[0]+'\n',lines+'c'*64+'  developer-report.json\n',lines.replace('0.2.0-demo','0.1.1-demo')]:
+            with self.assertRaises(ValueError):formal_checksums(invalid,'0.2.0')
     def test_startup_capture_selects_visible_app_and_rejects_hidden_labels(self):
         windows={'w':[{'i':0,'sz':[1024,720]},{'i':1,'sz':[1400,900]}]}
         labels=[{'w':1,'ty':'Label','r':[30,100+n*25,400,20],'t':t} for n,t in enumerate(['补位','v0.2.0','未授权'])]
