@@ -1,0 +1,7 @@
+{
+  "version": "0.1.1",
+  "passed": true,
+  "files": 1485,
+  "findings": [],
+  "coverage": "file allowlist, SHA-256, source patterns and binary ASCII/UTF16; screenshots reviewed separately"
+}

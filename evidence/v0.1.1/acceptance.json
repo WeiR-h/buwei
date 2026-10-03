@@ -1,0 +1,67 @@
+{
+  "version": "0.1.1",
+  "status": "preview",
+  "collected_at_unix": 1791007889,
+  "incremental_acceptance_passed": true,
+  "rust_checks": {
+    "passed": 99,
+    "receipt": 29,
+    "article": 8,
+    "participation": 8,
+    "preference_draft": 8,
+    "business": 30,
+    "host_and_model": 16
+  },
+  "release_tool_checks": 7,
+  "model": {
+    "initial_passed": 59,
+    "initial_cases": 62,
+    "initial_failed_preserved": [
+      "ambiguous-am-pm",
+      "next-week",
+      "reversed-window"
+    ],
+    "recheck_passed": 16,
+    "recheck_cases": 16,
+    "pilot_passed": 2,
+    "usage": {
+      "provider_attempts": 89,
+      "input_tokens": 62953,
+      "output_tokens": 44364,
+      "estimated_rmb": 0.5048589,
+      "total_tokens": 107317
+    },
+    "billing_verified": false
+  },
+  "native_dialogue": {
+    "incomplete_input_questions_observed": true,
+    "incomplete_advice_did_not_prepare_join": true,
+    "complete_advice_observed": {
+      "earliest": 19,
+      "latest": 21,
+      "group": 1
+    },
+    "edited_answer_old_advice_refused_observed": true,
+    "exact_answer_prepared_only": true,
+    "revocation_old_confirmation_refused": true,
+    "server_event_set_unchanged": true,
+    "activity_unchanged": true
+  },
+  "new_server_business_events": 0,
+  "new_server_article_events": 0,
+  "windows_ci": {
+    "run_url": "https://github.com/WeiR-h/buwei/actions/runs/37099910611",
+    "source_commit": "d3a96157892bc623f4e052614a9554b213e9e0f5",
+    "clean_build_passed": true,
+    "separate_fresh_runtime_passed": true,
+    "native_binary_sha256": "caacac0d85a9f6348cb6ba54eca650ed6a4babdb99bf2800f60a3c612d4c72b6"
+  },
+  "not_repeated_this_preview": [
+    "five full real dual-account business loops",
+    "complete fault injection matrix",
+    "original Rinx article editor publication"
+  ],
+  "frozen_stable_release": "https://github.com/WeiR-h/buwei/releases/tag/v0.1.0",
+  "notes_require_human_factual_review": true,
+  "public_download_status": "Evidence recorded separately after publication; not inferred from CI."
+}

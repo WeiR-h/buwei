@@ -1,0 +1,20 @@
+{
+  "version": "0.1.1",
+  "passed": true,
+  "binary_sha256": "caacac0d85a9f6348cb6ba54eca650ed6a4babdb99bf2800f60a3c612d4c72b6",
+  "fresh_profile": true,
+  "system_only_path": true,
+  "model_calls": 0,
+  "actual_native_render": true,
+  "unauthenticated_and_unauthorized": true,
+  "second_writer_refused": true,
+  "renderer": "Windows WARP software rendering",
+  "known_upstream_diagnostics": [
+    {
+      "upstream_file": "makepad/widgets/src/widget_async.rs:787",
+      "diagnostic": "isolated VM global UI update safely deferred",
+      "count": 1,
+      "behavior": "upstream guard deferred isolated VM update; native render and shutdown checked"
+    }
+  ]
+}

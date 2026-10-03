@@ -1,12 +1,13 @@
 """Copy verified CI runtime unchanged, then refresh only public docs and assets."""
-import argparse,hashlib,json,pathlib,shutil,subprocess
+import argparse,hashlib,json,pathlib,shutil,subprocess,tomllib
 from package_scan import scan
 from build_proof import source_fingerprint,digest
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 def refresh(source,destination):
     assert scan(source)['passed']
     old=json.loads((source/'release.json').read_text('utf8'))
-    assert old['version']=='0.1.0' and old['build_proof']['native_source_sha256']==source_fingerprint()
+    version=tomllib.loads((ROOT/'native/Cargo.toml').read_text('utf8'))['package']['version']
+    assert old['version']==version and old['build_proof']['native_source_sha256']==source_fingerprint()
     assert old['dependency_lock_sha256']==digest(ROOT/'dependencies.lock.json')
     if destination.exists():raise RuntimeError('Destination exists; preserved')
     shutil.copytree(source,destination)

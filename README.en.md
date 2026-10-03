@@ -8,15 +8,21 @@ uses their own Rinx identity. Model suggestions require review; deterministic
 queue, availability and capacity rules decide eligibility. Invitation delivery
 and personal acceptance are separate states.
 
-**Current source: v0.1.1 preview, under validation.** Adds incomplete preference
+**Current source: v0.1.1 preview.** Adds incomplete preference
 drafts, up to three clarification rounds, checked candidate explanations and
-62 synthetic model cases. See [model evaluation](docs/MODEL-EVAL.md).
+62 synthetic model cases. 99 Rust and 7 tool checks passed, with clean Windows
+build and separate fresh runtime checks. The initial model run passed 59/62;
+the three failed cases passed in the 16/16 recheck. Native dialogue, edited-input
+binding and revocation checks passed without new business events.
+107,317 real tokens this round; estimated RMB 0.5049, billing unverified.
+See [model evaluation](docs/MODEL-EVAL.md), [preview acceptance](docs/ACCEPTANCE-v0.1.1.md)
+and [preview downloads](https://github.com/WeiR-h/buwei/releases/tag/v0.1.1).
 **Frozen stable release: v0.1.0.** [Downloads](https://github.com/WeiR-h/buwei/releases).
 Runtime requirements: Windows 10/11 x64 with current Microsoft Visual C++ v14
 x64 Redistributable (at least the MSVC 14.51 build tools version). No Rust or
 Visual Studio installation is needed to run the package. CI runners already
 include the runtime; see [first run](docs/FIRST-RUN.md) for the official download.
-85 Rust and 7 release-tool checks, five real dual-account loops, decline,
+The frozen v0.1.0 passed 85 Rust and 7 release-tool checks, five real dual-account loops, decline,
 expiration, recovery and network interruption checks passed. A clean Windows
 build and a separate fresh Windows runtime both passed. The stable tag requires
 public-download verification. See [acceptance](docs/ACCEPTANCE.md) for evidence.
