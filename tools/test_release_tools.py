@@ -11,6 +11,16 @@ from verify_public_download import formal_checksums
 from unittest.mock import patch
 
 class ReleaseTools(unittest.TestCase):
+    def test_startup_refuses_wallpaper_or_uniform_background_instead_of_title(self):
+        def png(rows):
+            def chunk(kind,body):return struct.pack('>I',len(body))+kind+body+struct.pack('>I',zlib.crc32(kind+body)&0xffffffff)
+            return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',64,64,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(b''.join(b'\0'+r for r in rows)))+chunk(b'IEND',b'')
+        light=bytes([220,230,225,255])*64;rows=[light]*64
+        self.assertFalse(frame_visibility(png(rows),[0,0,64,32],[64,64])['visible'])
+        rows=[bytes(sum(([x*3,y*3,150,255] for x in range(64)),[])) for y in range(64)]
+        self.assertFalse(frame_visibility(png(rows),[0,0,64,32],[64,64])['visible'])
+        rows=[light]*64;rows[8]=bytes([20,40,30,255])*24+light[96:]
+        self.assertTrue(frame_visibility(png(rows),[0,0,64,32],[64,64])['application_header_visible'])
     def test_startup_refuses_blank_shell_or_top_menu_without_actual_body(self):
         def png(rows):
             def chunk(kind,body):return struct.pack('>I',len(body))+kind+body+struct.pack('>I',zlib.crc32(kind+body)&0xffffffff)

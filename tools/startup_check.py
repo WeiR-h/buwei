@@ -23,7 +23,7 @@ def rendered_window(snapshot,status,version):
         text='\n'.join(labels)
         if '补位' in text and 'v'+version in text and '未授权' in text:return window['i']
     return None
-def frame_visibility(raw):
+def frame_visibility(raw,header_rectangle=None,logical_size=None):
     """Check actual light-theme body pixels, excluding the shell's top menu."""
     if not raw.startswith(b'\x89PNG\r\n\x1a\n'):raise ValueError('Native capture is not PNG')
     offset=8;compressed=[];header=None
@@ -40,7 +40,11 @@ def frame_visibility(raw):
     channels=4 if color==6 else 3;stride=width*channels;decoder=zlib.decompressobj()
     pixels=decoder.decompress(b''.join(compressed),(stride+1)*height+1)
     if len(pixels)!=(stride+1)*height or not decoder.eof:raise ValueError('Incomplete native PNG pixels')
-    previous=bytearray(stride);bright=samples=0
+    previous=bytearray(stride);bright=samples=0;header_colors={}
+    if header_rectangle is not None:
+        x,y,w,h=header_rectangle;lw,lh=logical_size
+        rectangle=(max(0,int(x*width/lw)),max(0,int(y*height/lh)),min(width,int((x+w)*width/lw)),min(height,int((y+h)*height/lh)))
+    else:rectangle=None
     def paeth(a,b,c):
         p=a+b-c;da,db,dc=abs(p-a),abs(p-b),abs(p-c)
         return a if da<=db and da<=dc else b if db<=dc else c
@@ -55,9 +59,17 @@ def frame_visibility(raw):
         if y>height//10 and y%8==0:
             for x in range(0,width,8):
                 i=x*channels;samples+=1;bright+=int(sum(row[i:i+3])>=300)
+        if rectangle is not None and rectangle[1]<=y<rectangle[3] and y%2==0:
+            for x in range(rectangle[0],rectangle[2],3):
+                i=x*channels;color=tuple(row[i:i+3]);header_colors[color]=header_colors.get(color,0)+1
         previous=row
     fraction=bright/max(samples,1)
-    return {'width':width,'height':height,'body_visible_fraction':round(fraction,4),'visible':fraction>=0.03}
+    header_visible=False;flat=ink=0.0
+    if header_colors:
+        background,count=max(header_colors.items(),key=lambda item:item[1]);total=sum(header_colors.values());flat=count/total
+        ink=sum(count for color,count in header_colors.items() if sum(color)<sum(background)-120)/total
+        header_visible=flat>=0.35 and sum(background)>=300 and ink>=0.001
+    return {'width':width,'height':height,'body_visible_fraction':round(fraction,4),'application_header_visible':header_visible,'header_background_fraction':round(flat,4),'header_ink_fraction':round(ink,4),'visible':fraction>=0.03 and (header_rectangle is None or header_visible)}
 def check(package,output):
     package=package.resolve();output.mkdir(parents=True,exist_ok=True)
     release=json.loads((package/'release.json').read_text('utf8'));exe=package/'native/buwei-rinx-dual-host.exe'
@@ -98,7 +110,11 @@ def check(package,output):
             assert second.returncode!=0;report['second_writer_refused']=True
             deadline=time.monotonic()+60
             while time.monotonic()<deadline:
-                raw=get('g?w='+str(window)+'&raw=1');visibility=frame_visibility(raw)
+                snap=json.loads(get('snap?all=1'));status=json.loads(get('s'))
+                heading=next((w['r'] for w in snap['s'] if w.get('w')==window and w.get('ty')=='Label' and '刚好有位' in w.get('t','') and w.get('v',1)!=0),None)
+                surface=next(w for w in status['w'] if w['i']==window)
+                raw=get('g?w='+str(window)+'&raw=1');visibility=frame_visibility(raw,heading,surface['sz'])
+                if heading is None:visibility['visible']=False
                 (output/'startup.png').write_bytes(raw);report['captured_frame']=visibility
                 if visibility['visible']:break
                 time.sleep(.5)
