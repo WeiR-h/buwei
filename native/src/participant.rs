@@ -1,12 +1,53 @@
 //! Native SDK adapter for durable participant actions.
 use super::*;
 use buwei_host_core::participation::Intent;
+pub(crate) fn join_awaits_projection(a: &Activity, actor: &str, prepared_revision: u64) -> bool {
+    a.people
+        .iter()
+        .find(|p| p.account == actor)
+        .is_none_or(|p| {
+            p.status != buwei_host_core::PersonStatus::Waiting && a.revision <= prepared_revision
+        })
+}
 pub(crate) struct ParticipantAdapter {
     pub runtime: Arc<Runtime>,
     pub client: Client,
     pub room: OwnedRoomId,
     pub state: PathBuf,
     pub drop_ack: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn historical_registration_does_not_hide_newer_expiration() {
+        let mut a = Activity::new(
+            "@owner:s".into(),
+            "!room:s".into(),
+            "test".into(),
+            2,
+            19,
+            21,
+        )
+        .unwrap();
+        a.join_own(
+            "@person:s".into(),
+            "person".into(),
+            Preferences {
+                earliest: 18,
+                latest: 22,
+                group: 1,
+            },
+        )
+        .unwrap();
+        assert!(!join_awaits_projection(&a, "@person:s", 1));
+        a.people[0].status = buwei_host_core::PersonStatus::Expired;
+        a.revision += 1;
+        assert!(!join_awaits_projection(&a, "@person:s", 1));
+        assert!(join_awaits_projection(&a, "@person:s", a.revision));
+        assert!(join_awaits_projection(&a, "@unseen:s", a.revision));
+    }
 }
 impl ParticipantAdapter {
     fn intent(&self, op: &Operation) -> action_receipts::Result<Intent> {

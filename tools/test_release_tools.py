@@ -5,8 +5,21 @@ from release_gate import check,REQUIRED,COMMUNITY_REQUIRED
 from startup_check import inspect_log
 from package_scan import content_findings
 from pe_stack import normalize
+from fault_acceptance import FaultSuite
 
 class ReleaseTools(unittest.TestCase):
+    def test_fault_recovery_reads_the_selected_activity_journal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);actor=root/'data/v0.2.0/native/rinx/actor';actor.mkdir(parents=True)
+            selected=actor/'activities'/('a'*32);selected.mkdir(parents=True)
+            for path,ident in [(actor/'operations.db','legacy'),(selected/'operations.db','selected')]:
+                with closing(sqlite3.connect(path)) as db:
+                    db.execute('create table operations(id text,status text,body text)')
+                    db.execute('insert into operations values(?,?,?)',(ident,'unknown',json.dumps({'id':ident,'status':'unknown'})))
+                    db.commit()
+            suite=FaultSuite.__new__(FaultSuite);suite.owner=root;suite.participant=root;suite.version='0.2.0';suite.activity_id='a'*32
+            self.assertEqual(suite.persisted_operation('organizer','selected')['id'],'selected')
+            with self.assertRaises(AssertionError):suite.persisted_operation('organizer','legacy')
     def test_packaged_inspector_leaves_downloaded_package_unchanged(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=pathlib.Path(tmp);folder=root/'tools';folder.mkdir()

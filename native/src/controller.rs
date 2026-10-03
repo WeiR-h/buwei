@@ -1325,7 +1325,8 @@ impl Controller {
     }
     #[cfg(feature = "acceptance")]
     pub fn acceptance_snapshot(&self) -> Value {
-        json!({"version":env!("CARGO_PKG_VERSION"),"collected_at_unix":now(),"account":self.actor(),"authorized":self.is_authorized(),"consent_id":self.consent.as_ref().map(|c|&c.id),"message":self.message,"sync_status":self.last_sync_status,"activity":self.activity().ok(),"invitation":self.current,"participant":self.participant_current,"article":self.article_current,"generated_note":self.note.as_ref().map(|(_,_,n)|json!({"title":n.title,"markdown":n.markdown})),"explanation":self.explanation,"policy_consent_id":self.policy_preview.as_ref().map(|p|p.0.clone()),"share":self.share_current,"contacts":self.contacts,"ai_result":self.ai_result,"activities":buwei_host_core::catalog::Catalog::open(&self.data).and_then(|c|c.list()).ok()})
+        let view = self.view();
+        json!({"version":env!("CARGO_PKG_VERSION"),"collected_at_unix":now(),"account":self.actor(),"authorized":self.is_authorized(),"consent_id":self.consent.as_ref().map(|c|&c.id),"message":self.message,"sync_status":self.last_sync_status,"automation_status":view.automation_status,"reply_status":view.reply,"activity":self.activity().ok(),"invitation":self.current,"participant":self.participant_current,"article":self.article_current,"generated_note":self.note.as_ref().map(|(_,_,n)|json!({"title":n.title,"markdown":n.markdown})),"explanation":self.explanation,"policy_consent_id":self.policy_preview.as_ref().map(|p|p.0.clone()),"share":self.share_current,"contacts":self.contacts,"ai_result":self.ai_result,"activities":buwei_host_core::catalog::Catalog::open(&self.data).and_then(|c|c.list()).ok()})
     }
     pub fn view(&self) -> View {
         let mut v = View {
@@ -1405,13 +1406,13 @@ impl Controller {
                             buwei_host_core::participation::Intent::parse(&op.action)
                         {
                             let waiting = match intent {
-                                buwei_host_core::participation::Intent::Join { .. } => a
-                                    .people
-                                    .iter()
-                                    .find(|p| p.account == self.actor())
-                                    .is_none_or(|p| {
-                                        p.status != buwei_host_core::PersonStatus::Waiting
-                                    }),
+                                buwei_host_core::participation::Intent::Join { .. } => {
+                                    participant::join_awaits_projection(
+                                        &a,
+                                        &self.actor(),
+                                        op.revision,
+                                    )
+                                }
                                 buwei_host_core::participation::Intent::Reply {
                                     invitation_id,
                                     ..
