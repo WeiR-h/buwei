@@ -22,7 +22,9 @@ impl Transport for BoundedM3 {
         if url!="https://api.minimax.cn/v1/chat/completions"{return Err("模型服务地址不符合宿主配置".into());}
         let mut request:Value=serde_json::from_str(body).map_err(|_|"模型请求格式不合法")?;
         if request["model"]!="MiniMax-M3"{return Err("模型型号不符合宿主配置".into());}
-        request["max_completion_tokens"]=1024.into();request["stream"]=false.into();
+        // M3 reasoning and final JSON share this limit. A short 1024 cap
+        // truncated ambiguous cases; 4096 remains within the 0.10 RMB reserve.
+        request["max_completion_tokens"]=4096.into();request["stream"]=false.into();
         if request.to_string().len()>16384{return Err("模型请求超出开发预算范围".into());}
         // Reserve before every provider attempt, including schema retries.
         // 100 attempts at 0.10 RMB each per isolated profile. Reservations are
@@ -47,6 +49,8 @@ impl Transport for BoundedM3 {
             budget["output_tokens"]=json!(budget["output_tokens"].as_u64().unwrap_or(0).checked_add(output).ok_or("模型用量超出范围")?);
             budget["usage_responses"]=json!(budget["usage_responses"].as_u64().unwrap_or(0)+1);
             budget["usage_tracking_since"]=json!("v0.1.1; earlier responses remain in estimated_rmb");
+            budget["max_completion_tokens"]=4096.into();
+            if parsed["choices"][0]["finish_reason"]=="length"{budget["truncated_responses"]=json!(budget["truncated_responses"].as_u64().unwrap_or(0)+1);}
             budget["pricing_checked_on"]=json!("2026-10-03");budget["pricing_url"]=json!("https://platform.minimax.cn/docs/guides/pricing-paygo");
             save_budget(&path,&budget)?;
         }Ok((status,raw))

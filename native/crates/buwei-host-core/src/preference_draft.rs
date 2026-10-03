@@ -30,7 +30,8 @@ impl PreferenceDraft {
             || draft.earliest.zip(draft.latest).is_some_and(|(a, b)| a >= b)
             || !safe_text(&draft.explanation, 240)
             || draft.questions.len() > 3
-            || draft.questions.iter().any(|q| !safe_text(q, 120))
+            || draft.questions.iter().any(|q| !safe_text(q, 120)
+                || ["账号", "密码", "密钥", "身份证", "手机号", "电话", "apikey", "token"].iter().any(|s| q.to_ascii_lowercase().contains(s)))
         { return Err("模型时段、人数或追问不符合约定".into()); }
         if draft.needs_clarification {
             if draft.questions.is_empty() { return Err("信息不完整时必须列出待补充的问题".into()); }
@@ -46,6 +47,8 @@ impl PreferenceDraft {
     pub fn guard_supported_input(&mut self, turns: &[String]) {
         if turns.iter().any(|s| unsupported_time(s)) {
             self.needs_clarification = true;
+            self.earliest = None;
+            self.latest = None;
             let question = "当前活动支持今天的整数小时。请修改原需求，写清今天几点到几点，例如 19–21 点。";
             if !self.questions.iter().any(|q| q == question) {
                 self.questions.truncate(2);
@@ -112,11 +115,12 @@ mod tests {
     #[test] fn clarification_requires_a_bounded_question() {
         let mut v=complete();v["needs_clarification"]=true.into();assert!(PreferenceDraft::parse(&v).is_err());
         v["questions"]=json!(["请提供 @someone:test 的账号"]);assert!(PreferenceDraft::parse(&v).is_err());
+        v["questions"]=json!(["请提供登录密码才能报名"]);assert!(PreferenceDraft::parse(&v).is_err());
         v["questions"]=json!(["几点有空？","几个人？","今天吗？","怎么联系？"]);assert!(PreferenceDraft::parse(&v).is_err());
     }
     #[test] fn fractional_and_other_day_inputs_cannot_be_rounded() {
         for text in ["今天19:30到21:30一人", "明天19–21点一人", "今晚七点半到九点", "今天19.5到21.5点", "今晚七点一刻到九点"] {
-            let mut d=PreferenceDraft::parse(&complete()).unwrap();d.guard_supported_input(&[text.into()]);assert!(d.needs_clarification);assert!(d.preferences().is_err());
+            let mut d=PreferenceDraft::parse(&complete()).unwrap();d.guard_supported_input(&[text.into()]);assert!(d.needs_clarification);assert!(d.preferences().is_err());assert_eq!(d.earliest,None);assert_eq!(d.latest,None);
         }
     }
     #[test] fn integer_hour_and_complete_dialogue_remain_available() {

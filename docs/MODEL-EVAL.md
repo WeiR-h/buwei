@@ -59,6 +59,10 @@ $buweiEvalProfile = Join-Path $env:LOCALAPPDATA 'BuWei/v0.1.1-organizer'
 估算采用输入 2.10 元、输出 8.40 元每百万 Token 的标准价格，缓存折扣未计入。
 测试不请求优先服务。价格来源：[MiniMax 按量价格](https://platform.minimax.cn/docs/guides/pricing-paygo)。
 
+MiniMax-M3 的推理与最终 JSON 共用输出上限。真实案例发现 1,024 Token 上限
+下有三项返回格式未通过校验，已提高到 4,096 Token 并保留原失败记录复测。
+结构和业务检查继续执行，每次尝试的 0.10 元预留保持不变。
+
 预留金额、费用估算和实际账单是三个不同的数。账户余额和领券到账情况
 需要在 MiniMax 控制台核对，测试结果不能证明实际扣费或剩余额度。
 
