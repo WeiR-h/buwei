@@ -8,8 +8,10 @@ from contextlib import closing
 from formal_control import Control
 
 class Suite:
-    def __init__(self,owner,participant,version,private):
+    def __init__(self,owner,participant,version,private,activity_id=None):
         self.owner=owner;self.participant=participant;self.version=version;self.private=private;self.trace=[];self.rounds=[]
+        if activity_id is not None and (len(activity_id)!=32 or any(c not in '0123456789abcdefABCDEF' for c in activity_id)):raise ValueError('Invalid activity ID')
+        self.activity_id=activity_id
         self.accounts=[]
         for profile in [owner,participant]:
             binding=json.loads((profile/'data'/('v'+version)/'rinx-binding-status.json').read_text('utf8'))
@@ -18,9 +20,10 @@ class Suite:
         activity=self.state(owner);self.room=activity['room']
         if activity['owner']!=self.accounts[0] or self.accounts[0]==self.accounts[1]:raise RuntimeError('Two distinct identities required')
         self.o=Control(owner,self.accounts[0],self.room);self.p=Control(participant,self.accounts[1],self.room)
-        self.preferences={'earliest':17,'latest':23,'group':1}
+        self.preferences=({'earliest':activity['start'],'latest':activity['end'],'group':min(2,activity['capacity'])} if activity.get('metadata') else {'earliest':17,'latest':23,'group':1})
     def state(self,profile):
-        db=next((profile/'data'/('v'+self.version)/'native/rinx').glob('*/activity.db'))
+        actor=next((profile/'data'/('v'+self.version)/'native/rinx').glob('*/operations.db')).parent
+        db=actor/'activities'/self.activity_id/'activity.db' if self.activity_id else actor/'activity.db'
         with closing(sqlite3.connect('file:'+db.as_posix()+'?mode=ro',uri=True)) as c:return json.loads(c.execute('select body from buwei_state').fetchone()[0])
     def save(self):
         self.private.parent.mkdir(parents=True,exist_ok=True);self.private.write_text(json.dumps(self.trace,ensure_ascii=False,indent=2),'utf8')
@@ -90,6 +93,6 @@ class Suite:
         return report
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--owner-profile',type=pathlib.Path,required=True);p.add_argument('--participant-profile',type=pathlib.Path,required=True);p.add_argument('--version',required=True);p.add_argument('--rounds',type=int,default=5);p.add_argument('--extras',action='store_true');p.add_argument('--private-trace',type=pathlib.Path,required=True);p.add_argument('--public-evidence',type=pathlib.Path,required=True);a=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('--owner-profile',type=pathlib.Path,required=True);p.add_argument('--participant-profile',type=pathlib.Path,required=True);p.add_argument('--version',required=True);p.add_argument('--activity-id');p.add_argument('--rounds',type=int,default=5);p.add_argument('--extras',action='store_true');p.add_argument('--private-trace',type=pathlib.Path,required=True);p.add_argument('--public-evidence',type=pathlib.Path,required=True);a=p.parse_args()
     if not 1<=a.rounds<=5:raise ValueError('Use one to five explicitly bounded rounds')
-    suite=Suite(a.owner_profile,a.participant_profile,a.version,a.private_trace);report=suite.run(a.rounds,a.extras);a.public_evidence.parent.mkdir(parents=True,exist_ok=True);a.public_evidence.write_text(json.dumps(report,indent=2),'utf8');print(json.dumps({'version':a.version,'passed':True,'rounds':len(report['formal_rounds'])}))
+    suite=Suite(a.owner_profile,a.participant_profile,a.version,a.private_trace,a.activity_id);report=suite.run(a.rounds,a.extras);a.public_evidence.parent.mkdir(parents=True,exist_ok=True);a.public_evidence.write_text(json.dumps(report,indent=2),'utf8');print(json.dumps({'version':a.version,'passed':True,'rounds':len(report['formal_rounds'])}))

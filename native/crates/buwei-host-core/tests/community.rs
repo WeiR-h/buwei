@@ -356,9 +356,14 @@ fn catalog_corruption_cannot_silently_free_activity_capacity() {
     let root = std::env::temp_dir().join(format!("catalog-missing-{}", new_id()));
     let mut catalog = Catalog::open(&root).unwrap();
     let a = activity(8);
-    let path = catalog.path(&a.metadata.as_ref().unwrap().activity_id).unwrap();
+    let path = catalog
+        .path(&a.metadata.as_ref().unwrap().activity_id)
+        .unwrap();
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-    Store::open(&path).unwrap().cache_verified_snapshot(&a).unwrap();
+    Store::open(&path)
+        .unwrap()
+        .cache_verified_snapshot(&a)
+        .unwrap();
     catalog.register(&a, clock()).unwrap();
     std::fs::rename(&path, path.with_extension("backup")).unwrap();
     assert!(catalog.list().is_err());

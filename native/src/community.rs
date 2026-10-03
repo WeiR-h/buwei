@@ -447,8 +447,11 @@ impl Controller {
                     return Err("需求、账号或活动已变化，请重新生成建议".into());
                 }
                 let p = draft.preferences()?;
-                self.dated_suggestion = None;
-                self.apply(Command::Join(p))
+                let result = self.apply(Command::Join(p));
+                if result.is_ok() {
+                    self.dated_suggestion = None;
+                }
+                result
             }
             Command::Ask(question) => {
                 let g = self.g("model")?;
@@ -632,7 +635,11 @@ impl Controller {
     pub(crate) fn sync_interval(&self) -> Duration {
         let count = Catalog::open(&self.data)
             .and_then(|c| c.list())
-            .map(|v| v.iter().filter(|a| a.metadata.as_ref().is_some_and(|m| !m.archived) && a.end > now()).count())
+            .map(|v| {
+                v.iter()
+                    .filter(|a| a.metadata.as_ref().is_some_and(|m| !m.archived) && a.end > now())
+                    .count()
+            })
             .unwrap_or(1)
             .clamp(1, 5);
         Duration::from_millis(10000 / count as u64)
@@ -640,7 +647,10 @@ impl Controller {
     #[cfg(feature = "full-host")]
     pub(super) fn community_tick(&mut self) -> Option<View> {
         let list: Vec<_> = match Catalog::open(&self.data).and_then(|c| c.list()) {
-            Ok(list) => list.into_iter().filter(|a| a.metadata.as_ref().is_some_and(|m| !m.archived) && a.end > now()).collect(),
+            Ok(list) => list
+                .into_iter()
+                .filter(|a| a.metadata.as_ref().is_some_and(|m| !m.archived) && a.end > now())
+                .collect(),
             Err(error) => {
                 self.last_sync_status = format!("活动资料需恢复：{error}");
                 return Some(self.view());
@@ -663,7 +673,7 @@ impl Controller {
         self.selected_activity = a.metadata.as_ref().map(|m| m.activity_id.clone());
         let result = self.sync_activity().and_then(|_| self.automatic_invite());
         let message = result.unwrap_or_else(|e| e);
-        self.last_sync_status = format!("{}：{}", a.title, message);
+        self.last_sync_status = format!("最近同步 {}：{}", a.title, message);
         self.selected_activity = saved;
         self.current = current;
         self.participant_current = participant;

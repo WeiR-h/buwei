@@ -24,7 +24,7 @@ impl Budget {
             .map_err(|_| "共享预算正在使用")?;
         let used: i64 = tx
             .query_row(
-                "SELECT COALESCE(SUM(COALESCE(estimate,reserved)),0) FROM calls",
+                "SELECT (SELECT COALESCE(SUM(COALESCE(estimate,reserved)),0) FROM calls)+(SELECT COALESCE(SUM(estimate),0) FROM history)",
                 [],
                 |r| r.get(0),
             )
@@ -53,7 +53,7 @@ impl Budget {
             .map_err(|_| "预算上限不可读取")?;
         let used: i64 = tx
             .query_row(
-                "SELECT COALESCE(SUM(COALESCE(estimate,reserved)),0) FROM calls",
+                "SELECT (SELECT COALESCE(SUM(COALESCE(estimate,reserved)),0) FROM calls)+(SELECT COALESCE(SUM(estimate),0) FROM history)",
                 [],
                 |r| r.get(0),
             )
@@ -68,14 +68,16 @@ impl Budget {
         Ok(id)
     }
     pub fn record(&self, id: &str, input: u64, output: u64) -> Result<()> {
-        if input > 100000 || output > 4096 {
+        // The transport bounds the entire request to 16 KiB and completion
+        // to 7168 tokens. Both fit the conservative 0.10 RMB reservation.
+        if input > 16384 || output > 7168 {
             return Err("模型回传用量超出约定，保留本次预留额度".into());
         }
         let estimate = ((input as f64 * 2.10 + output as f64 * 8.40).ceil()) as i64;
         let n = self
             .db
             .execute(
-                "UPDATE calls SET estimate=?2,input=?3,output=?4 WHERE id=?1 AND estimate IS NULL",
+                "UPDATE calls SET estimate=?2,input=?3,output=?4 WHERE id=?1 AND estimate IS NULL AND reserved>=?2",
                 params![id, estimate, input as i64, output as i64],
             )
             .map_err(|_| "模型用量不可保存")?;

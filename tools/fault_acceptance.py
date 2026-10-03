@@ -9,7 +9,8 @@ from dual_acceptance import Suite
 from formal_control import Control
 
 class Hosts:
-    def __init__(self,exe,owner,participant,version,owner_port,participant_port):
+    def __init__(self,exe,owner,participant,version,owner_port,participant_port,activity_id=None):
+        self.activity_id=activity_id
         self.exe=exe.resolve();self.profiles={'organizer':owner.resolve(),'participant':participant.resolve()};self.ports={'organizer':owner_port,'participant':participant_port};self.version=version;self.processes={};self.logs=[];self.extra_environment={}
     def start(self,role):
         profile=self.profiles[role];env=dict(os.environ);env.update(self.extra_environment.get(role,{}));env['BUWEI_PROFILE']=role;env['MAKEPAD_HIDE_WINDOWS']='1'
@@ -42,7 +43,7 @@ class Hosts:
 
 class FaultSuite(Suite):
     def __init__(self,hosts,private):
-        super().__init__(hosts.profiles['organizer'],hosts.profiles['participant'],hosts.version,private);self.hosts=hosts;self.cases=[]
+        super().__init__(hosts.profiles['organizer'],hosts.profiles['participant'],hosts.version,private,hosts.activity_id);self.hosts=hosts;self.cases=[]
     def restart_control(self,role):
         self.hosts.restart(role);profile=self.owner if role=='organizer' else self.participant;account=self.accounts[0] if role=='organizer' else self.accounts[1]
         control=Control(profile,account,self.room);control.authorize()
@@ -94,8 +95,8 @@ class FaultSuite(Suite):
         return {'version':self.version,'passed':True,'scope':'actual SDK sends and service event verification; deliberate receipt loss or native abort in opt-in acceptance build; network cable was not disconnected','cases':self.cases,'all_cases_restart_native_process':True}
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--executable',type=pathlib.Path,required=True);p.add_argument('--owner-profile',type=pathlib.Path,required=True);p.add_argument('--participant-profile',type=pathlib.Path,required=True);p.add_argument('--version',required=True);p.add_argument('--owner-port',type=int,default=8140);p.add_argument('--participant-port',type=int,default=8141);p.add_argument('--private-trace',type=pathlib.Path,required=True);p.add_argument('--public-evidence',type=pathlib.Path,required=True);a=p.parse_args()
-    hosts=Hosts(a.executable,a.owner_profile,a.participant_profile,a.version,a.owner_port,a.participant_port)
+    p=argparse.ArgumentParser();p.add_argument('--executable',type=pathlib.Path,required=True);p.add_argument('--owner-profile',type=pathlib.Path,required=True);p.add_argument('--participant-profile',type=pathlib.Path,required=True);p.add_argument('--version',required=True);p.add_argument('--activity-id');p.add_argument('--owner-port',type=int,default=8140);p.add_argument('--participant-port',type=int,default=8141);p.add_argument('--private-trace',type=pathlib.Path,required=True);p.add_argument('--public-evidence',type=pathlib.Path,required=True);a=p.parse_args()
+    hosts=Hosts(a.executable,a.owner_profile,a.participant_profile,a.version,a.owner_port,a.participant_port,a.activity_id)
     hosts.start('organizer');hosts.start('participant');suite=FaultSuite(hosts,a.private_trace)
     try:
         report=suite.run_faults();a.public_evidence.parent.mkdir(parents=True,exist_ok=True);a.public_evidence.write_text(json.dumps(report,indent=2),'utf8')

@@ -34,3 +34,27 @@ fn history_is_retained_when_the_user_sets_a_new_remaining_budget() {
     assert_eq!(a.summary().unwrap()["history_estimated_rmb"], 0.5049);
     assert_eq!(a.summary().unwrap()["ceiling_rmb"], 80.0);
 }
+#[test]
+fn imported_history_counts_toward_the_shared_limit() {
+    let mut budget = Budget::open(":memory:").unwrap();
+    budget.import_history("old-profile", 150000).unwrap();
+    assert!(budget.configure(100000).is_err());
+    budget.configure(250000).unwrap();
+    budget.reserve().unwrap();
+    assert!(budget.reserve().is_err());
+}
+#[test]
+fn bounded_code_reviews_fit_one_reservation() {
+    let mut budget = Budget::open(":memory:").unwrap();
+    budget.configure(100000).unwrap();
+    let id = budget.reserve().unwrap();
+    assert!(budget.record(&id, 16385, 7168).is_err());
+    assert!(budget.record(&id, 16384, 7169).is_err());
+    budget.record(&id, 16384, 7168).unwrap();
+    assert!(
+        budget.summary().unwrap()["estimated_or_reserved_rmb"]
+            .as_f64()
+            .unwrap()
+            <= 0.1
+    );
+}

@@ -39,7 +39,7 @@ def draft(label):return {'title':'补位发送恢复验收 '+label,'markdown':'�
 
 def run(a):
     base=a.destination.resolve();base.mkdir(exist_ok=False);copy_pair(a.source_profiles,base/'canonical',a.version)
-    def hosts(folder,participant=None):return Hosts(a.executable,folder/'organizer',participant or folder/'participant',a.version,a.owner_port,a.participant_port)
+    def hosts(folder,participant=None):return Hosts(a.executable,folder/'organizer',participant or folder/'participant',a.version,a.owner_port,a.participant_port,a.activity_id)
     def suite(h,label):
         h.start('organizer');h.start('participant');return FaultSuite(h,base/(label+'.private.json'))
     h=hosts(base/'canonical');s=suite(h,'registration')
@@ -81,4 +81,4 @@ def run(a):
     a.public_evidence.parent.mkdir(parents=True,exist_ok=True);a.public_evidence.write_text(json.dumps(report,indent=2),'utf8');print('Three uncertain-send cases and controlled baseline passed',flush=True)
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--executable',type=pathlib.Path,required=True);p.add_argument('--source-profiles',type=pathlib.Path,required=True);p.add_argument('--destination',type=pathlib.Path,required=True);p.add_argument('--version',required=True);p.add_argument('--owner-port',type=int,default=8142);p.add_argument('--participant-port',type=int,default=8143);p.add_argument('--framework-evidence',type=pathlib.Path,required=True);p.add_argument('--public-evidence',type=pathlib.Path,required=True);run(p.parse_args())
+    p=argparse.ArgumentParser();p.add_argument('--executable',type=pathlib.Path,required=True);p.add_argument('--source-profiles',type=pathlib.Path,required=True);p.add_argument('--destination',type=pathlib.Path,required=True);p.add_argument('--version',required=True);p.add_argument('--activity-id');p.add_argument('--owner-port',type=int,default=8142);p.add_argument('--participant-port',type=int,default=8143);p.add_argument('--framework-evidence',type=pathlib.Path,required=True);p.add_argument('--public-evidence',type=pathlib.Path,required=True);run(p.parse_args())

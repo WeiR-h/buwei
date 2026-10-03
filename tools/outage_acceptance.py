@@ -45,7 +45,7 @@ class OutageSuite(FaultSuite):
         return {'version':self.version,'passed':True,'scope':'actual SDK TLS traffic through a local CONNECT relay; process connections closed, no physical cable change and no global network setting changes','cases':self.outages,'fresh_reviewed_operations_after_definite_preflight_refusal':proof,'proxy_connections':self.relay.connections,'blocked_connect_attempts':self.relay.denied,'tls_not_decrypted_or_logged':True}
 
 def run(a):
-    relay=Relay();hosts=Hosts(a.executable,a.owner_profile,a.participant_profile,a.version,a.owner_port,a.participant_port)
+    relay=Relay();hosts=Hosts(a.executable,a.owner_profile,a.participant_profile,a.version,a.owner_port,a.participant_port,a.activity_id)
     for role in ('organizer','participant'):hosts.extra_environment[role]={'HTTP_PROXY':relay.url,'HTTPS_PROXY':relay.url,'ALL_PROXY':relay.url,'NO_PROXY':'127.0.0.1,localhost'}
     try:
         hosts.start('organizer');hosts.start('participant');suite=OutageSuite(hosts,a.private_trace,relay);report=suite.run_outages();a.public_evidence.parent.mkdir(parents=True,exist_ok=True);a.public_evidence.write_text(json.dumps(report,indent=2),'utf8')
@@ -55,4 +55,4 @@ def run(a):
             if role in hosts.processes:hosts.stop(role)
         relay.close()
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--executable',type=pathlib.Path,required=True);p.add_argument('--owner-profile',type=pathlib.Path,required=True);p.add_argument('--participant-profile',type=pathlib.Path,required=True);p.add_argument('--version',required=True);p.add_argument('--owner-port',type=int,default=8152);p.add_argument('--participant-port',type=int,default=8153);p.add_argument('--private-trace',type=pathlib.Path,required=True);p.add_argument('--public-evidence',type=pathlib.Path,required=True);run(p.parse_args())
+    p=argparse.ArgumentParser();p.add_argument('--executable',type=pathlib.Path,required=True);p.add_argument('--owner-profile',type=pathlib.Path,required=True);p.add_argument('--participant-profile',type=pathlib.Path,required=True);p.add_argument('--version',required=True);p.add_argument('--activity-id');p.add_argument('--owner-port',type=int,default=8152);p.add_argument('--participant-port',type=int,default=8153);p.add_argument('--private-trace',type=pathlib.Path,required=True);p.add_argument('--public-evidence',type=pathlib.Path,required=True);run(p.parse_args())

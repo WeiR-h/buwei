@@ -42,7 +42,28 @@ impl AppMain for App {
                         policy: octosense_shell::clients::LaunchPolicy::OrFocus,
                         target_dir: None,
                     };
-                    self.shell.launch_module_as(cx, &super::gui::MODULE, &app);
+                    let existing = self.shell.state.as_ref().and_then(|state| {
+                        state
+                            .clients
+                            .iter()
+                            .find(|(_, slot)| {
+                                slot.app == "buwei" && slot.closing.is_none() && !slot.warm
+                            })
+                            .map(|(id, _)| *id)
+                    });
+                    if let Some(client) = existing {
+                        if let Some(window) = self
+                            .shell
+                            .state
+                            .as_mut()
+                            .and_then(|state| state.layout.desktop.get_mut(client))
+                        {
+                            window.minimized = false;
+                        }
+                        self.shell.activate_client(cx, client);
+                    } else {
+                        self.shell.launch_module_as(cx, &super::gui::MODULE, &app);
+                    }
                     super::host::open_card(room.clone(), activity_id.clone());
                 }
             }

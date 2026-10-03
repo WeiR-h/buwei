@@ -44,14 +44,20 @@ script_mod! {
                 }
                 page_activity:=ScrollYView{width:Fill height:Fill flow:Down spacing:12 padding:16 show_bg:true draw_bg.color:#xf2f6ef
                     Heading{text:"我的活动"}
+                    card_status:=Text{}
+                    join_card:=Action{text:"确认加入并查看活动" visible:false}
+                    home_current:=Text{}
+                    home_status:=Text{}
+                    reply_status:=Text{text:"当前没有邀请。"}
+                    participant_actions:=View{width:Fill height:Fit flow:Right spacing:8
+                        accept:=Action{text:"预览本人接受"} decline:=Action{text:"预览本人拒绝"} cancel:=Action{text:"预览本人取消"}
+                    }
                     activity_0:=Action{width:Fill height:64 visible:false}
                     activity_1:=Action{width:Fill height:64 visible:false}
                     activity_2:=Action{width:Fill height:64 visible:false}
                     activity_3:=Action{width:Fill height:64 visible:false}
                     activity_4:=Action{width:Fill height:64 visible:false}
-                    View{width:Fill height:Fit flow:Right spacing:8 activity_prev:=Action{text:"上一页"} activity_next:=Action{text:"下一页"}}
-                    card_status:=Text{}
-                    join_card:=Action{text:"确认加入并查看活动" visible:false}
+                    activity_pagination:=View{width:Fill height:Fit flow:Right spacing:8 activity_prev:=Action{text:"上一页"} activity_next:=Action{text:"下一页"}}
                     activity:=Text{text:"尚无活动"}
                     organizer_new_actions:=View{width:Fill height:Fit flow:Right spacing:8
                         new_activity:=Action{text:"新建活动"} copy_activity:=Action{text:"复制下一场"} archive_activity:=Action{text:"归档本场"}
@@ -77,7 +83,7 @@ script_mod! {
                         Heading{text:"分享本场活动"}
                         load_contacts:=Action{text:"选择 Rinx 联系人"}
                         contact_0:=Action{visible:false} contact_1:=Action{visible:false} contact_2:=Action{visible:false} contact_3:=Action{visible:false} contact_4:=Action{visible:false}
-                        View{width:Fill height:Fit flow:Right spacing:8 contact_prev:=Action{text:"上一页联系人"} contact_next:=Action{text:"下一页联系人"}}
+                        contact_pagination:=View{width:Fill height:Fit flow:Right spacing:8 contact_prev:=Action{text:"上一页联系人"} contact_next:=Action{text:"下一页联系人"}}
                         member:=Input{empty_text:"接收者（从联系人中选择）"}
                         View{width:Fill height:Fit flow:Right spacing:8
                             prepare_share:=Action{text:"预览活动卡片"} confirm_share:=Action{text:"确认分享与邀请"}
@@ -109,10 +115,6 @@ script_mod! {
                             group:=Input{text:"1" width:90 empty_text:"同行人数"}
                             join:=Action{text:"预览本人报名"}
                         }
-                    }
-                    reply_status:=Text{text:"当前没有邀请。"}
-                    participant_actions:=View{width:Fill height:Fit flow:Right spacing:8
-                        accept:=Action{text:"预览本人接受"} decline:=Action{text:"预览本人拒绝"} cancel:=Action{text:"预览本人取消"}
                     }
                     people:=Text{text:"尚无候补"}
                     Heading{text:"活动助手"}
@@ -221,6 +223,8 @@ pub struct BuWeiView {
     creating: bool,
     #[rust]
     pending_creation: bool,
+    #[rust]
+    pending_policy_pause: bool,
 }
 impl BuWeiView {
     fn display(&mut self, cx: &mut Cx, view: HostView) {
@@ -300,15 +304,32 @@ impl BuWeiView {
             .view(cx, ids!(organizer_new_actions))
             .set_visible(cx, view.organizer);
         self.activity_count = view.activity_list.len();
+        self.view
+            .view(cx, ids!(activity_pagination))
+            .set_visible(cx, self.activity_count > 3);
+        self.view.label(cx, ids!(home_current)).set_text(
+            cx,
+            &view.activity.lines().take(2).collect::<Vec<_>>().join("\n"),
+        );
+        self.view
+            .label(cx, ids!(home_status))
+            .set_visible(cx, view.organizer);
+        self.view
+            .label(cx, ids!(home_status))
+            .set_text(cx, &view.automation_status);
+        self.view
+            .label(cx, ids!(reply_status))
+            .set_visible(cx, !view.organizer);
         self.activity_page = self
             .activity_page
-            .min(self.activity_count.saturating_sub(1) / 5);
+            .min(self.activity_count.saturating_sub(1) / 3);
         macro_rules! activity_button {
             ($id:ident,$n:expr) => {
-                self.view
-                    .button(cx, ids!($id))
-                    .set_visible(cx, view.activity_list.len() > self.activity_page * 5 + $n);
-                if let Some(text) = view.activity_list.get(self.activity_page * 5 + $n) {
+                self.view.button(cx, ids!($id)).set_visible(
+                    cx,
+                    $n < 3 && view.activity_list.len() > self.activity_page * 3 + $n,
+                );
+                if let Some(text) = view.activity_list.get(self.activity_page * 3 + $n) {
                     self.view.button(cx, ids!($id)).set_text(cx, text);
                 }
             };
@@ -319,6 +340,9 @@ impl BuWeiView {
         activity_button!(activity_3, 3);
         activity_button!(activity_4, 4);
         self.contacts = view.contacts.clone();
+        self.view
+            .view(cx, ids!(contact_pagination))
+            .set_visible(cx, self.contacts.len() > 5);
         macro_rules! contact_button {
             ($id:ident,$n:expr) => {
                 self.view
@@ -348,6 +372,9 @@ impl BuWeiView {
         self.view
             .label(cx, ids!(card_status))
             .set_text(cx, &view.card_status);
+        self.view
+            .label(cx, ids!(card_status))
+            .set_visible(cx, !view.card_status.is_empty());
         self.view
             .button(cx, ids!(join_card))
             .set_visible(cx, !view.card_status.is_empty());
@@ -528,8 +555,31 @@ impl Widget for BuWeiView {
                     }
                 }
             }
+            if self.pending_policy_pause {
+                if let Some(tx) = &self.sender {
+                    if tx.try_send(Command::PauseAutomation).is_ok() {
+                        self.pending_policy_pause = false;
+                    }
+                }
+            }
         }
         if let Event::Actions(actions) = event {
+            if [
+                ids!(invitation_minutes),
+                ids!(quiet_start),
+                ids!(quiet_end),
+                ids!(max_invitations),
+            ]
+            .iter()
+            .any(|path| self.view.text_input(cx, *path).changed(actions).is_some())
+            {
+                self.policy_consent_id = None;
+                self.pending_policy_pause = true;
+                self.view.label(cx, ids!(message)).set_text(
+                    cx,
+                    "规则已修改，正在暂停自动补位；请重新查看规则并确认。已发出的邀请继续核实。",
+                );
+            }
             macro_rules! clicked {
                 ($id:ident) => {
                     self.view.button(cx, ids!($id)).clicked(actions)
@@ -603,7 +653,7 @@ impl Widget for BuWeiView {
                     self.activity_page = self.activity_page.saturating_sub(1);
                 } else {
                     self.activity_page =
-                        (self.activity_page + 1).min(self.activity_count.saturating_sub(1) / 5);
+                        (self.activity_page + 1).min(self.activity_count.saturating_sub(1) / 3);
                 }
                 self.send(cx, Command::Refresh);
                 return;
@@ -631,7 +681,7 @@ impl Widget for BuWeiView {
             } else {
                 None
             } {
-                self.send(cx, Command::SelectActivity(self.activity_page * 5 + index));
+                self.send(cx, Command::SelectActivity(self.activity_page * 3 + index));
                 return;
             }
             if let Some(index) = if clicked!(contact_0) {

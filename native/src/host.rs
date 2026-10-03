@@ -78,6 +78,20 @@ pub(crate) fn open(scope: InstanceScope) -> (SyncSender<Command>, Receiver<Resul
                         if let Some(view) = super::acceptance::poll(&root, &mut c) {
                             let _ = updates.send(Ok(view));
                         }
+                        // User changes and revocation queued during a network
+                        // read take priority over the next automatic send.
+                        if let Ok(command) = commands.try_recv() {
+                            if matches!(command, Command::OpenCard { .. }) {
+                                CARD.lock().unwrap().take();
+                            }
+                            let result = c.handle(command);
+                            last_view_at = now();
+                            last_authorized = result.authorized;
+                            if updates.send(Ok(result)).is_err() {
+                                break;
+                            }
+                            continue;
+                        }
                         if last_sync_at.elapsed() >= c.sync_interval() {
                             last_sync_at = std::time::Instant::now();
                             if let Some(view) = c.automatic_sync() {

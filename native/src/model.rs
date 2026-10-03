@@ -50,9 +50,17 @@ impl Transport for BoundedM3 {
         if request["model"] != "MiniMax-M3" {
             return Err("模型型号不符合宿主配置".into());
         }
-        // M3 reasoning and final JSON share this limit. A short 1024 cap
-        // truncated ambiguous cases; 4096 remains within the 0.10 RMB reserve.
-        request["max_completion_tokens"] = 4096.into();
+        // A code review needs room for reasoning before its JSON result.
+        // Both caps stay below the shared reserve, including the bounded input.
+        let reviewing = std::env::args().any(|a| a == "--community-evaluation")
+            && request["messages"].as_array().is_some_and(|messages| {
+                messages.iter().any(|message| {
+                    message["content"]
+                        .as_str()
+                        .is_some_and(|text| text.contains("审查本段公开 Rust 源码"))
+                })
+            });
+        request["max_completion_tokens"] = if reviewing { 7168 } else { 4096 }.into();
         request["stream"] = false.into();
         if request.to_string().len() > 16384 {
             return Err("模型请求超出开发预算范围".into());
@@ -74,7 +82,13 @@ impl Transport for BoundedM3 {
         budget["shared_budget"] = shared.summary()?;
         save_budget(&path, &budget)?;
         let agent = ureq::AgentBuilder::new()
-            .timeout(Duration::from_secs(45))
+            .timeout(Duration::from_secs(
+                if std::env::args().any(|a| a == "--community-evaluation") {
+                    120
+                } else {
+                    45
+                },
+            ))
             .redirects(0)
             .build();
         let mut call = agent.post(url);
@@ -134,7 +148,7 @@ impl Transport for BoundedM3 {
             budget["usage_responses"] = json!(budget["usage_responses"].as_u64().unwrap_or(0) + 1);
             budget["usage_tracking_since"] =
                 json!("v0.1.1; earlier responses remain in estimated_rmb");
-            budget["max_completion_tokens"] = 4096.into();
+            budget["max_completion_tokens"] = request["max_completion_tokens"].clone();
             if parsed["choices"][0]["finish_reason"] == "length" {
                 budget["truncated_responses"] =
                     json!(budget["truncated_responses"].as_u64().unwrap_or(0) + 1);

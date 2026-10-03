@@ -317,9 +317,11 @@ pub(crate) fn timeline_since(
     let mut all = vec![];
     let mut from = None;
     let mut seen = std::collections::BTreeSet::new();
-    for _ in 0..20 {
+    // Small pages keep a single slow room from monopolizing the host while
+    // retaining the same 2000-event history bound and complete checkpoints.
+    for _ in 0..80 {
         let mut request = get_message_events::v3::Request::backward(room.clone());
-        request.limit = 100u32.into();
+        request.limit = 25u32.into();
         request.from = from.clone();
         let response = rt
             .block_on(async {
