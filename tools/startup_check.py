@@ -11,6 +11,18 @@ def inspect_log(content):
     for marker in ['Failed to load resource','on_render closure failed','instruction limit exceeded']:
         if marker in content:raise AssertionError(marker)
     return [{'upstream_file':'makepad/widgets/src/widget_async.rs:787','diagnostic':'isolated VM global UI update safely deferred','count':len(errors),'behavior':'upstream guard deferred isolated VM update; native render and shutdown checked'}] if errors else []
+def rendered_window(snapshot,status,version):
+    """Select the visible BuWei surface, rather than the shell's first window."""
+    for window in status.get('w',[]):
+        width,height=window.get('sz',[0,0]);labels=[]
+        for widget in snapshot.get('s',[]):
+            x,y,w,h=widget.get('r',[0,0,0,0])
+            if widget.get('w')!=window['i'] or widget.get('ty')!='Label' or widget.get('v',1)==0:continue
+            if w<=0 or h<=0 or x>=width or y>=height or x+w<=0 or y+h<=0:continue
+            labels.append(widget.get('t',''))
+        text='\n'.join(labels)
+        if '补位' in text and 'v'+version in text and '未授权' in text:return window['i']
+    return None
 def check(package,output):
     package=package.resolve();output.mkdir(parents=True,exist_ok=True)
     release=json.loads((package/'release.json').read_text('utf8'));exe=package/'native/buwei-rinx-dual-host.exe'
@@ -38,17 +50,20 @@ def check(package,output):
                     print('Fresh native startup diagnostic:',report['early_exit_hex'],tail,flush=True)
                     raise RuntimeError('Native host exited before rendering: '+report['early_exit_hex'])
                 try:
-                    snap=json.loads(get('snap?all=1'));labels='\n'.join(w.get('t','') for w in snap['s'] if w['ty']=='Label')
-                    if '补位' in labels and 'v'+release['version'] in labels and '未授权' in labels:break
+                    snap=json.loads(get('snap?all=1'));status=json.loads(get('s'))
+                    window=rendered_window(snap,status,release['version'])
+                    if window is not None:break
                 except (OSError,ValueError):pass
                 time.sleep(.2)
             else:raise TimeoutError('Native startup/render timed out')
             binding=json.loads((pathlib.Path(folder)/'data'/('v'+release['version'])/'rinx-binding-status.json').read_text('utf8'))
             assert not binding['server_identity_verified'] and not binding['action_authorized']
-            report['unauthenticated_and_unauthorized']=True;report['actual_native_render']=True
+            report['unauthenticated_and_unauthorized']=True;report['actual_native_render']=True;report['captured_window']=window
             second=subprocess.run(command,cwd=exe.parent,env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=10)
             assert second.returncode!=0;report['second_writer_refused']=True
-            (output/'startup.png').write_bytes(get('g?raw=1'))
+            raw=get('g?w='+str(window)+'&raw=1')
+            assert raw.startswith(b'\x89PNG\r\n\x1a\n')
+            (output/'startup.png').write_bytes(raw)
             get('quit');assert process.wait(timeout=25)==0
             log.flush();content=(output/'startup.private.log').read_text('utf8',errors='replace')
             report['renderer']='Windows WARP software rendering' if 'using Windows WARP software rendering' in content else 'hardware D3D11'

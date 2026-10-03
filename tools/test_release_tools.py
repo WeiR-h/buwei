@@ -2,7 +2,7 @@ import json,pathlib,sqlite3,tempfile,unittest,struct,subprocess,sys,hashlib,os,s
 from contextlib import closing
 from migrate import migrate
 from release_gate import check,REQUIRED,COMMUNITY_REQUIRED
-from startup_check import inspect_log
+from startup_check import inspect_log,rendered_window
 from package_scan import content_findings
 from pe_stack import normalize
 from fault_acceptance import FaultSuite
@@ -10,6 +10,13 @@ from dual_acceptance import Suite
 from unittest.mock import patch
 
 class ReleaseTools(unittest.TestCase):
+    def test_startup_capture_selects_visible_app_and_rejects_hidden_labels(self):
+        windows={'w':[{'i':0,'sz':[1024,720]},{'i':1,'sz':[1400,900]}]}
+        labels=[{'w':1,'ty':'Label','r':[30,100+n*25,400,20],'t':t} for n,t in enumerate(['补位','v0.2.0','未授权'])]
+        self.assertEqual(rendered_window({'s':labels},windows,'0.2.0'),1)
+        self.assertIsNone(rendered_window({'s':[dict(w,v=0) for w in labels]},windows,'0.2.0'))
+        self.assertIsNone(rendered_window({'s':[dict(w,r=[0,901,400,20]) for w in labels]},windows,'0.2.0'))
+        self.assertIsNone(rendered_window({'s':[dict(w,w=n%2) for n,w in enumerate(labels)]},windows,'0.2.0'))
     def test_failed_history_read_never_reuses_old_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=pathlib.Path(tmp);file=root/'.run/acceptance/events.private.json';file.parent.mkdir(parents=True);file.write_text(json.dumps({'collected_at_unix':1,'events':[]}),'utf8')
