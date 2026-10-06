@@ -9,8 +9,25 @@ from fault_acceptance import FaultSuite
 from dual_acceptance import Suite
 from verify_public_download import formal_checksums
 from unittest.mock import patch
+from intent_acceptance import IntentSuite
 
 class ReleaseTools(unittest.TestCase):
+    def test_stale_card_retries_only_unchanged_rejected_preparation(self):
+        suite=IntentSuite.__new__(IntentSuite)
+        card=dict(id='same',fingerprint='old',kind='opportunity',goal_id='goal',goal_revision=1,activity_id='activity',action='register')
+        fresh=dict(card,fingerprint='new')
+        messages=[]
+        def call(control,name,value=None):
+            messages.append((name,value))
+            if name=='Refresh':return {'assistance_cards':[fresh]}
+            return {'success':value['value']['fingerprint']=='new','message':'建议依据已变化或过期，请核对最新卡片'}
+        suite.call=call
+        self.assertTrue(suite.use(None,card)['success'])
+        self.assertEqual([x[0] for x in messages],['Assistance','Refresh','Assistance'])
+        fresh['goal_revision']=2
+        with self.assertRaisesRegex(AssertionError,'same user-confirmed goal'):suite.use(None,card)
+        suite.call=lambda *args:{'success':False,'message':'发送结果待核实'}
+        with self.assertRaisesRegex(AssertionError,'发送结果待核实'):suite.use(None,card)
     def test_new_releases_cannot_skip_their_intent_and_background_gates(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=pathlib.Path(tmp);path=root/'acceptance.json'

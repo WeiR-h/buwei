@@ -2,7 +2,7 @@
 use super::*;
 use buwei_host_core::assistance::GoalKind;
 use octosense_llm_service::complete::{Class, ModelHost, Request};
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct GoalDraft {
     pub title: String,
@@ -42,7 +42,7 @@ pub(crate) fn draft(
         .map_err(|e| format!("目标理解暂不可用：{}；可以手动填写", e.code.as_str()))?;
     checked_draft(parse(&result.output)?, kind, activity)
 }
-fn checked_draft(
+pub(crate) fn checked_draft(
     mut d: GoalDraft,
     kind: GoalKind,
     activity: Option<&Activity>,

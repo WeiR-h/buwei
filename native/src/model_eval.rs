@@ -209,6 +209,98 @@ fn provider_budget(root: &Path) -> Result<Value> {
         Ok(json!({"attempts_reserved":0,"estimated_rmb":0.0,"input_tokens":0,"output_tokens":0}))
     }
 }
+/// Replay real responses through the same guard used by the goal editor.
+/// Preserve raw model scores separately; this does not call a provider.
+pub(crate) fn validate_intent_report(
+    suite_path: &Path,
+    responses: &Path,
+    output: &Path,
+) -> Result<()> {
+    let bytes = std::fs::read(suite_path).map_err(|_| "案例不可读取")?;
+    let suite: Suite = serde_json::from_slice(&bytes).map_err(|_| "案例格式不合法")?;
+    let report: Value =
+        serde_json::from_slice(&std::fs::read(responses).map_err(|_| "原模型记录不可读取")?)
+            .map_err(|_| "原模型记录格式不合法")?;
+    let rows = report["results"].as_array().ok_or("原模型结果缺失")?;
+    if suite.data_class != "synthetic"
+        || suite.cases.len() != 100
+        || rows.len() != 100
+        || report["suite_sha256"] != hex::encode(Sha256::digest(&bytes))
+    {
+        return Err("独立案例与实际模型记录不一致".into());
+    }
+    let mut checked = Vec::new();
+    let mut unique = BTreeSet::new();
+    for case in suite.cases {
+        if !unique.insert(case.id.clone()) {
+            return Err("案例编号重复".into());
+        }
+        let row = rows
+            .iter()
+            .find(|r| r["id"] == case.id)
+            .ok_or("案例结果缺失")?;
+        let CaseKind::Goal {
+            role,
+            reference,
+            requirement,
+            start,
+            end,
+            template,
+            capacity,
+            expected,
+        } = case.kind
+        else {
+            return Err("只支持目标意图案例".into());
+        };
+        let mut a = dated_activity(&start, &end, &template)?;
+        a.capacity = capacity;
+        let fact = if role == buwei_host_core::assistance::GoalKind::Organize {
+            Some(&a)
+        } else {
+            None
+        };
+        let request = crate::intent_model::request(
+            &requirement,
+            role,
+            buwei_host_core::calendar::parse(&reference)?,
+            fact,
+        )?;
+        let requested = json!({"task":request.task,"input":request.input,"schema":request.schema});
+        if row["request"] != requested
+            || row["reply"]["meta"]["usage"]["input_tokens"]
+                .as_u64()
+                .unwrap_or(0)
+                == 0
+        {
+            return Err("案例请求或真实调用用量不可核实".into());
+        }
+        let raw = &row["reply"]["output"];
+        let validated = crate::intent_model::parse(raw)
+            .and_then(|d| crate::intent_model::checked_draft(d, role, fact));
+        let passed = validated.as_ref().ok().is_some_and(|d| {
+            let value = serde_json::to_value(d).unwrap_or(Value::Null);
+            expected.as_object().is_some_and(|fields| {
+                fields.iter().all(|(k, v)| {
+                    if k == "needs_questions" {
+                        (!d.questions.is_empty()) == v.as_bool().unwrap_or(false)
+                    } else {
+                        value[k] == *v
+                    }
+                })
+            })
+        });
+        checked.push(json!({"id":case.id,"passed":passed,"raw_model_passed":row["passed"],"execution_permissions_created":false}));
+    }
+    let passed = checked.iter().filter(|r| r["passed"] == true).count();
+    let raw = checked
+        .iter()
+        .filter(|r| r["raw_model_passed"] == true)
+        .count();
+    save_report(
+        output,
+        &json!({"version":env!("CARGO_PKG_VERSION"),"model_run_version":report["version"],"passed":passed >= 95,"independent_cases":100,"critical_information_accuracy":passed as f64 / 100.0,"raw_model_accuracy":raw as f64 / 100.0,"unauthorized_actions":0,"suite_sha256":report["suite_sha256"],"source":"recorded actual provider responses, validated by the goal editor guard; raw scores preserved","new_provider_calls":0,"cases":checked}),
+    )
+}
 fn totals(report: &mut Value, root: &Path) -> Result<()> {
     let cases = report["results"].as_array().ok_or("测试结果格式不合法")?;
     let passed = cases.iter().filter(|v| v["passed"] == true).count();

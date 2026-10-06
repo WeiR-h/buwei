@@ -19,3 +19,5 @@ python tools/bootstrap.py
 参见 [使用指南](FIRST-RUN.md) 和 [许可声明](../NOTICE.md)。
 
 独立模型验收的 100 个虚构案例保存在 `native/tests/fixtures/independent-model-cases.json`。普通测试只检查案例格式；真实评测须由开发者显式开启模型评测模式，使用本人配置的模型服务。模型原始回答及评测记录保存在本机，应用操作仍须经过宿主授权。
+
+意图层另有组织者、成员各 50 项独立案例：`native/tests/fixtures/independent-intent-holdout.json`。核心测试可输入固定事实与时钟，复现目标、提醒去重和任务恢复。`--intent-validation` 可将已有模型记录送入目标编辑器的同一字段校验，分别记录原模型结果和应用校验结果，不会调用模型或发送业务事件。

@@ -23,7 +23,24 @@ class Hosts:
             if process.poll() is not None:raise RuntimeError('Acceptance host exited during login restore')
             try:
                 status=json.loads((profile/'data'/('v'+self.version)/'rinx-binding-status.json').read_text('utf8'))
-                if status['process_id']==process.pid and status['server_identity_verified'] and not status['action_authorized']:return
+                if status['process_id']==process.pid and status['server_identity_verified'] and not status['action_authorized']:
+                    if self.activity_id:
+                        # A preceding test may have selected a newly created
+                        # activity. Select through the host before binding the
+                        # acceptance control to the requested test room.
+                        from intent_acceptance import selected
+                        current = selected(profile, self.version)
+                        if current.get('metadata',{}).get('activity_id') != self.activity_id:
+                            control = Control(profile, status['account'], current['room'])
+                            snapshot = control.command('Refresh', timeout=80)
+                            choices = snapshot.get('activities', [])
+                            index = next((i for i,a in enumerate(choices) if a.get('metadata',{}).get('activity_id') == self.activity_id),None)
+                            if index is None:
+                                raise RuntimeError('Requested test activity absent from the verified host catalog')
+                            result = control.command('SelectActivity', index, timeout=80)
+                            if not result.get('success'):
+                                raise RuntimeError('Host refused selecting the verified test activity')
+                    return
             except (OSError,ValueError):pass
             time.sleep(.3)
         raise TimeoutError('SDK login binding did not restore; preserved profile')

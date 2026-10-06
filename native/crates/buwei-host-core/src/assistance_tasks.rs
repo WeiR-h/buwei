@@ -362,7 +362,18 @@ impl IntentStore {
                         .is_some_and(|n| f.activity.confirmed() >= n as usize),
                     SuggestedAction::Reconcile => true,
                     SuggestedAction::ReviewConflict => f.activity.people.iter().any(|p| {
-                        p.account == s.account && p.status == crate::PersonStatus::Cancelled
+                        p.account == s.account
+                            && p.status == crate::PersonStatus::Cancelled
+                            && t.registration_sequence == Some(p.joined)
+                            && operations.iter().any(|op| {
+                                op.account == s.account
+                                    && op.action.payload["kind"] == "cancel"
+                                    && f.activity.revision > op.revision
+                                    && t.steps.iter().any(|step| {
+                                        step.operation_id.as_deref() == Some(op.id.as_str())
+                                            && step.status == TaskStatus::Completed
+                                    })
+                            })
                     }),
                     _ => false,
                 });

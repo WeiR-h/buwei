@@ -292,6 +292,63 @@ fn invitation_task_rejects_a_reply_to_a_different_invitation() {
     s.link_operation(&task.id, &right, now).unwrap();
 }
 #[test]
+fn conflict_resolution_requires_the_same_registration_and_new_verified_state() {
+    let (mut s, mut a, now) = setup("@member:test");
+    a.join_own(
+        "@member:test".into(),
+        "合成成员".into(),
+        Preferences {
+            earliest: a.start,
+            latest: a.end,
+            group: 1,
+        },
+    )
+    .unwrap();
+    a.people[0].status = PersonStatus::Confirmed;
+    let mut other = a.clone();
+    other.room = "!other:test".into();
+    other.metadata.as_mut().unwrap().activity_id = action_receipts::new_id();
+    let card = s
+        .refresh_cards(&[fact(a.clone(), now), fact(other, now)], now)
+        .unwrap()
+        .into_iter()
+        .find(|c| c.action == SuggestedAction::ReviewConflict)
+        .unwrap();
+    s.start_task(&card.id, &card.fingerprint, now).unwrap();
+    let mut op = preview(
+        "@member:test",
+        &a.room,
+        "participate",
+        json!({"kind":"cancel"}),
+        now,
+    );
+    op.status = Status::Confirmed;
+    op.receipt = Some(Receipt {
+        status: Status::Confirmed,
+        evidence: Some(Evidence {
+            operation_id: op.id.clone(),
+            external_id: "$cancel".into(),
+            account: op.account.clone(),
+            target: op.action.target.clone(),
+            digest: op.digest.clone(),
+        }),
+        message: "合成回执".into(),
+    });
+    a.people[0].status = PersonStatus::Cancelled;
+    a.revision = op.revision;
+    s.follow_tasks(&[fact(a.clone(), now + 1)], &[op.clone()], now + 1)
+        .unwrap();
+    assert_eq!(s.load().unwrap().tasks[0].status, TaskStatus::WaitingReply);
+    a.revision += 1;
+    a.people[0].joined += 1;
+    s.follow_tasks(&[fact(a.clone(), now + 2)], &[op.clone()], now + 2)
+        .unwrap();
+    assert_eq!(s.load().unwrap().tasks[0].status, TaskStatus::WaitingReply);
+    a.people[0].joined -= 1;
+    s.follow_tasks(&[fact(a, now + 3)], &[op], now + 3).unwrap();
+    assert_eq!(s.load().unwrap().tasks[0].status, TaskStatus::Completed);
+}
+#[test]
 fn a_shared_card_targets_the_contact_room_and_binds_the_activity_pointer() {
     let (mut s, a, now) = setup("@owner:test");
     let card = s

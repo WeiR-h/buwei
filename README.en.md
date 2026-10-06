@@ -14,6 +14,8 @@ Participants use their own Rinx identities. Verified server receipts distinguish
 
 [Download for Windows](https://github.com/WeiR-h/buwei/releases/latest) · [Chinese guide](docs/FIRST-RUN.md) · [Privacy](docs/PRIVACY.md) · [Support](https://github.com/WeiR-h/buwei/issues)
 
+The current source preview adds private goals and explicitly confirmed preferences. Verified changes surface activity shortages, matching opportunities, pending invitations and time conflicts. Suggestions connect to persistent tasks, optional Windows tray duty and recurring activity drafts; personal feedback updates only the chosen scope. Published downloads follow the version stated in each Release. [Goals and assistance](docs/INTENTIONS.md).
+
 Build on Windows x64 with Git, Python 3.12+, Rust 1.98.0, Visual Studio C++ Desktop tools and the Windows SDK:
 
 ```powershell

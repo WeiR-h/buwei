@@ -65,7 +65,20 @@ class IntentSuite(Suite):
             time.sleep(1)
         raise TimeoutError('Verified proactive card did not appear: '+kind)
     def use(self,control,card):
-        return self.intent(control,'UseCard',{'id':card['id'],'fingerprint':card['fingerprint']})
+        # A background sync may refresh the facts between reading and using a
+        # card. Retry only a rejected preparation, with the latest same card.
+        # Confirmations and network effects must never be retried this way.
+        for attempt in range(3):
+            result = self.call(control,'Assistance',{'command':'UseCard','value':{'id':card['id'],'fingerprint':card['fingerprint']}})
+            if result.get('success'):return result
+            if result.get('message') != '建议依据已变化或过期，请核对最新卡片' or attempt == 2:
+                raise AssertionError('UseCard: '+result.get('message','No result'))
+            refreshed = self.call(control,'Refresh')
+            latest = next((c for c in refreshed.get('assistance_cards',[]) if c['id'] == card['id']),None)
+            if not latest or any(latest.get(k) != card.get(k) for k in ('kind','goal_id','goal_revision','activity_id','action')):
+                raise AssertionError('Card no longer represents the same user-confirmed goal')
+            card = latest
+        raise AssertionError('Card preparation did not finish')
     def automatic_invitation(self):
         a=self.wait(self.participant,'automatic invitation delivered',lambda a:any(i['recipient']==self.accounts[1] and i['reply']=='pending' and i['delivery']=='delivered' for i in a['invitations']),timeout=95)
         identifier=a['invitations'][-1]['operation_id'];r=self.call(self.o,'Refresh')

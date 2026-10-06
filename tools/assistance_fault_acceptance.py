@@ -22,6 +22,17 @@ class AssistanceFaultSuite(FaultSuite):
         self.call(self.o, 'PauseAutomation')
         self.organizer_goal = self.goal(self.o, 'organize')
         self.member_goal = self.goal(self.p, 'participate')
+        # Preserve and finish a preceding interrupted test registration rather
+        # than trying to register the same person again. This is normal manual
+        # preview/confirmation, not a reset of the authoritative activity.
+        current = self.state(self.owner)
+        pending = any(i['recipient'] == self.accounts[1] and i['reply'] == 'pending' for i in current['invitations'])
+        if pending:
+            self.reply(False)
+        elif self.person(current).get('status') == 'waiting':
+            self.invite(); self.reply(False)
+        elif self.person(current).get('status') == 'confirmed':
+            self.cancel()
 
     def call(self, control, command, value=None):
         if command == 'Prepare':
