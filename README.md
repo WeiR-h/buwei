@@ -29,6 +29,8 @@
 
 [目标、主动建议与值守](docs/INTENTIONS.md)
 
+[三分钟主动帮助操作讲解](assets/proactive/BuWei-proactive-walkthrough.mp4) · [App Hub 接入审核](https://github.com/OctoSense-org/OctoSense-App-Hub/issues/110)
+
 运行环境：Windows 10/11 x64，微软 Visual C++ v14 x64 运行库。
 应用基于官方 OctoSense / Rinx 原生宿主，提供组织者和参与者入口。
 

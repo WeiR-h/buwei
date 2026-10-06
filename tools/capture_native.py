@@ -12,7 +12,7 @@ PRIVATE=re.compile(r'@[A-Za-z0-9]|![A-Za-z0-9]|\$[A-Za-z0-9_-]{8,}|[a-fA-F0-9]{3
 def capture(port,private,output,caption='',font_path=None):
     private.mkdir(parents=True,exist_ok=True);output.parent.mkdir(parents=True,exist_ok=True)
     opener=urllib.request.build_opener(urllib.request.ProxyHandler({}));base=f'http://127.0.0.1:{port}/'
-    snap=json.load(opener.open(base+'snap?all=1',timeout=8));raw=opener.open(base+'g?raw=1',timeout=8).read()
+    snap=json.load(opener.open(base+'snap?all=1',timeout=8));raw=opener.open(base+'g?raw=1',timeout=30).read()
     (private/(output.stem+'.widgets.private.json')).write_text(json.dumps(snap),'utf8');(private/(output.stem+'.original.private.png')).write_bytes(raw)
     picture=Image.open(io.BytesIO(raw)).convert('RGB');draw=ImageDraw.Draw(picture)
     # The host's configured window is 1400 x 900 logical units; RPC raster

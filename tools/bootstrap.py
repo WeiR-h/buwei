@@ -1,7 +1,7 @@
 """Acquire the reviewed official runtime at fixed commits, without credentials."""
 import argparse, hashlib, json, pathlib, subprocess, sys, os, tempfile
 ROOT=pathlib.Path(__file__).resolve().parents[1]
-PIN='ad0d738bd1c10b735af6b34e11f5826623b6a73b'
+PIN=json.loads((ROOT/'dependencies.lock.json').read_text('utf8'))['octosense_commit']
 URL='https://github.com/OctoSense-org/OctoSense.git'
 
 def call(*args,cwd=None):
