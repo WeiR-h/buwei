@@ -2,6 +2,7 @@
 $ErrorActionPreference='Stop'
 $buweiRoot=Split-Path $PSScriptRoot -Parent
 $buweiNativeFlags=@()
+if($env:CARGO_ENCODED_RUSTFLAGS){$buweiNativeFlags=@($env:CARGO_ENCODED_RUSTFLAGS -split [char]31)}
 if(!(Test-Path -LiteralPath (Join-Path $buweiRoot '.deps/octosense/.sources/makepad/Cargo.toml'))){throw '请先运行 python tools/bootstrap.py 获取固定的官方依赖。'}
 $buweiRustHost=(& rustc -vV | Select-String '^host:').ToString()
 if($buweiRustHost -match 'windows-gnu'){
@@ -10,7 +11,7 @@ if($buweiRustHost -match 'windows-gnu'){
  $buweiCompat=Join-Path $buweiRoot '.run/linker-compat'
  New-Item -ItemType Directory -Path $buweiCompat -Force | Out-Null
  Copy-Item -LiteralPath $buweiGccLibrary -Destination (Join-Path $buweiCompat 'libgcc_eh.a') -Force
- $buweiNativeFlags=@('-L',('native='+[IO.Path]::GetDirectoryName($buweiGccLibrary)),'-L',('native='+$buweiCompat),'-C','link-arg=-Wl,--stack,16777216')
+ $buweiNativeFlags+=@('-L',('native='+[IO.Path]::GetDirectoryName($buweiGccLibrary)),'-L',('native='+$buweiCompat),'-C','link-arg=-Wl,--stack,16777216')
 }
 if($Release){
  $buweiNativeFlags+=@('--remap-path-prefix',($buweiRoot+'=/buwei'))

@@ -105,7 +105,7 @@ impl Controller {
             .map(|id| self.data.join("activities").join(id).join("activity.db"))
             .unwrap_or_else(|| self.data.join("activity.db"))
     }
-    fn select_activity(&mut self, id: String) -> Result<()> {
+    pub(super) fn select_activity(&mut self, id: String) -> Result<()> {
         let a = Catalog::open(&self.data)?
             .list()?
             .into_iter()
@@ -177,7 +177,7 @@ impl Controller {
                 if candidate.start <= now() {
                     return Err("请选择未来的活动开始时间".into());
                 }
-                let record = json!({"owner":self.actor(),"form":form,"id":id});
+                let record = json!({"owner":self.actor(),"form":form,"id":id,"assistance_task_id":self.active_task});
                 std::fs::write(
                     self.data.join("pending-setup.json"),
                     serde_json::to_vec(&record).unwrap(),
@@ -208,6 +208,9 @@ impl Controller {
                 #[cfg(feature = "full-host")]
                 if rinx_bridge::official_mode() {
                     self.sync_activity()?;
+                }
+                if let (Some(task), Ok(a)) = (&self.active_task, self.activity()) {
+                    let _ = self.intent_store()?.record_next_activity(task, &a, now());
                 }
                 Ok("活动已创建。选择联系人并预览分享，成员可以从活动卡片报名。".into())
             }
@@ -249,6 +252,11 @@ impl Controller {
                 #[cfg(feature = "full-host")]
                 if rinx_bridge::official_mode() {
                     self.sync_activity()?;
+                }
+                if let (Some(task), Ok(a)) =
+                    (record["assistance_task_id"].as_str(), self.activity())
+                {
+                    let _ = self.intent_store()?.record_next_activity(task, &a, now());
                 }
                 Ok("已恢复原活动房间，没有重复创建。".into())
             }
@@ -687,8 +695,9 @@ impl Controller {
         let article = self.article_current.take();
         self.selected_activity = a.metadata.as_ref().map(|m| m.activity_id.clone());
         let started = std::time::Instant::now();
-        let result = self.sync_activity().and_then(|_| self.automatic_invite());
-        let succeeded = result.is_ok();
+        let synced = self.sync_activity();
+        let succeeded = synced.is_ok();
+        let result = synced.and_then(|_| self.automatic_invite());
         let message = result.unwrap_or_else(|e| e);
         let id = a.metadata.as_ref().unwrap().activity_id.clone();
         self.sync_results.insert(id.clone(), message.clone());
@@ -701,6 +710,7 @@ impl Controller {
         self.current = current;
         self.participant_current = participant;
         self.article_current = article;
+        let _ = self.refresh_assistance();
         Some(self.view())
     }
     fn automatic_invite(&mut self) -> Result<String> {

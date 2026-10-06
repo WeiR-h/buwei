@@ -11,11 +11,12 @@ from formal_control import Control
 class Hosts:
     def __init__(self,exe,owner,participant,version,owner_port,participant_port,activity_id=None):
         self.activity_id=activity_id
-        self.exe=exe.resolve();self.profiles={'organizer':owner.resolve(),'participant':participant.resolve()};self.ports={'organizer':owner_port,'participant':participant_port};self.version=version;self.processes={};self.logs=[];self.extra_environment={}
+        self.exe=exe.resolve();self.profiles={'organizer':owner.resolve(),'participant':participant.resolve()};self.ports={'organizer':owner_port,'participant':participant_port};self.version=version;self.processes={};self.logs=[];self.extra_environment={};self.visible_roles=set()
     def start(self,role):
         profile=self.profiles[role];env=dict(os.environ);env.update(self.extra_environment.get(role,{}));env['BUWEI_PROFILE']=role;env['MAKEPAD_HIDE_WINDOWS']='1'
+        if role in self.visible_roles:env.pop('MAKEPAD_HIDE_WINDOWS',None)
         log=open(profile/('fault-host-'+str(time.time_ns())+'.private.log'),'wb');self.logs.append(log)
-        startup=subprocess.STARTUPINFO();startup.dwFlags|=subprocess.STARTF_USESHOWWINDOW;startup.wShowWindow=0
+        startup=subprocess.STARTUPINFO();startup.dwFlags|=subprocess.STARTF_USESHOWWINDOW;startup.wShowWindow=1 if role in self.visible_roles else 0
         process=subprocess.Popen([str(self.exe),str(profile),'--gui','--official-rinx','--acceptance','--remote='+str(self.ports[role])],cwd=self.exe.parent,env=env,stdout=log,stderr=subprocess.STDOUT,startupinfo=startup);self.processes[role]=process
         deadline=time.monotonic()+100
         while time.monotonic()<deadline:
@@ -75,7 +76,7 @@ class FaultSuite(Suite):
         control=self.restart_control(role);recovered=self.operation(self.call(control,'ReconcilePending'),key,'confirmed');assert recovered['id']==operation['id']
         proof=self.evidence([recovered]);record={'scene':key,'fault':mode,'persisted_status_before_recovery':before,'status_after_recovery':'confirmed','original_operation_retained':True,'native_process_restarted':True,'blind_resends':0,**proof};self.cases.append(record)
         (self.private.parent/'completed-cases.private.json').write_text(json.dumps(self.cases,indent=2),'utf8')
-        print(key+' '+mode+' recovered once',flush=True);return recovered
+        print(key+' '+mode+' original receipt recovered',flush=True);return recovered
     def run_faults(self):
         self.o.authorize();self.p.authorize()
         for mode in ['lost_ack','crash_before_receipt']:

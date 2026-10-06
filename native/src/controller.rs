@@ -12,6 +12,7 @@ use buwei_host_core::{
     serde(tag = "command", content = "value", deny_unknown_fields)
 )]
 pub(crate) enum Command {
+    Assistance(intentions::IntentCommand),
     CreateDated(community::ActivityForm),
     UseTemplate(String),
     SelectActivity(usize),
@@ -95,8 +96,11 @@ pub(crate) enum Command {
     ReconcileArticle,
     Fault,
     Refresh,
+    ShowTodos,
     #[cfg(feature = "acceptance")]
     TestFault(String),
+    #[cfg(feature = "acceptance")]
+    TestTrayAction(String),
     #[cfg(feature = "acceptance")]
     TestContact(String),
     #[cfg(feature = "acceptance")]
@@ -113,6 +117,20 @@ pub(crate) enum Command {
 }
 #[derive(Clone, Default)]
 pub(crate) struct View {
+    pub goals: Vec<(String, String)>,
+    pub goal_form: Option<intentions::GoalForm>,
+    pub goal_sources: String,
+    pub goal_id: Option<String>,
+    pub personal_preferences: Option<buwei_host_core::assistance::PersonalPreferences>,
+    pub intention_result: String,
+    pub assistance_cards: Vec<buwei_host_core::proactive::AssistanceCard>,
+    pub assistance_route: Option<u8>,
+    pub assistance_tasks: String,
+    pub task_choices: Vec<(String, String)>,
+    pub latest_feedback: Option<(String, String)>,
+    pub background_status: String,
+    pub analysis_consent_id: Option<String>,
+    pub analysis_status: String,
     pub activity_identity: String,
     pub dated: bool,
     pub activity_list: Vec<String>,
@@ -150,6 +168,16 @@ pub(crate) struct View {
     pub fault: bool,
 }
 pub(crate) struct Controller {
+    goal_form: Option<intentions::GoalForm>,
+    goal_ai_draft: bool,
+    selected_goal: Option<String>,
+    intention_result: String,
+    assistance_route: Option<u8>,
+    active_task: Option<String>,
+    expiration_notified: u64,
+    analysis_consent: Option<consent::Consent>,
+    analysis_until: u64,
+    last_analysis: u64,
     dated_dialogue: Option<(String, Vec<String>)>,
     selected_activity: Option<String>,
     sync_rotation: usize,
@@ -224,6 +252,16 @@ impl Controller {
         let journal = Journal::open(data.join("operations.db")).map_err(|_| "回执数据库不可用")?;
         let selected_activity = community::last_selected(&data);
         Ok(Self {
+            goal_form: None,
+            goal_ai_draft: false,
+            selected_goal: None,
+            intention_result: String::new(),
+            assistance_route: None,
+            active_task: None,
+            expiration_notified: 0,
+            analysis_consent: None,
+            analysis_until: 0,
+            last_analysis: 0,
             dated_dialogue: None,
             selected_activity,
             sync_rotation: 0,
@@ -282,6 +320,16 @@ impl Controller {
         rinx_bridge::record_status(root, Some(&actor), true, false)?;
         let selected_activity = community::last_selected(&data);
         Ok(Self {
+            goal_form: None,
+            goal_ai_draft: false,
+            selected_goal: None,
+            intention_result: String::new(),
+            assistance_route: None,
+            active_task: None,
+            expiration_notified: 0,
+            analysis_consent: None,
+            analysis_until: 0,
+            last_analysis: 0,
             dated_dialogue: None,
             selected_activity,
             sync_rotation: 0,
@@ -402,12 +450,17 @@ impl Controller {
         })
     }
     pub fn handle(&mut self, command: Command) -> View {
+        self.assistance_route = None;
+        let intention_command = matches!(&command, Command::Assistance(_));
         let outcome = self.apply(command);
         let success = outcome.is_ok();
         self.message = match outcome {
             Ok(m) => m,
             Err(m) => m,
         };
+        if intention_command {
+            self.intention_result = self.message.clone();
+        }
         #[cfg(feature = "full-host")]
         if rinx_bridge::official_mode() {
             let _ = rinx_bridge::record_status(
@@ -419,13 +472,21 @@ impl Controller {
                     .is_some_and(|g| g.check("read", now()).is_ok()),
             );
         }
+        let _ = self.refresh_assistance();
         let mut view = self.view();
         view.success = success;
         view
     }
     fn apply(&mut self, command: Command) -> Result<String> {
+        #[cfg(feature = "acceptance")]
+        if let Command::TestTrayAction(name) = &command {
+            crate::tray::test_action(name)?;
+            return Ok("已调用与托盘菜单相同的宿主动作；记录窗口状态及后续执行结果。".into());
+        }
         // Revocation and pause must work even if identity preflight is offline.
         if matches!(&command, Command::Revoke) {
+            self.analysis_until = 0;
+            self.analysis_consent = None;
             self.automation_interlock.invalidate_all();
             self.policies.clear();
             self.policy_permits.clear();
@@ -477,6 +538,9 @@ impl Controller {
         }
         if community::is_community_command(&command) {
             return self.apply_community(command);
+        }
+        if let Command::Assistance(command) = command {
+            return self.apply_intention(command);
         }
         match command {
             #[cfg(feature = "acceptance")]
@@ -1127,6 +1191,10 @@ impl Controller {
                 Ok("仅对本机测试服务丢弃本地回执，真实服务端发送仍执行。".into())
             }
             _ if community::is_community_command(&command) => unreachable!(),
+            Command::ShowTodos => {
+                self.assistance_route = Some(if self.is_authorized() { 0 } else { 4 });
+                Ok("已打开待办；请先处理待核实操作，再确认新的建议。".into())
+            }
             Command::Refresh => {
                 #[cfg(feature = "full-host")]
                 if rinx_bridge::official_mode() {
@@ -1359,6 +1427,8 @@ impl Controller {
         ))
     }
     pub fn shutdown(&mut self) {
+        self.analysis_until = 0;
+        self.analysis_consent = None;
         self.automation_interlock.invalidate_all();
         self.dated_dialogue = None;
         self.dated_suggestion = None;
@@ -1388,7 +1458,7 @@ impl Controller {
     #[cfg(feature = "acceptance")]
     pub fn acceptance_snapshot(&self) -> Value {
         let view = self.view();
-        json!({"version":env!("CARGO_PKG_VERSION"),"collected_at_unix":now(),"account":self.actor(),"authorized":self.is_authorized(),"consent_id":self.consent.as_ref().map(|c|&c.id),"message":self.message,"sync_status":self.last_sync_status,"automation_status":view.automation_status,"reply_status":view.reply,"activity":self.activity().ok(),"invitation":self.current,"participant":self.participant_current,"article":self.article_current,"generated_note":self.note.as_ref().map(|(_,_,n)|json!({"title":n.title,"markdown":n.markdown})),"explanation":self.explanation,"policy_consent_id":view.policy_consent_id,"share":self.share_current,"contacts":self.contacts,"ai_result":self.ai_result,"activities":buwei_host_core::catalog::Catalog::open(&self.data).and_then(|c|c.list()).ok()})
+        json!({"version":env!("CARGO_PKG_VERSION"),"collected_at_unix":now(),"account":self.actor(),"authorized":self.is_authorized(),"consent_id":self.consent.as_ref().map(|c|&c.id),"message":self.message,"sync_status":self.last_sync_status,"automation_status":view.automation_status,"reply_status":view.reply,"activity":self.activity().ok(),"invitation":self.current,"participant":self.participant_current,"article":self.article_current,"generated_note":self.note.as_ref().map(|(_,_,n)|json!({"title":n.title,"markdown":n.markdown})),"explanation":self.explanation,"policy_consent_id":view.policy_consent_id,"share":self.share_current,"contacts":self.contacts,"ai_result":self.ai_result,"activities":buwei_host_core::catalog::Catalog::open(&self.data).and_then(|c|c.list()).ok(),"intentions":self.intent_store().and_then(|s|s.load()).ok(),"assistance_cards":view.assistance_cards,"goal_form":view.goal_form,"goal_id":view.goal_id,"background":crate::host::background(),"background_paused":crate::host::paused(),"tray_hidden":crate::tray::hidden(),"analysis_consent_id":self.analysis_consent.as_ref().map(|c|&c.id)})
     }
     pub fn view(&self) -> View {
         let mut v = View {
@@ -1582,6 +1652,7 @@ impl Controller {
             .and_then(|s| s.load().ok().flatten())
             .map(|a| (a.title, a.markdown));
         self.community_view(&mut v);
+        self.intention_view(&mut v);
         v.model_status = model::status(&self.root, &self.model);
         v.generated_note = self.note.as_ref().map(|(_, revision, n)| {
             (
@@ -1609,3 +1680,5 @@ fn event_transaction(actor: &str, activity: &Activity, kind: &str, content: &Val
 
 #[path = "community.rs"]
 pub(crate) mod community;
+#[path = "intentions.rs"]
+pub(crate) mod intentions;

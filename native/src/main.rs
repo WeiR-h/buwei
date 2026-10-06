@@ -43,6 +43,8 @@ mod gui;
 #[cfg(feature = "desktop")]
 mod host;
 #[cfg(feature = "desktop")]
+mod intent_model;
+#[cfg(feature = "desktop")]
 mod model;
 #[cfg(feature = "desktop")]
 mod model_eval;
@@ -53,6 +55,8 @@ mod participant;
 mod rinx_bridge;
 #[cfg(feature = "desktop")]
 mod shell_app;
+#[cfg(feature = "desktop")]
+mod tray;
 type Result<T> = std::result::Result<T, String>;
 fn now() -> u64 {
     SystemTime::now()

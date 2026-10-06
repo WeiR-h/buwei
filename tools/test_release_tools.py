@@ -1,7 +1,7 @@
 import json,pathlib,sqlite3,tempfile,unittest,struct,subprocess,sys,hashlib,os,shutil,zlib
 from contextlib import closing
 from migrate import migrate
-from release_gate import check,REQUIRED,COMMUNITY_REQUIRED
+from release_gate import check,REQUIRED,COMMUNITY_REQUIRED,INTENT_STAGES
 from startup_check import inspect_log,rendered_window,frame_visibility
 from package_scan import content_findings
 from pe_stack import normalize
@@ -11,6 +11,17 @@ from verify_public_download import formal_checksums
 from unittest.mock import patch
 
 class ReleaseTools(unittest.TestCase):
+    def test_new_releases_cannot_skip_their_intent_and_background_gates(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);path=root/'acceptance.json'
+            report={'version':'0.2.5'}
+            for name in REQUIRED+COMMUNITY_REQUIRED:
+                file=root/(name+'.json');file.write_text(json.dumps({'version':'0.2.5','passed':True,'independent_cases':100,'critical_information_accuracy':1,'unauthorized_actions':0}),'utf8')
+                report[name]={'passed':True,'evidence':file.name}
+            path.write_text(json.dumps(report),'utf8')
+            checked=check(path)
+            self.assertFalse(checked['stable_release_allowed'])
+            self.assertEqual(set(checked['missing_or_failed']),{name for names in INTENT_STAGES.values() for name in names})
     def test_startup_refuses_wallpaper_or_uniform_background_instead_of_title(self):
         def png(rows):
             def chunk(kind,body):return struct.pack('>I',len(body))+kind+body+struct.pack('>I',zlib.crc32(kind+body)&0xffffffff)

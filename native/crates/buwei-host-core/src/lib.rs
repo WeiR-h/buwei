@@ -8,13 +8,17 @@ use std::{collections::BTreeSet, path::Path};
 
 pub type Result<T> = std::result::Result<T, String>;
 pub mod article;
+pub mod assistance;
+pub mod assistance_tasks;
 pub mod automation;
 pub mod calendar;
 pub mod catalog;
 pub mod facts;
+pub mod intent_feedback;
 pub mod model_budget;
 pub mod participation;
 pub mod preference_draft;
+pub mod proactive;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Preferences {
