@@ -37,6 +37,7 @@ class Hosts:
                             index = next((i for i,a in enumerate(choices) if a.get('metadata',{}).get('activity_id') == self.activity_id),None)
                             if index is None:
                                 raise RuntimeError('Requested test activity absent from the verified host catalog')
+                            control.authorize()
                             result = control.command('SelectActivity', index, timeout=80)
                             if not result.get('success'):
                                 raise RuntimeError('Host refused selecting the verified test activity')
@@ -68,6 +69,13 @@ class FaultSuite(Suite):
         if role=='organizer':self.o=control
         else:self.p=control
         return control
+    def stage_article(self, draft):
+        snapshot = self.call(self.o, 'Refresh')
+        command = 'NewArticle' if snapshot.get('draft') else 'Draft'
+        saved = self.call(self.o, command, draft)
+        if not saved.get('success'):
+            raise AssertionError('Article draft was not saved: '+saved.get('message',''))
+        return saved
     def persisted_operation(self,role,operation_id):
         profile=self.owner if role=='organizer' else self.participant
         db=next((profile/'data'/('v'+self.version)/'native/rinx').glob('*/operations.db'))
@@ -109,7 +117,7 @@ class FaultSuite(Suite):
             self.cancel()
         for mode in ['lost_ack','crash_before_receipt']:
             draft={'title':'补位回执恢复验收 '+mode,'markdown':'这是现有私有双账号测试房间中的文章恢复验收。\n\n服务端已收到消息时，沿原操作编号核实回执，重复确认不得再次发布。\n\n本测试正文不包含姓名、账号、房间编号或外部链接。'}
-            self.call(self.o,'NewArticle',draft);op=self.operation(self.call(self.o,'PrepareArticle'),'article','prepared');assert op['action']['payload']['title']==draft['title'] and op['action']['payload']['markdown']==draft['markdown']
+            self.stage_article(draft);op=self.operation(self.call(self.o,'PrepareArticle'),'article','prepared');assert op['action']['payload']['title']==draft['title'] and op['action']['payload']['markdown']==draft['markdown']
             self.fault_dispatch('organizer',mode,'PublishArticle',draft,'article',op)
         return {'version':self.version,'passed':True,'scope':'actual SDK sends and service event verification; deliberate receipt loss or native abort in opt-in acceptance build; network cable was not disconnected','cases':self.cases,'all_cases_restart_native_process':True}
 

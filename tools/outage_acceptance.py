@@ -35,7 +35,7 @@ class OutageSuite(FaultSuite):
         self.paused(False);invite=self.invite();self.paused(True)
         op=self.operation(self.call(self.p,'Accept',True),'participant','prepared');self.blocked_confirmation('participant','ConfirmParticipant',self.preferences,'participant',op)
         self.paused(False);decline=self.reply(False)
-        text=draft('实际网络中断');self.call(self.o,'NewArticle',text);op=self.operation(self.call(self.o,'PrepareArticle'),'article','prepared');self.paused(True)
+        text=draft('实际网络中断');self.stage_article(text);op=self.operation(self.call(self.o,'PrepareArticle'),'article','prepared');self.paused(True)
         self.blocked_confirmation('organizer','PublishArticle',text,'article',op)
         # A fresh explicit preview is safe here: preflight prevented dispatch,
         # the original remained Prepared and complete SDK history has zero hits.

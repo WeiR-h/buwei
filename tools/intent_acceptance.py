@@ -60,7 +60,7 @@ class IntentSuite(Suite):
         deadline=time.monotonic()+timeout
         while time.monotonic()<deadline:
             r=self.call(control,'Refresh')
-            c=next((c for c in r.get('assistance_cards',[]) if c['kind']==kind),None)
+            c=next((c for c in r.get('assistance_cards',[]) if c['kind']==kind and c.get('activity_id')==self.activity_id),None)
             if c:return c
             time.sleep(1)
         raise TimeoutError('Verified proactive card did not appear: '+kind)

@@ -12,6 +12,26 @@ from unittest.mock import patch
 from intent_acceptance import IntentSuite
 
 class ReleaseTools(unittest.TestCase):
+    def test_assistance_recovery_selects_the_requested_activity(self):
+        suite=IntentSuite.__new__(IntentSuite);suite.activity_id='requested'
+        other=dict(id='other-card',kind='opportunity',activity_id='other')
+        wanted=dict(id='wanted-card',kind='opportunity',activity_id='requested')
+        suite.call=lambda control,name:dict(assistance_cards=[other,wanted])
+        self.assertEqual(suite.card(object(),'opportunity'),wanted)
+    def test_article_recovery_stages_first_and_following_drafts(self):
+        suite = FaultSuite.__new__(FaultSuite)
+        suite.o = object()
+        draft = dict(title='Verified draft', markdown='Reviewed body')
+        for current, expected in ((None, 'Draft'), (dict(revision=1), 'NewArticle')):
+            calls = []
+            def call(control, name, value=None):
+                calls.append((name,value))
+                return dict(success=True, draft=current)
+            suite.call = call
+            suite.stage_article(draft)
+            self.assertEqual(calls, [('Refresh',None),(expected,draft)])
+        suite.call = lambda control,name,value=None: dict(success=False,message='refused')
+        with self.assertRaises(AssertionError):suite.stage_article(draft)
     def test_stale_card_retries_only_unchanged_rejected_preparation(self):
         suite=IntentSuite.__new__(IntentSuite)
         card=dict(id='same',fingerprint='old',kind='opportunity',goal_id='goal',goal_revision=1,activity_id='activity',action='register')
