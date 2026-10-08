@@ -38,6 +38,11 @@ jobs:
             windows-msvc-v5-
       - name: Verify or download pinned official dependencies
         run: python tools/bootstrap.py
+      - name: Fetch locked kernel dependencies for offline package inventory
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          cargo fetch --manifest-path .deps/octosense/.sources/octos/Cargo.toml --locked --target x86_64-pc-windows-msvc
       - name: Check public source and history
         run: python tools/public_scan.py
       - name: Test and build complete official host
