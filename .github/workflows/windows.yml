@@ -26,15 +26,13 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            .deps/octosense
-            .deps/rinx
             .run/cargo-home/registry
             .run/cargo-home/git
             native/target
-          key: windows-gnu-v4-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-${{ hashFiles('native/Cargo.lock') }}
+          key: windows-msvc-v5-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-${{ hashFiles('native/Cargo.lock') }}
           restore-keys: |
-            windows-gnu-v4-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-
-            windows-gnu-v4-
+            windows-msvc-v5-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-
+            windows-msvc-v5-
       - name: Verify or download pinned official dependencies
         run: python tools/bootstrap.py
       - name: Check public source and history
@@ -51,8 +49,6 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            .deps/octosense
-            .deps/rinx
             .run/cargo-home/registry
             .run/cargo-home/git
             native/target
