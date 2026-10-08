@@ -10,11 +10,13 @@ PEM_BLOCK=re.compile(rb'-----BEGIN ((?:RSA |EC |OPENSSH )?PRIVATE KEY)-----\s*[A
 
 # At locked octos b0759a5, LLVM pools these separate public literals:
 # memory_refresh/redact.rs key prefixes and workspace_policy/contract.rs
-# HTML probes plus notification text. These exact byte fragments contain
+# HTML probes plus notification text; OctoSense shell/system_chat/model.rs
+# contributes its separate public prefix list. These exact byte fragments contain
 # no credential or room. Text files and every other binary match still fail.
 BINARY_PUBLIC_LITERALS={
     'provider_key':{b''.join([b'sk-',b'sk_live_',b'sk_test_',b'ghp_',b'gho_',
-        b'github_pat_',b'xoxb-',b'xoxp-',b'AKIA',b'ASIA',b'ya29'])},
+        b'github_pat_',b'xoxb-',b'xoxp-',b'AKIA',b'ASIA',b'ya29']),
+        b''.join([b'sk-',b'sk_',b'pk-',b'rk-',b'gsk_',b'xai-',b'AIza',b'ghp_',b'github_pat_'])},
     'private_room':{b'!DOCTYPE'+b'notify_user:Skill'},
 }
 
