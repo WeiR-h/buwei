@@ -32,7 +32,7 @@ def invite_count(profile,version):
 
 def run(args):
     h=Hosts(args.executable,args.owner_profile,args.participant_profile,args.version,args.owner_port,args.participant_port,args.activity_id)
-    h.visible_roles.add('organizer');native=Native(args.owner_port)
+    h.visible_roles.add('organizer');native=Native(h.ports['organizer'])
     try:
         h.start('organizer');h.start('participant')
         suite=IntentSuite(h,args.private_trace,args.activity_id);suite.o.authorize();suite.p.authorize()

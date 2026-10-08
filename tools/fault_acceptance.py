@@ -3,7 +3,7 @@
 Requires an explicit acceptance executable and two stopped, migrated profiles.
 No keys or identities are accepted as arguments. It reuses verified SDK binding.
 """
-import argparse,json,os,pathlib,sqlite3,subprocess,time,urllib.request
+import argparse,json,os,pathlib,socket,sqlite3,subprocess,time,urllib.request
 from contextlib import closing
 from dual_acceptance import Suite
 from formal_control import Control
@@ -11,7 +11,13 @@ from formal_control import Control
 class Hosts:
     def __init__(self,exe,owner,participant,version,owner_port,participant_port,activity_id=None):
         self.activity_id=activity_id
-        self.exe=exe.resolve();self.profiles={'organizer':owner.resolve(),'participant':participant.resolve()};self.ports={'organizer':owner_port,'participant':participant_port};self.version=version;self.processes={};self.logs=[];self.extra_environment={};self.visible_roles=set()
+        self.exe=exe.resolve();self.profiles={'organizer':owner.resolve(),'participant':participant.resolve()};self.ports={'organizer':self.available_port(owner_port),'participant':self.available_port(participant_port)};self.version=version;self.processes={};self.logs=[];self.extra_environment={};self.visible_roles=set()
+    @staticmethod
+    def available_port(requested):
+        with socket.socket() as probe:
+            try:probe.bind(('127.0.0.1',requested))
+            except OSError:probe.bind(('127.0.0.1',0))
+            return probe.getsockname()[1]
     def start(self,role):
         profile=self.profiles[role];env=dict(os.environ);env.update(self.extra_environment.get(role,{}));env['BUWEI_PROFILE']=role;env['MAKEPAD_HIDE_WINDOWS']='1'
         if role in self.visible_roles:env.pop('MAKEPAD_HIDE_WINDOWS',None)
