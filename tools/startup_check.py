@@ -6,11 +6,11 @@ def inspect_log(content):
     # this diagnostic visible in the report; never allow other error lines.
     errors=[line for line in content.splitlines() if '[E]' in line]
     guard=re.compile(r'BUG: update_global_ui_handle while isolate SplashVmId\([1-9][0-9]*\) is installed; deferred$')
-    unexpected=[line for line in errors if not guard.search(line) or 'widget_async.rs:787:9' not in line]
+    unexpected=[line for line in errors if not guard.search(line) or 'widget_async.rs:839:9' not in line]
     if unexpected:raise AssertionError('Unexpected native error; see private startup log')
     for marker in ['Failed to load resource','on_render closure failed','instruction limit exceeded']:
         if marker in content:raise AssertionError(marker)
-    return [{'upstream_file':'makepad/widgets/src/widget_async.rs:787','diagnostic':'isolated VM global UI update safely deferred','count':len(errors),'behavior':'upstream guard deferred isolated VM update; native render and shutdown checked'}] if errors else []
+    return [{'upstream_file':'makepad/widgets/src/widget_async.rs:839','diagnostic':'isolated VM global UI update safely deferred','count':len(errors),'behavior':'upstream guard deferred isolated VM update; native render and shutdown checked'}] if errors else []
 def rendered_window(snapshot,status,version):
     """Select the visible BuWei surface, rather than the shell's first window."""
     for window in status.get('w',[]):

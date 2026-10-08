@@ -68,12 +68,29 @@ def main():
             for entry in [overlay,*overlay.get('stacked',[])]:
                 if hashlib.sha256((host/entry['patch']).read_bytes()).hexdigest()!=entry['sha256']:raise RuntimeError('Official overlay hash differs')
         elif git(source,'status','--porcelain'):raise RuntimeError('Modified framework preserved: '+name)
+    # Native App Hub and kernel sources are pinned alongside the UI frameworks.
+    # Preserve any mismatched checkout instead of resetting user-owned files.
+    for name,entry in expected.get('runtime_sources',{}).items():
+        source=host/entry['directory']
+        if not source.resolve().is_relative_to((host/'.sources').resolve()):
+            raise RuntimeError('Runtime dependency directory outside .sources: '+name)
+        if not source.exists():
+            cache=args.source_cache/name if args.source_cache else None
+            if cache and cache.exists():call('git','clone','--shared','--no-checkout',str(cache),str(source))
+            else:call('git','clone','--filter=blob:none','--no-checkout',entry['url'],str(source))
+            call('git','-C',str(source),'-c','core.longpaths=true','checkout','--detach',entry['commit'])
+        if git(source,'rev-parse','HEAD')!=entry['commit']:
+            raise RuntimeError('Runtime dependency revision mismatch: '+name)
+        if git(source,'status','--porcelain'):
+            raise RuntimeError('Modified runtime dependency preserved: '+name)
     rinx_expected=expected.get('rinx')
     if rinx_expected:
         rinx=ROOT/'.deps/rinx';rinx_patch=ROOT/rinx_expected['patch']
         if hashlib.sha256(rinx_patch.read_bytes()).hexdigest()!=rinx_expected['patch_sha256']:raise RuntimeError('Rinx patch hash mismatch')
         if not rinx.exists():
-            call('git','clone','--filter=blob:none','--no-checkout','https://github.com/hagency-org/Rinx.git',str(rinx))
+            cache=args.source_cache/'Rinx' if args.source_cache else None
+            if cache and cache.exists():call('git','clone','--shared','--no-checkout',str(cache),str(rinx))
+            else:call('git','clone','--filter=blob:none','--no-checkout','https://github.com/hagency-org/Rinx.git',str(rinx))
             call('git','-C',str(rinx),'-c','core.longpaths=true','checkout','--detach',rinx_expected['commit'])
         if git(rinx,'rev-parse','HEAD')!=rinx_expected['commit']:raise RuntimeError('Rinx revision mismatch')
         if subprocess.run(['git','-C',str(rinx),'apply','--reverse','--check',str(rinx_patch)],capture_output=True).returncode:

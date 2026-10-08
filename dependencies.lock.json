@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "octosense_commit": "ad0d738bd1c10b735af6b34e11f5826623b6a73b",
+  "octosense_commit": "dba1933051cf3974d79bc1788071091b213dcd40",
   "frameworks": {
-    "makepad": "4fdcfccc127b700f1fc01aa1a5488af938dd7f3d",
-    "octoscript": "68f6a9df55692b5d8ef8873a12721e279a3f40d6",
-    "octoscript-makepad": "b33f494b963759088edf5785fc626cb8593818ee"
+    "makepad": "32d6415fb7476345ad36ee4f98d6f844d1f07fd2",
+    "octoscript": "2e37d9e657a246f16718d9a475e167ccd2d5b5fa",
+    "octoscript-makepad": "33dea2f1f3ad3f1346a219aa8cf6e91b31361e23"
   },
   "official_overlay_lock": "runtime-patches.lock.json",
   "product_patch_sha256": "8df6c2a8d442154f17aca229553ee69f45317962d7b732ae91fae2fda1adf55e",
@@ -18,8 +18,20 @@
     }
   ],
   "rinx": {
-    "commit": "68afcf796d303aaf646eeb832d65c450a56c92b5",
+    "commit": "4b89097d8791a7190d01de1c576979c93df0013d",
     "patch": "patches/rinx-activity-cards.patch",
-    "patch_sha256": "57729d1244e08caddb17eb95365ccfa6bf31de9ef02fffe29b4b5c931763e99a"
+    "patch_sha256": "c01187987b8533622b9c05eb8b928cbe519798f017efa4bac4411344248b12b9"
+  },
+  "runtime_sources": {
+    "app-hub": {
+      "commit": "2e5768964f15916cdb66cc6824f7671dafc6445a",
+      "directory": ".sources/app-hub",
+      "url": "https://github.com/OctoSense-org/OctoSense-App-Hub.git"
+    },
+    "octos": {
+      "commit": "b0759a57719fd35b3a2da1c5d969bc67538ed516",
+      "directory": ".sources/octos",
+      "url": "https://github.com/octos-org/octos.git"
+    }
   }
 }

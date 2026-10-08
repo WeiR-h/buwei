@@ -27,6 +27,7 @@ if($Release){$buweiArguments+='--release'}
 if($Offline){$buweiArguments+='--offline'}
 Push-Location $buweiRoot
 try {
+ if($Release -and !$Tests){ & (Join-Path $PSScriptRoot 'Build-Kernel.ps1') -Offline:$Offline; if($LASTEXITCODE -ne 0){throw 'Official kernel unavailable; package build stopped.'} }
  $buweiProofStart=Join-Path $buweiRoot '.run/build-start.json'
  if(!$Tests){python tools/build_proof.py --start $buweiProofStart;if($LASTEXITCODE -ne 0){throw '构建来源不可核实。'}}
  & cargo @buweiArguments; if($LASTEXITCODE -ne 0){throw '构建或测试失败；保留现有数据。'}

@@ -10,7 +10,7 @@ python tools/bootstrap.py
 ./tools/Build.ps1 -Release
 ```
 
-`dependencies.lock.json` 固定官方 OctoSense、Rinx、Makepad、OctoScript 及相关框架提交。依赖保存在被忽略的 `.deps`；获取脚本核对提交和产品补丁摘要，并逐文件验证补丁结果。Rust 工具链和 Cargo.lock 随源码固定。
+`dependencies.lock.json` 固定官方 OctoSense、Rinx、Makepad、OctoScript、App Hub 和 octos 内核提交。依赖保存在被忽略的 `.deps`；获取脚本核对提交和产品补丁摘要，并逐文件验证补丁结果。Rust 工具链和 Cargo.lock 随源码固定。
 
 构建后使用 `tools/Start-BuWei.ps1 -Role organizer -Executable native/target/release/buwei-rinx-dual-host.exe`。参与者将角色改为 `participant`。首次运行不含登录、模型密钥或业务授权。
 
@@ -21,3 +21,5 @@ python tools/bootstrap.py
 独立模型验收的 100 个虚构案例保存在 `native/tests/fixtures/independent-model-cases.json`。普通测试只检查案例格式；真实评测须由开发者显式开启模型评测模式，使用本人配置的模型服务。模型原始回答及评测记录保存在本机，应用操作仍须经过宿主授权。
 
 意图层另有组织者、成员各 50 项独立案例：`native/tests/fixtures/independent-intent-holdout.json`。核心测试可输入固定事实与时钟，复现目标、提醒去重和任务恢复。`--intent-validation` 可将已有模型记录送入目标编辑器的同一字段校验，分别记录原模型结果和应用校验结果，不会调用模型或发送业务事件。
+
+发布构建同时编译固定版本的官方 octos 桌面内核，并由官方工具核验版本、生成 SHA-256 回执；运行包包含 `octos-kernel.exe` 与 `octos-kernel.json`。
