@@ -13048,19 +13048,3 @@ dependencies = [
  "syn 3.0.5",
  "winnow 1.0.4",
 ]
-
-[[patch.unused]]
-name = "makepad-ai"
-version = "1.0.0"
-
-[[patch.unused]]
-name = "makepad-aichat"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "octoscript-capabilities"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "octoscript-schema"
-version = "0.1.0"

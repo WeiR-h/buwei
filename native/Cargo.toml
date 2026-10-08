@@ -67,8 +67,6 @@ opt-level = 3
 opt-level = 3
 
 [patch."https://github.com/OctoSense-org/makepad.git"]
-makepad-ai = { path = "../.deps/octosense/.sources/makepad/libs/makepad_ai" }
-makepad-aichat = { path = "../.deps/octosense/.sources/makepad/apps/aichat" }
 makepad-script = { path = "../.deps/octosense/.sources/makepad/platform/script" }
 makepad-widgets = { path = "../.deps/octosense/.sources/makepad/widgets" }
 makepad-code-editor = { path = "../.deps/octosense/.sources/makepad/code_editor" }
@@ -95,9 +93,7 @@ octoscript-ui-l0 = { path = "../.deps/octosense/.sources/octoscript/crates/octos
 octoscript-core = { path = "../.deps/octosense/.sources/octoscript/crates/octoscript-core" }
 
 
-octoscript-capabilities = { path = "../.deps/octosense/.sources/octoscript/crates/octoscript-capabilities" }
 
-octoscript-schema = { path = "../.deps/octosense/.sources/octoscript/crates/octoscript-schema" }
 [patch."https://github.com/OctoSense-org/Octoscript-Makepad.git"]
 octoscript-makepad = { path = "../.deps/octosense/.sources/octoscript-makepad/crates/octoscript-makepad" }
 octoscript-widgets = { path = "../.deps/octosense/.sources/octoscript-makepad/crates/octoscript-widgets" }
