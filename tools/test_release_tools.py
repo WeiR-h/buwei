@@ -3,7 +3,7 @@ from contextlib import closing
 from migrate import migrate
 from release_gate import check,REQUIRED,COMMUNITY_REQUIRED,INTENT_STAGES
 from startup_check import inspect_log,rendered_window,frame_visibility
-from package_scan import content_findings
+from package_scan import content_findings,BINARY_PUBLIC_LITERALS
 from pe_stack import normalize
 from fault_acceptance import FaultSuite
 from dual_acceptance import Suite
@@ -134,6 +134,22 @@ class ReleaseTools(unittest.TestCase):
             changed=bytearray(file.read_bytes());struct.pack_into('<II',changed,296,800,8);file.write_bytes(changed)
             with self.assertRaises(ValueError):normalize(file)
             self.assertEqual(file.read_bytes(),changed)
+    def test_binary_public_literals_are_exact_and_do_not_exempt_text(self):
+        for label,fragments in BINARY_PUBLIC_LITERALS.items():
+            for fragment in fragments:
+                self.assertNotIn(label,content_findings(fragment,True))
+                self.assertNotIn(label+'_utf16',content_findings(fragment.decode().encode('utf-16le'),True))
+                self.assertIn(label,content_findings(fragment,False))
+    def test_binary_public_literals_do_not_hide_real_or_similar_values(self):
+        key=b'sk-'+b'a1'*24
+        self.assertIn('provider_key',content_findings(key,True))
+        self.assertIn('provider_key_utf16',content_findings(key.decode().encode('utf-16le'),True))
+        prefix=next(iter(BINARY_PUBLIC_LITERALS['provider_key']))
+        self.assertIn('provider_key',content_findings(prefix+b'extra',True))
+        room=b'!'+b'RoomFixture12345678'+b':matrix.example'
+        self.assertIn('private_room',content_findings(room,True))
+        pooled=next(iter(BINARY_PUBLIC_LITERALS['private_room']))
+        self.assertIn('private_room',content_findings(pooled.replace(b'Skill',b'matrix.example'),True))
     def test_binary_key_parser_labels_are_distinct_from_embedded_key_material(self):
         marker=b'-----BEGIN '+b'PRIVATE KEY-----'
         self.assertNotIn('private_key',content_findings(marker,True))
