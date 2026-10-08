@@ -77,7 +77,9 @@ class FaultSuite(Suite):
         return control
     def stage_article(self, draft):
         snapshot = self.call(self.o, 'Refresh')
-        command = 'NewArticle' if snapshot.get('draft') else 'Draft'
+        previous = snapshot.get('article') or {}
+        published_here = previous.get('status') == 'confirmed' and previous.get('action',{}).get('target') == self.room
+        command = 'NewArticle' if published_here else 'Draft'
         saved = self.call(self.o, command, draft)
         if not saved.get('success'):
             raise AssertionError('Article draft was not saved: '+saved.get('message',''))

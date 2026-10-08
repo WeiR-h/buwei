@@ -15,6 +15,16 @@ def formal_checksums(text,version):
     if set(hashes)!=wanted:raise ValueError('Formal release must contain exactly the runtime and demonstration checksums')
     return hashes
 
+def check_release_metadata(published,asset_names,allow_preview=False):
+    if published.get('draft') is not False:
+        raise ValueError('Release must be publicly published')
+    if published.get('prerelease') not in (True,False):
+        raise ValueError('Release status is missing')
+    if published['prerelease'] and not allow_preview:
+        raise ValueError('Preview download requires an explicit preview check')
+    if {x['name'] for x in published['assets']}!=set(asset_names):
+        raise ValueError('Public release attachment set differs')
+
 def extract(archive,destination):
     destination.mkdir(parents=True,exist_ok=False)
     with zipfile.ZipFile(archive) as z:
@@ -78,15 +88,15 @@ def verify(a):
         ref=public_api('git/tags/'+ref['sha'])['object']
     if ref['type']!='commit' or ref['sha']!=proof['source_commit']:raise ValueError('Public tag differs from the archived source commit')
     published=public_api('releases/tags/'+tag)
-    if published['draft'] or published['prerelease'] or {x['name'] for x in published['assets']}!=set(hashes)|{'SHA256SUMS.txt'}:raise ValueError('Public release attachment set differs')
+    check_release_metadata(published,set(hashes)|{'SHA256SUMS.txt'},getattr(a,'allow_preview',False))
     hashes['SHA256SUMS.txt']=hashlib.sha256(sums.read_bytes()).hexdigest()
     for asset in published['assets']:
         if asset.get('digest') and asset['digest']!='sha256:'+hashes[asset['name']]:raise ValueError('Public asset differs from GitHub upload digest')
     report={'version':version,'passed':True,'public_base_url':a.base_url,'http_credentials_used':False,'assets_sha256':hashes,'source_commit':proof['source_commit'],'binary_build_source_commit':proof['source_commit'],'native_source_sha256':proof['native_source_sha256'],'fixed_tag_source_archive_sha256':hashlib.sha256(source_zip.read_bytes()).hexdigest(),'package_privacy':privacy,'actual_downloaded_native_startup':runtime,'environment':'existing Windows machine, fresh profile and system-only PATH; separate clean Windows runner evidence remains required'}
-    report.update(public_tag_commit_verified=True,dependency_lock_sha256=source_lock,native_binary_sha256=binary)
+    report.update(public_tag_commit_verified=True,dependency_lock_sha256=source_lock,native_binary_sha256=binary,public_release_is_preview=published['prerelease'])
     a.output.parent.mkdir(parents=True,exist_ok=True);a.output.write_text(json.dumps(report,indent=2),'utf8')
     return {'version':version,'passed':True,'public_assets_verified':len(hashes)}
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--base-url',required=True);p.add_argument('--destination',type=pathlib.Path,required=True);p.add_argument('--output',type=pathlib.Path,required=True)
+    p=argparse.ArgumentParser();p.add_argument('--base-url',required=True);p.add_argument('--destination',type=pathlib.Path,required=True);p.add_argument('--output',type=pathlib.Path,required=True);p.add_argument('--allow-preview',action='store_true',help='Verify a public preview without declaring it a stable release')
     print(json.dumps(verify(p.parse_args())))

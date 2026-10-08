@@ -7,11 +7,17 @@ from package_scan import content_findings,BINARY_PUBLIC_LITERALS
 from pe_stack import normalize
 from fault_acceptance import FaultSuite
 from dual_acceptance import Suite
-from verify_public_download import formal_checksums
+from verify_public_download import formal_checksums,check_release_metadata
 from unittest.mock import patch
 from intent_acceptance import IntentSuite
 
 class ReleaseTools(unittest.TestCase):
+    def test_download_keeps_preview_and_draft_release_boundaries(self):
+        release=dict(draft=False,prerelease=True,assets=[dict(name='runtime.zip')])
+        with self.assertRaises(ValueError):check_release_metadata(release,{'runtime.zip'})
+        check_release_metadata(release,{'runtime.zip'},allow_preview=True)
+        with self.assertRaises(ValueError):check_release_metadata(dict(release,draft=True),{'runtime.zip'},allow_preview=True)
+        with self.assertRaises(ValueError):check_release_metadata(release,{'different.zip'},allow_preview=True)
     def test_assistance_recovery_selects_the_requested_activity(self):
         suite=IntentSuite.__new__(IntentSuite);suite.activity_id='requested'
         other=dict(id='other-card',kind='opportunity',activity_id='other')
@@ -21,12 +27,16 @@ class ReleaseTools(unittest.TestCase):
     def test_article_recovery_stages_first_and_following_drafts(self):
         suite = FaultSuite.__new__(FaultSuite)
         suite.o = object()
+        suite.room = 'current-room'
         draft = dict(title='Verified draft', markdown='Reviewed body')
-        for current, expected in ((None, 'Draft'), (dict(revision=1), 'NewArticle')):
+        for current, expected in ((None, 'Draft'),
+                                  (dict(status='confirmed', action=dict(target='current-room')), 'NewArticle'),
+                                  (dict(status='prepared', action=dict(target='current-room')), 'Draft'),
+                                  (dict(status='confirmed', action=dict(target='other-room')), 'Draft')):
             calls = []
             def call(control, name, value=None):
                 calls.append((name,value))
-                return dict(success=True, draft=current)
+                return dict(success=True, article=current)
             suite.call = call
             suite.stage_article(draft)
             self.assertEqual(calls, [('Refresh',None),(expected,draft)])
