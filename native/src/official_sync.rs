@@ -1,6 +1,7 @@
 //! SDK events are the identity source; content cannot supply its own actor.
 use super::*;
 use matrix_sdk::ruma::{
+    api::client::filter::RoomEventFilter,
     api::client::state::{get_state_events, send_state_event},
     events::StateEventType,
 };
@@ -314,7 +315,26 @@ pub(crate) fn timeline_since(
     room: &OwnedRoomId,
     checkpoint: Option<&str>,
 ) -> Result<Vec<Value>> {
-    timeline_read(rt, c, room, checkpoint, 1)
+    timeline_read(rt, c, room, checkpoint, 1, None)
+}
+pub(crate) fn operation_history(
+    rt: &Runtime,
+    c: &Client,
+    room: &OwnedRoomId,
+    op: &Operation,
+    kind: &str,
+) -> Result<Vec<Value>> {
+    rinx_bridge::ensure_current(c)?;
+    if op.account != account(c) || op.action.target != room.as_str() {
+        return Err("回执查询的本人身份或房间不匹配".into());
+    }
+    let mut filter = RoomEventFilter::default();
+    filter.types = Some(vec![kind.into()]);
+    filter.senders = Some(vec![op.account.parse().map_err(|_| "回执账号不合法")?]);
+    // Sync snapshots and other senders cannot establish this operation's
+    // receipt. Exclude them server-side, then verify the complete content and
+    // original operation ID in channel::proof. Retain complete pagination.
+    timeline_read(rt, c, room, None, 1, Some(filter))
 }
 #[cfg(feature = "acceptance")]
 pub(crate) fn evidence_since(
@@ -323,7 +343,7 @@ pub(crate) fn evidence_since(
     room: &OwnedRoomId,
     checkpoint: Option<&str>,
 ) -> Result<Vec<Value>> {
-    timeline_read(rt, c, room, checkpoint, 3)
+    timeline_read(rt, c, room, checkpoint, 3, None)
 }
 fn timeline_read(
     rt: &Runtime,
@@ -331,6 +351,7 @@ fn timeline_read(
     room: &OwnedRoomId,
     checkpoint: Option<&str>,
     attempts: usize,
+    filter: Option<RoomEventFilter>,
 ) -> Result<Vec<Value>> {
     let mut all = vec![];
     let mut from = None;
@@ -341,7 +362,8 @@ fn timeline_read(
         let mut received = None;
         for attempt in 0..attempts {
             let mut request = get_message_events::v3::Request::backward(room.clone());
-            request.limit = 5u32.into();
+            request.limit = if filter.is_some() { 50u32 } else { 5u32 }.into();
+            request.filter = filter.clone().unwrap_or_default();
             request.from = from.clone();
             match rt.block_on(async {
                 c.send(request)
@@ -378,8 +400,13 @@ fn timeline_read(
                 return Ok(all);
             }
             all.push(v);
+            if all.len() > 2000 {
+                return Err("核验事件超过 2000 条；保留原记录并停止推进".into());
+            }
         }
-        if empty || response.end.is_none() {
+        // A filtered page may be empty while its end token still advances.
+        // It cannot prove absence until the server reaches the history edge.
+        if (empty && filter.is_none()) || response.end.is_none() {
             if checkpoint.is_some() {
                 return Err("历史中找不到已保存的同步进度；暂停处理和过期释放，请恢复历史".into());
             }

@@ -1673,6 +1673,7 @@ impl Controller {
 // Host-only SDK transaction keys bind identity, authoritative state version,
 // event kind and full content. Retrying after an interrupted local update uses
 // the same server transaction; UI data cannot choose an actor or transaction.
+#[cfg(test)]
 fn event_transaction(actor: &str, activity: &Activity, kind: &str, content: &Value) -> String {
     use sha2::{Digest, Sha256};
     hex::encode(Sha256::digest(json!({"actor":actor,"room":activity.room,"revision":activity.revision,"kind":kind,"content":content}).to_string().as_bytes()))
