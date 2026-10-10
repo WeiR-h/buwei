@@ -36,9 +36,95 @@ pub struct GoalInput {
     pub recurrence_days: Option<u8>,
     #[serde(default = "default_preparation")]
     pub preparation_hours: u8,
+    #[serde(default)]
+    pub availability: Option<AvailabilitySnapshot>,
 }
 fn default_preparation() -> u8 {
     24
+}
+/// A confirmed weekly schedule copied into a goal. Later preference edits do not change it.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AvailabilitySnapshot {
+    pub weekdays: Vec<u8>,
+    pub earliest_minute: u16,
+    pub latest_minute: u16,
+    pub confirmed_at: u64,
+}
+impl AvailabilitySnapshot {
+    pub fn from_preferences(p: &PersonalPreferences) -> Result<Self> {
+        p.validate()?;
+        let snapshot = Self {
+            weekdays: p.weekdays.clone(),
+            earliest_minute: p.earliest_minute.ok_or("请先确认每周可用时段")?,
+            latest_minute: p.latest_minute.ok_or("请先确认每周可用时段")?,
+            confirmed_at: p.confirmed_at,
+        };
+        snapshot.validate()?;
+        Ok(snapshot)
+    }
+    pub fn validate(&self) -> Result<()> {
+        let p = PersonalPreferences {
+            weekdays: self.weekdays.clone(),
+            earliest_minute: Some(self.earliest_minute),
+            latest_minute: Some(self.latest_minute),
+            ..Default::default()
+        };
+        p.validate()?;
+        if self.confirmed_at < calendar::MIN_TIME || self.confirmed_at >= calendar::MAX_TIME {
+            return Err("每周安排必须由本人先确认".into());
+        }
+        Ok(())
+    }
+    pub fn covers(&self, start: u64, end: u64) -> bool {
+        if self.validate().is_err() || !calendar::interval(start, end) {
+            return false;
+        }
+        let day = (start + 8 * 3600) / 86400;
+        // An after-midnight activity can belong to yesterday's overnight window.
+        [day, day - 1].into_iter().any(|anchor| {
+            let weekday = ((anchor + 3) % 7) as u8; // Monday = 0.
+            let begin = anchor * 86400 - 8 * 3600 + self.earliest_minute as u64 * 60;
+            let finish = anchor * 86400 - 8 * 3600
+                + self.latest_minute as u64 * 60
+                + if self.latest_minute < self.earliest_minute {
+                    86400
+                } else {
+                    0
+                };
+            (self.weekdays.is_empty() || self.weekdays.contains(&weekday))
+                && start >= begin
+                && end <= finish
+        })
+    }
+    pub fn description(&self) -> String {
+        if self.validate().is_err() {
+            return "每周安排需要重新确认".into();
+        }
+        let days = if self.weekdays.is_empty() {
+            "每天".into()
+        } else {
+            self.weekdays
+                .iter()
+                .map(|d| ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][*d as usize])
+                .collect::<Vec<_>>()
+                .join("、")
+        };
+        format!(
+            "{} {:02}:{:02}–{}{:02}:{:02}（本人确认于 {}）",
+            days,
+            self.earliest_minute / 60,
+            self.earliest_minute % 60,
+            if self.latest_minute < self.earliest_minute {
+                "次日 "
+            } else {
+                ""
+            },
+            self.latest_minute / 60,
+            self.latest_minute % 60,
+            calendar::display(self.confirmed_at)
+        )
+    }
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ActivityGoal {
@@ -83,6 +169,9 @@ pub(crate) fn field_sources(
         if p.template.as_deref() == Some(input.template.as_str()) {
             sources.insert("template".into(), FieldSource::ConfirmedPreference);
         }
+    }
+    if input.availability.is_some() {
+        sources.insert("availability".into(), FieldSource::ConfirmedPreference);
     }
     sources
 }
@@ -152,6 +241,12 @@ impl PersonalPreferences {
 }
 impl GoalInput {
     pub fn validate(&self, actor: &str, activities: &[Activity], clock: u64) -> Result<()> {
+        if let Some(schedule) = &self.availability {
+            schedule.validate()?;
+            if self.kind != GoalKind::Participate || schedule.confirmed_at > clock {
+                return Err("每周安排仅用于本人参与目标".into());
+            }
+        }
         if self.title.trim().is_empty()
             || self.title.chars().count() > 160
             || !template_valid(&self.template)
@@ -228,6 +323,8 @@ pub struct PrivateState {
     pub feedback: Vec<crate::intent_feedback::IntentFeedback>,
     #[serde(default)]
     pub analyses: std::collections::BTreeMap<String, Vec<String>>,
+    #[serde(default)]
+    pub corrections: Vec<crate::goal_correction::GoalCorrection>,
 }
 pub struct IntentStore {
     db: Connection,
@@ -274,6 +371,7 @@ impl IntentStore {
                 tasks: vec![],
                 feedback: vec![],
                 analyses: Default::default(),
+                corrections: vec![],
             });
         };
         if account != self.actor || raw.len() > 4 * 1024 * 1024 {
@@ -281,7 +379,11 @@ impl IntentStore {
         }
         let state: PrivateState =
             serde_json::from_str(&raw).map_err(|_| "个人资料损坏，请保留原目录并恢复备份")?;
-        if state.account != self.actor || state.schema != 1 || state.goals.len() > 100 {
+        if state.account != self.actor
+            || state.schema != 1
+            || state.goals.len() > 100
+            || state.corrections.len() > 100
+        {
             return Err("个人资料来源或版本不匹配，停止写入".into());
         }
         state.preferences.validate()?;
@@ -459,7 +561,15 @@ pub fn goal_text(g: &ActivityGoal) -> String {
             g.input.target.unwrap_or(0),
             g.input.check_at.map(calendar::display).unwrap_or_default()
         ),
-        GoalKind::Participate => format!("包括本人 {} 人", g.input.group),
+        GoalKind::Participate => format!(
+            "包括本人 {} 人{}",
+            g.input.group,
+            g.input
+                .availability
+                .as_ref()
+                .map(|s| format!(" · {}", s.description()))
+                .unwrap_or_default()
+        ),
     };
     format!(
         "{} · {}\n{}至{} · {}\n来源：本人已确认；各字段来源可在编辑页查看 · 版本{} · {}",

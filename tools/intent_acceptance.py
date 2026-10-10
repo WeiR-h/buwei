@@ -16,25 +16,27 @@ def selected(profile,version):
     actor=next((profile/'data'/('v'+version)/'native/rinx').glob('*/operations.db')).parent
     identifier=(actor/'selected-activity.txt').read_text('utf8').strip() if (actor/'selected-activity.txt').exists() else None
     path=actor/'activities'/identifier/'activity.db' if identifier else actor/'activity.db'
+    if not path.exists():return None
     with closing(sqlite3.connect('file:'+path.as_posix()+'?mode=ro',uri=True)) as db:
-        return json.loads(db.execute('select body from buwei_state').fetchone()[0])
+        row=db.execute('select body from buwei_state').fetchone()
+        return json.loads(row[0]) if row else None
 def request(control,name,value=None):
     r=control.command(name,value,timeout=180)
     if not r.get('success'):raise AssertionError(name+': '+r.get('message','No result'))
     return r
 
-def setup_activity(hosts):
+def setup_activity(hosts,template='badminton',capacity=2):
     accounts=[];controls=[]
     for role in ('organizer','participant'):
         profile=hosts.profiles[role];binding=json.loads((profile/'data'/('v'+hosts.version)/'rinx-binding-status.json').read_text('utf8'))
         if not binding['server_identity_verified']:raise RuntimeError('SDK identity not verified')
-        accounts.append(binding['account']);controls.append(Control(profile,binding['account'],selected(profile,hosts.version)['room']))
+        accounts.append(binding['account']);controls.append(Control(profile,binding['account'],(selected(profile,hosts.version) or {}).get('room','')))
     if accounts[0]==accounts[1]:raise RuntimeError('Distinct SDK identities required')
     o,p=controls;o.authorize();p.authorize()
     tomorrow=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8)))+datetime.timedelta(days=1)
     start=int(tomorrow.replace(hour=19,minute=30,second=0,microsecond=0).timestamp())
     title='补位主动帮助验收 v'+hosts.version+' '+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
-    form=dict(title=title,capacity=2,start=display(start),end=display(start+7200),template='badminton',location='私有测试场地',description='用于主动建议与真实回执闭环验收；不代表实际到场。')
+    form=dict(title=title,capacity=capacity,start=display(start),end=display(start+7200),template=template,location='私有测试场地',description='用于主动建议与真实回执闭环验收；不代表实际到场。')
     created=request(o,'CreateDated',form);a=created['activity'];identifier=a['metadata']['activity_id'];room=a['room']
     o=Control(hosts.profiles['organizer'],accounts[0],room)
     request(o,'LoadContacts');preview=request(o,'PrepareShare',accounts[1]);operation=preview['share']

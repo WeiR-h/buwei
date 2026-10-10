@@ -14,6 +14,7 @@ pub mod automation;
 pub mod calendar;
 pub mod catalog;
 pub mod facts;
+pub mod goal_correction;
 pub mod intent_feedback;
 pub mod model_budget;
 pub mod participation;

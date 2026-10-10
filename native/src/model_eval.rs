@@ -21,6 +21,12 @@ struct Case {
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 enum CaseKind {
+    Correction {
+        reference: String,
+        requirement: String,
+        before: buwei_host_core::assistance::GoalInput,
+        expected: Value,
+    },
     Goal {
         role: buwei_host_core::assistance::GoalKind,
         reference: String,
@@ -375,6 +381,19 @@ pub(crate) fn run(root: &Path, suite_path: &Path, report_path: &Path) -> Result<
     let mut previous_start: Option<Instant> = None;
     for case in suite.cases {
         let (mut request, activity) = match &case.kind {
+            CaseKind::Correction {
+                reference,
+                requirement,
+                before,
+                ..
+            } => {
+                let clock = buwei_host_core::calendar::parse(reference)?;
+                before.validate("@synthetic:example.invalid", &[], clock)?;
+                (
+                    crate::intent_model::correction_request(requirement, before, clock)?,
+                    None,
+                )
+            }
             CaseKind::Goal {
                 role,
                 reference,
@@ -454,7 +473,10 @@ pub(crate) fn run(root: &Path, suite_path: &Path, report_path: &Path) -> Result<
             }
         };
         if request.input.get("reference_beijing").is_some()
-            && !matches!(&case.kind, CaseKind::Goal { .. })
+            && !matches!(
+                &case.kind,
+                CaseKind::Goal { .. } | CaseKind::Correction { .. }
+            )
         {
             request.input["reference_beijing"] = json!(buwei_host_core::calendar::display(
                 report["started_at_local_collection_unix_seconds"]
@@ -498,6 +520,17 @@ pub(crate) fn run(root: &Path, suite_path: &Path, report_path: &Path) -> Result<
                 let reply = completion.to_reply();
                 let parsed: Result<Value> = (|| {
                     match &case.kind {
+                    CaseKind::Correction { reference, requirement, before, expected } => {
+                        let d:crate::intent_model::CorrectionDraft=serde_json::from_value(completion.output.clone()).map_err(|_|"更正结构非法")?;
+                        if d.questions.len()>3 || d.questions.iter().any(|q| q.trim().is_empty() || q.len()>480 || ["http","密码","密钥","身份证"].iter().any(|s|q.contains(s))) {return Err("追问超出必要范围".into());}
+                        let after=buwei_host_core::goal_correction::corrected_input(before,requirement,&d.changes)?;
+                        if d.questions.is_empty() {after.validate("@synthetic:example.invalid",&[],buwei_host_core::calendar::parse(reference)?)?;}
+                        let changed_fields:[(&str,bool);4]=[("earliest",before.earliest!=after.earliest),("latest",before.latest!=after.latest),("group",before.group!=after.group),("template",before.template!=after.template)];
+                        let mut fields=changed_fields.into_iter().filter_map(|(s,c)|c.then_some(s)).collect::<Vec<_>>(); fields.sort();
+                        let actual=json!({"earliest":buwei_host_core::calendar::display(after.earliest),"latest":buwei_host_core::calendar::display(after.latest),"group":after.group,"template":after.template,"needs_questions":!d.questions.is_empty(),"changed_fields":fields});
+                        let passed=expected.as_object().ok_or("更正期望非法")?.iter().all(|(k,v)|actual[k]==*v);
+                        Ok(json!({"passed":passed,"actual":actual,"expected":expected,"execution_permissions_created":false}))
+                    },
                     CaseKind::Goal{expected,..}=>{
                         let d=crate::intent_model::parse(&completion.output)?;
                         let passed=expected.as_object().ok_or("意图期望不合法")?.iter().all(|(k,v)|if k=="needs_questions"{!d.questions.is_empty()==v.as_bool().unwrap_or(false)}else{completion.output[k]==*v});
@@ -554,6 +587,43 @@ pub(crate) fn run(root: &Path, suite_path: &Path, report_path: &Path) -> Result<
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn independent_corrections_preserve_unmentioned_fields_and_remain_synthetic() {
+        let bytes = include_bytes!("../tests/fixtures/independent-correction-holdout.json");
+        let normalized = std::str::from_utf8(bytes).unwrap().replace("\r\n", "\n");
+        assert_eq!(
+            hex::encode(Sha256::digest(normalized.as_bytes())),
+            "b1060a997ff7873eb5b7bbb6b3bda00e3298f8f6b48cedbe23c2a0cbba52d2d4"
+        );
+        let suite: Suite = serde_json::from_slice(bytes).unwrap();
+        assert_eq!(suite.data_class, "synthetic");
+        assert_eq!(suite.cases.len(), 100);
+        let mut ids = BTreeSet::new();
+        let mut texts = BTreeSet::new();
+        for case in suite.cases {
+            assert!(ids.insert(case.id));
+            let CaseKind::Correction {
+                reference,
+                requirement,
+                before,
+                expected,
+            } = case.kind
+            else {
+                panic!("Corrections only")
+            };
+            assert!(texts.insert(requirement.clone()));
+            let request = crate::intent_model::correction_request(
+                &requirement,
+                &before,
+                buwei_host_core::calendar::parse(&reference).unwrap(),
+            )
+            .unwrap();
+            octosense_llm_service::complete::schema::Schema::compile(&request.schema).unwrap();
+            assert!(!request.input.to_string().contains("@"));
+            assert!(!request.input.to_string().contains("activity_id"));
+            assert!(expected["changed_fields"].is_array());
+        }
+    }
     #[test]
     fn independent_intent_suite_covers_both_roles_and_official_schema() {
         let suite: Suite = serde_json::from_slice(include_bytes!(

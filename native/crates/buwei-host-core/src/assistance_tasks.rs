@@ -35,6 +35,8 @@ pub struct AssistanceTask {
     pub updated_at: u64,
     #[serde(default)]
     pub registration_sequence: Option<u64>,
+    #[serde(default)]
+    pub registration_update_sequence: Option<u64>,
 }
 fn belongs(t: &AssistanceTask, op: &Operation) -> bool {
     if t.action != SuggestedAction::Reconcile && op.created_at < t.created_at {
@@ -195,6 +197,7 @@ impl IntentStore {
             created_at: clock,
             updated_at: clock,
             registration_sequence: card.registration_sequence,
+            registration_update_sequence: None,
         };
         s.tasks.push(t.clone());
         self.save(&s)?;
@@ -384,8 +387,27 @@ impl IntentStore {
                 let achieved = f.is_some_and(|f| match t.action {
                     SuggestedAction::Register => f.activity.people.iter().any(|p| {
                         p.account == s.account
-                            && t.registration_sequence
-                                .is_some_and(|before| p.joined > before)
+                            && if let Some(sequence) = t.registration_update_sequence {
+                                p.joined == sequence
+                                    && s.goals.iter().any(|g| {
+                                        Some(&g.id) == t.goal_id.as_ref()
+                                            && g.revision == t.goal_revision
+                                            && p.preferences.earliest == g.input.earliest
+                                            && p.preferences.latest == g.input.latest
+                                            && p.preferences.group == g.input.group
+                                    })
+                                    && operations.iter().any(|op| {
+                                        op.action.payload["kind"] == "join"
+                                            && f.activity.revision > op.revision
+                                            && t.steps.iter().any(|step| {
+                                                step.operation_id.as_deref() == Some(op.id.as_str())
+                                                    && step.status == TaskStatus::Completed
+                                            })
+                                    })
+                            } else {
+                                t.registration_sequence
+                                    .is_some_and(|before| p.joined > before)
+                            }
                             && matches!(
                                 p.status,
                                 crate::PersonStatus::Confirmed

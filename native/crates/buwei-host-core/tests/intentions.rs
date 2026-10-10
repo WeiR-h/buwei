@@ -51,6 +51,7 @@ fn goal(a: &Activity, kind: GoalKind) -> GoalInput {
         },
         recurrence_days: None,
         preparation_hours: 24,
+        availability: None,
     }
 }
 #[test]

@@ -121,6 +121,7 @@ pub(crate) struct View {
     pub goal_form: Option<intentions::GoalForm>,
     pub goal_sources: String,
     pub goal_id: Option<String>,
+    pub goal_correction: Option<(String, String, bool)>,
     pub personal_preferences: Option<buwei_host_core::assistance::PersonalPreferences>,
     pub intention_result: String,
     pub assistance_cards: Vec<buwei_host_core::proactive::AssistanceCard>,
