@@ -10,7 +10,7 @@ INTENT_STAGES={
  (0,2,5):('explicit_feedback_and_undo','next_activity_preparation','proactive_value_comparison'),
 }
 READING_REQUIRED=('weekly_availability_and_privacy','sparse_goal_correction','correction_independent_acceptance',
-                  'reading_correction_five_loops','three_identity_reading_trial',
+                  'reading_correction_five_loops','reading_update_recovery','three_identity_reading_trial',
                   'continuous_operation_video','recovery_technical_video')
 def check(path):
     report=json.loads(path.read_text('utf8'))
@@ -33,6 +33,9 @@ def check(path):
             rounds=evidence.get('controlled_two_identity_rounds',[])
             if len(rounds)!=5 or any(len(r.get('events',[]))!=5 or any(e.get('service_event_count')!=1 for e in r['events']) or not all(r.get(k) is True for k in ('queue_position_preserved','original_task_preserved','goal_and_registration_confirmed_separately','preferences_unchanged','stale_preview_rejected')) for r in rounds):failures.append(name)
         if name=='three_identity_reading_trial' and (evidence.get('distinct_identities',0)<3 or evidence.get('actual_user_trial') is not True):failures.append(name)
+        if name=='reading_update_recovery':
+            cases=evidence.get('controlled_two_identity_rounds',[])
+            if len(cases)!=2 or {c.get('fault') for c in cases}!={'lost_ack','crash_before_receipt'} or any(c.get('native_process_restarted') is not True or c.get('original_operation_recovered') is not True or c.get('blind_resends')!=0 or c.get('original_task_preserved') is not True or any(e.get('service_event_count')!=1 for e in c.get('events',[])) for c in cases):failures.append(name)
         if name in ('continuous_operation_video','recovery_technical_video') and evidence.get('continuous_native_capture') is not True:failures.append(name)
     return {'version':report['version'],'stable_release_allowed':not failures,'missing_or_failed':failures}
 if __name__=='__main__':
