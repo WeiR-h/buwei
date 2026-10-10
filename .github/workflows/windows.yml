@@ -5,8 +5,8 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: windows-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
 jobs:
   clean-windows:
     runs-on: windows-2025
@@ -16,6 +16,8 @@ jobs:
       RUSTUP_TOOLCHAIN: 1.98.0-x86_64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -29,11 +31,13 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
+            .deps
             .run/cargo-home/registry
             .run/cargo-home/git
             native/target
-          key: windows-msvc-v5-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-${{ hashFiles('native/Cargo.lock') }}
+          key: windows-msvc-v6-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-${{ hashFiles('native/Cargo.lock') }}
           restore-keys: |
+            windows-msvc-v6-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-
             windows-msvc-v5-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-
             windows-msvc-v5-
       - name: Verify or download pinned official dependencies
@@ -57,6 +61,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
+            .deps
             .run/cargo-home/registry
             .run/cargo-home/git
             native/target

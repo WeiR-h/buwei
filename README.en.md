@@ -16,7 +16,7 @@ Participants use their own Rinx identities. Verified server receipts distinguish
 
 [Download for Windows](https://github.com/WeiR-h/buwei/releases/latest) · [Chinese guide](docs/FIRST-RUN.md) · [Privacy](docs/PRIVACY.md) · [Support](https://github.com/WeiR-h/buwei/issues)
 
-The current source is the **v0.2.3 release candidate**. The version available for download is stated on its Release page.
+The current source version is **v0.2.3**. Runtime downloads and walkthroughs are provided with the corresponding fixed Release.
 
 BuWei uses pinned official OctoSense and Rinx 1.1.0 sources and ships as a native Windows host extension with organizer and participant entry points. Participants sign up and reply with their own Rinx identities; the organizer verifies results before displaying a confirmed place.
 

@@ -22,6 +22,7 @@ def main():
     if host.exists():
         if not (host/'.git').exists():raise RuntimeError('Existing dependency snapshot preserved. A clean checkout is required for reproducible bootstrap.')
         if git(host,'rev-parse','HEAD')!=PIN:raise RuntimeError('Existing dependency revision differs; preserved.')
+        if git(host,'status','--porcelain','--untracked-files=no'):raise RuntimeError('Modified official OctoSense host preserved; fixed sources required.')
     else:
         cache=args.source_cache/'OctoSense' if args.source_cache else None
         if cache and cache.exists():call('git','clone','--shared','--no-checkout',str(cache),str(host))

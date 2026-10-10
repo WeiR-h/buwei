@@ -13,9 +13,9 @@
 
 ## 本次提交
 
-当前候选版本为 **v0.2.3**，统一提供活动管理、本人目标、主动建议、持续任务及授权回执流程。候选源码中的目标变更会使尚未执行的旧预览失效，恢复任务沿原操作编号核实结果。
+当前源码版本为 **v0.2.3**，统一提供活动管理、本人目标、主动建议、持续任务及授权回执流程。修改目标会使尚未执行的旧预览失效，恢复任务沿原操作编号核实结果。
 
-正式运行包、三分钟操作讲解、隐私文件和 SHA-256 清单在本轮综合验收完成后发布。评审与用户使用对应固定 Release 的源码和附件；[正式下载](https://github.com/WeiR-h/buwei/releases/latest)以 Release 状态为准。
+对应固定 Release 提供运行包、三分钟操作讲解、隐私文件和 SHA-256 清单。评审与用户使用该 Release 的源码和附件；[正式下载](https://github.com/WeiR-h/buwei/releases/latest)以 Release 状态为准。
 
 作品发布形式为完整 Windows 原生宿主扩展。App Hub 商店不接纳原生项目；[原接入沟通记录](https://github.com/OctoSense-org/OctoSense-App-Hub/issues/110)保留。官方宿主的原生收录另按上游源码评审推进。
 

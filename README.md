@@ -19,13 +19,13 @@
 - AI 帮助生成活动草稿、理解报名、解释候补和准备有事实依据的活动小记。
 - 发送中断后沿原操作编号核实结果，避免重复邀请或发布。
 
-![活动与候补](assets/screenshots/02-organizer.png)
+![成员收到主动邀请建议](assets/screenshots/03-participant.png)
 
 ## 下载
 
 [下载正式 Windows 版本](https://github.com/WeiR-h/buwei/releases/latest)
 
-当前源码为 **v0.2.3 发布候选**，正式下载以 Release 标注的版本为准。
+当前源码版本为 **v0.2.3**，下载包及操作讲解以对应固定 Release 为准。
 
 应用使用固定版本的官方 OctoSense 与 Rinx 1.1.0，提供组织者和参与者入口。成员使用自己的 Rinx 身份报名和回复，组织者核验结果后显示最终报名状态。
 

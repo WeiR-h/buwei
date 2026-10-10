@@ -14,10 +14,26 @@ from unittest.mock import patch
 from intent_acceptance import IntentSuite
 import stage_release
 import build_proof,package
+import bootstrap
 from types import SimpleNamespace
 from formal_control import Control
+from capture_native import redaction_targets
 
 class ReleaseTools(unittest.TestCase):
+    def test_cached_official_host_mutation_stops_before_setup_and_is_preserved(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);host=root/'.deps/octosense';host.mkdir(parents=True)
+            subprocess.run(['git','init','-q',str(host)],check=True)
+            source=host/'official.rs';source.write_text('reviewed source\n','utf8')
+            subprocess.run(['git','-C',str(host),'-c','core.autocrlf=false','add','official.rs'],check=True)
+            subprocess.run(['git','-C',str(host),'-c','user.name=CacheIntegrityTest','-c','user.email=cache@example.invalid','-c','commit.gpgsign=false','commit','-qm','fixture'],check=True)
+            commit=subprocess.check_output(['git','-C',str(host),'rev-parse','HEAD'],text=True).strip()
+            source.write_text('unexpected cached host change\n','utf8')
+            with patch.object(bootstrap,'ROOT',root),patch.object(bootstrap,'PIN',commit),patch.object(bootstrap,'call') as setup,patch.object(sys,'argv',['bootstrap.py']),patch.dict(os.environ,dict(os.environ),clear=True):
+                with self.assertRaisesRegex(RuntimeError,'Modified official OctoSense host preserved'):bootstrap.main()
+                setup.assert_not_called()
+            self.assertEqual(source.read_text('utf8'),'unexpected cached host change\n')
+            self.assertEqual(subprocess.check_output(['git','-C',str(host),'rev-parse','HEAD'],text=True).strip(),commit)
     def test_authorization_only_retries_definitely_unsent_preflight_preview(self):
         control=Control.__new__(Control)
         control.command=unittest.mock.Mock(side_effect=[
@@ -314,4 +330,29 @@ class ReleaseTools(unittest.TestCase):
             measured={'version':'0.2.0','passed':True,'independent_cases':100,'critical_information_accuracy':0.96,'unauthorized_actions':0};proof.write_text(json.dumps(measured),'utf8');self.assertTrue(check(path)['stable_release_allowed'])
             for field,value in [('independent_cases',99),('critical_information_accuracy',0.94),('unauthorized_actions',1)]:
                 proof.write_text(json.dumps({**measured,field:value}),'utf8');self.assertFalse(check(path)['stable_release_allowed'])
+class NativeCapturePrivacyTests(unittest.TestCase):
+    """Invented privacy strings; actual private capture fixtures stay local."""
+    def test_registration_facts_remain_outside_private_account_line(self):
+        widget={'i':'participant_preview','ty':'Label','r':[44,714,1312,96],
+                't':'账号：@example:example.org\n活动：六人羽毛球\n操作：登记候补，19:30 至 21:30，2 人\n请确认以上内容'}
+        self.assertEqual(redaction_targets(widget),[(44,714,1312,24)])
+    def test_activity_preserves_time_place_and_capacity_lines(self):
+        widget={'i':'activity','ty':'Label','r':[20,100,1312,78],
+                't':'六人羽毛球\n19:30 至 21:30\n地点：球馆\n说明：同行不拆组\n已确认 2 · 剩余 4\n房间：!example:example.org'}
+        self.assertEqual(redaction_targets(widget),[(20,165,1312,13)])
+    def test_html_unknown_labels_and_wrapped_text_use_full_cover(self):
+        text='账号：@example:example.org\n活动：羽毛球\n操作：报名 2 人\n请确认'
+        for changed in [{'ty':'Html'}, {'i':'other'}, {'r':[0,0,80,96]}, {'t':text+'\n多一行'}, {'r':[0,0,1312,140]}]:
+            widget={'i':'participant_preview','ty':'Label','r':[0,0,1312,96],'t':text,**changed}
+            self.assertEqual(redaction_targets(widget),[widget['r']])
+    def test_long_parameter_json_does_not_use_line_mask(self):
+        widget={'i':'history','ty':'Label','r':[10,20,1312,96],
+                't':'已确认\n参数：'+('a'*32)+'\n人数 2\n回执已核验'}
+        self.assertEqual(redaction_targets(widget),[widget['r']])
+    def test_non_private_or_zero_sized_widgets_are_unchanged(self):
+        widget={'i':'participant_preview','ty':'Label','r':[0,0,1312,96],'t':'活动\n19:30\n2 人\n请确认'}
+        self.assertEqual(redaction_targets(widget),[])
+        widget.update(t='@example:example.org',r=[0,0,0,0])
+        self.assertEqual(redaction_targets(widget),[])
+
 if __name__=='__main__':unittest.main()
