@@ -77,7 +77,9 @@ def run(args):
             snapshot=request(control,'Refresh');activities=snapshot.get('activities',[])
             index=next((i for i,a in enumerate(activities) if not a['metadata']['archived'] and a['owner']==binding['account'] and '验收' in a['title']),None)
             if index is None:break
-            request(control,'SelectActivity',index);request(control,'ArchiveActivity')
+            chosen=request(control,'SelectActivity',index)
+            control=Control(profile,binding['account'],chosen['activity']['room'])
+            request(control,'ArchiveActivity')
         identifier,_,_=setup_activity(h,template='reading',capacity=1);h.activity_id=identifier
         suite=ReadingSuite(h,args.private_trace,identifier);report=suite.run_reading(args.rounds)
         args.output.parent.mkdir(parents=True,exist_ok=True);args.output.write_text(json.dumps(report,indent=2),'utf8')

@@ -593,7 +593,7 @@ mod tests {
         let normalized = std::str::from_utf8(bytes).unwrap().replace("\r\n", "\n");
         assert_eq!(
             hex::encode(Sha256::digest(normalized.as_bytes())),
-            "ba867d8f41e02dcb6d042a200c0fc704ec60d4240d92a386e38bbe8479b74934"
+            "b1060a997ff7873eb5b7bbb6b3bda00e3298f8f6b48cedbe23c2a0cbba52d2d4"
         );
         let suite: Suite = serde_json::from_slice(bytes).unwrap();
         assert_eq!(suite.data_class, "synthetic");
