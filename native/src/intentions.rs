@@ -1,5 +1,6 @@
 //! Intention UI adapter. Account identity always comes from the native host.
 use super::*;
+use buwei_host_core::assistance_tasks::TaskStatus;
 use buwei_host_core::intent_feedback::FeedbackScope;
 use buwei_host_core::proactive::*;
 use buwei_host_core::{assistance::*, calendar, catalog::Catalog};
