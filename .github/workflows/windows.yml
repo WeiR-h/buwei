@@ -70,6 +70,8 @@ jobs:
           python tools/package_scan.py .run/windows-package --output .run/startup-evidence/package-privacy.json
       - name: Start on fresh Windows profile
         shell: pwsh
+        env:
+          MAKEPAD_FORCE_SOFTWARE_GPU: '1'
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           python tools/startup_check.py .run/windows-package --output .run/startup-evidence
@@ -98,6 +100,8 @@ jobs:
           path: downloaded
       - name: Verify downloaded package without source or dependency checkout
         shell: pwsh
+        env:
+          MAKEPAD_FORCE_SOFTWARE_GPU: '1'
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           if (Test-Path native) { throw 'Source unexpectedly present' }
@@ -105,6 +109,7 @@ jobs:
           python downloaded/windows-package/tools/package_scan.py downloaded/windows-package --output .run/fresh-runtime/package-privacy.json
           python downloaded/windows-package/tools/startup_check.py downloaded/windows-package --output .run/fresh-runtime
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: fresh-windows-runtime
           path: |

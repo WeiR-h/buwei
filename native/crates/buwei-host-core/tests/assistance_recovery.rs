@@ -244,6 +244,231 @@ fn a_previous_decline_cannot_complete_a_new_registration_task() {
     assert_eq!(s.load().unwrap().tasks[0].status, TaskStatus::Completed);
 }
 #[test]
+fn expired_registration_completes_only_after_a_verified_current_result() {
+    let (mut s, mut a, now) = setup("@member:test");
+    let card = s
+        .refresh_cards(&[fact(a.clone(), now)], now)
+        .unwrap()
+        .into_iter()
+        .find(|c| c.action == SuggestedAction::Register)
+        .unwrap();
+    let task = s.start_task(&card.id, &card.fingerprint, now).unwrap();
+    let mut op = preview(
+        "@member:test",
+        &a.room,
+        "participate",
+        json!({"kind":"join"}),
+        now,
+    );
+    op.status = Status::Confirmed;
+    op.receipt = Some(Receipt {
+        status: Status::Confirmed,
+        evidence: Some(Evidence {
+            operation_id: op.id.clone(),
+            external_id: "$current-registration".into(),
+            account: op.account.clone(),
+            target: op.action.target.clone(),
+            digest: op.digest.clone(),
+        }),
+        message: "合成回执".into(),
+    });
+    a.join_own(
+        "@member:test".into(),
+        "合成成员".into(),
+        Preferences {
+            earliest: a.start,
+            latest: a.end,
+            group: 1,
+        },
+    )
+    .unwrap();
+    s.follow_tasks(&[fact(a.clone(), now + 1)], &[op.clone()], now + 1)
+        .unwrap();
+    assert_eq!(s.load().unwrap().tasks[0].status, TaskStatus::WaitingReply);
+
+    a.people[0].status = PersonStatus::Expired;
+    let mut incomplete = fact(a.clone(), now + 2);
+    incomplete.complete = false;
+    s.follow_tasks(&[incomplete], &[op.clone()], now + 2)
+        .unwrap();
+    assert_eq!(s.load().unwrap().tasks[0].status, TaskStatus::WaitingReply);
+    s.follow_tasks(&[fact(a, now + 3)], &[op.clone()], now + 3)
+        .unwrap();
+    let finished = s.load().unwrap().tasks.remove(0);
+    assert_eq!(finished.id, task.id);
+    assert_eq!(finished.status, TaskStatus::Completed);
+    assert_eq!(
+        finished
+            .steps
+            .iter()
+            .filter(|step| { step.operation_id.as_deref() == Some(op.id.as_str()) })
+            .count(),
+        1
+    );
+    assert!(finished.steps.iter().any(|step| {
+        step.label == "业务结果已核验" && step.status == TaskStatus::Completed
+    }));
+}
+
+#[test]
+fn unsent_confirmation_checks_persisted_and_not_yet_linked_task_goals() {
+    for linked in [false, true] {
+        for change in [
+            "edit",
+            "pause_goal",
+            "complete_goal",
+            "delete_goal",
+            "pause_task",
+            "feedback",
+            "undo_feedback",
+        ] {
+            let (mut s, a, now) = setup("@member:test");
+            let card = s
+                .refresh_cards(&[fact(a.clone(), now)], now)
+                .unwrap()
+                .remove(0);
+            let task = s.start_task(&card.id, &card.fingerprint, now).unwrap();
+            let mut op = preview(
+                "@member:test",
+                &a.room,
+                "participate",
+                json!({"kind":"join"}),
+                now,
+            );
+            let active = if linked { None } else { Some(task.id.as_str()) };
+            if linked {
+                s.link_operation(&task.id, &op, now).unwrap();
+            }
+            assert!(s.check_operation_confirmation(&op, active).is_ok());
+            let goal_id = task.goal_id.as_deref().unwrap();
+            match change {
+                "edit" => {
+                    let mut input = s.load().unwrap().goals[0].input.clone();
+                    input.group = 2;
+                    s.save_goal(Some(goal_id), input, &[a.clone()], now + 1)
+                        .unwrap();
+                }
+                "pause_goal" => s
+                    .set_goal_status(goal_id, GoalStatus::Paused, now + 1)
+                    .unwrap(),
+                "complete_goal" => s
+                    .set_goal_status(goal_id, GoalStatus::Completed, now + 1)
+                    .unwrap(),
+                "delete_goal" => s.delete_goal(goal_id).unwrap(),
+                "pause_task" => s.pause_task(&task.id, now + 1).unwrap(),
+                "feedback" | "undo_feedback" => {
+                    let feedback = s
+                        .feedback(
+                            goal_id,
+                            "badminton".into(),
+                            2,
+                            buwei_host_core::intent_feedback::FeedbackScope::ThisOccasion,
+                            &[a.clone()],
+                            now + 1,
+                        )
+                        .unwrap();
+                    if change == "undo_feedback" {
+                        s.undo_feedback(&feedback.id, now + 2).unwrap();
+                    }
+                }
+                _ => unreachable!(),
+            }
+            for status in [Status::Prepared, Status::Queued] {
+                op.status = status;
+                assert!(
+                    s.check_operation_confirmation(&op, active).is_err(),
+                    "{change}, linked={linked}, status={status:?}"
+                );
+            }
+            // Stopping a task cannot discard an uncertain or verified old send.
+            for status in [Status::Dispatching, Status::Unknown, Status::Confirmed] {
+                op.status = status;
+                assert!(s.check_operation_confirmation(&op, active).is_ok());
+            }
+        }
+    }
+}
+
+#[test]
+fn a_fresh_manual_confirmation_remains_available_and_account_scoped() {
+    let (mut s, a, now) = setup("@member:test");
+    let goal_id = s.load().unwrap().goals[0].id.clone();
+    s.set_goal_status(&goal_id, GoalStatus::Paused, now + 1)
+        .unwrap();
+    let mut manual = preview(
+        "@member:test",
+        &a.room,
+        "participate",
+        json!({"kind":"join"}),
+        now + 2,
+    );
+    assert!(s.check_operation_confirmation(&manual, None).is_ok());
+    manual.account = "@other:test".into();
+    assert!(s.check_operation_confirmation(&manual, None).is_err());
+}
+
+#[test]
+fn persisted_preview_binding_blocks_confirmation_if_journal_cancellation_fails() {
+    for pause_task in [false, true] {
+        let (mut store, activity, clock) = setup("@member:test");
+        let card = store
+            .refresh_cards(&[fact(activity.clone(), clock)], clock)
+            .unwrap()
+            .remove(0);
+        let task = store
+            .start_task(&card.id, &card.fingerprint, clock)
+            .unwrap();
+        let mut operation = preview(
+            "@member:test",
+            &activity.room,
+            "participate",
+            json!({"kind":"join"}),
+            clock,
+        );
+        let unrelated = preview(
+            "@member:test",
+            "!other:test",
+            "participate",
+            json!({"kind":"join"}),
+            clock,
+        );
+        store
+            .retain_task_previews(&task.id, &[operation.clone(), unrelated], clock)
+            .unwrap();
+        if pause_task {
+            store.pause_task(&task.id, clock + 1).unwrap();
+        } else {
+            store
+                .set_goal_status(
+                    task.goal_id.as_deref().unwrap(),
+                    GoalStatus::Paused,
+                    clock + 1,
+                )
+                .unwrap();
+        }
+        // Model a failed journal cancellation: the original preview stays
+        // Prepared even after the window's active task context is cleared.
+        assert!(
+            store
+                .check_operation_confirmation(&operation, None)
+                .is_err()
+        );
+        let retained = store.load().unwrap().tasks.remove(0);
+        let references = retained
+            .steps
+            .iter()
+            .filter_map(|step| step.operation_id.as_deref())
+            .collect::<Vec<_>>();
+        assert_eq!(references, [operation.id.as_str()]);
+        assert_eq!(retained.id, task.id);
+        for status in [Status::Dispatching, Status::Unknown, Status::Confirmed] {
+            operation.status = status;
+            assert!(store.check_operation_confirmation(&operation, None).is_ok());
+        }
+    }
+}
+
+#[test]
 fn invitation_task_rejects_a_reply_to_a_different_invitation() {
     let (mut s, mut a, now) = setup("@member:test");
     a.join_own(

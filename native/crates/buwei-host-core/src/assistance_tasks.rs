@@ -79,6 +79,72 @@ fn belongs(t: &AssistanceTask, op: &Operation) -> bool {
     }
 }
 impl IntentStore {
+    /// Preserve a preview's task binding before changing its goal or status.
+    /// If the receipt journal cannot cancel afterwards, confirmation still checks
+    /// the persisted task instead of treating the preview as a manual action.
+    pub fn retain_task_previews(
+        &mut self,
+        task_id: &str,
+        operations: &[Operation],
+        clock: u64,
+    ) -> Result<()> {
+        let state = self.load()?;
+        let task = state
+            .tasks
+            .iter()
+            .find(|task| task.id == task_id)
+            .ok_or("原任务已不存在，请重新核对操作")?;
+        let previews = operations
+            .iter()
+            .filter(|op| {
+                matches!(op.status, Status::Prepared | Status::Queued) && belongs(task, op)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        for operation in previews {
+            self.link_operation(task_id, &operation, clock)?;
+        }
+        Ok(())
+    }
+
+    /// A task's original preview cannot outlive the goal or an explicit pause.
+    /// Already dispatched operations retain their identity and recovery path.
+    pub fn check_operation_confirmation(
+        &self,
+        op: &Operation,
+        active_task: Option<&str>,
+    ) -> Result<()> {
+        let state = self.load()?;
+        if op.account != state.account {
+            return Err("旧账号操作不能确认本人的任务".into());
+        }
+        if !matches!(op.status, Status::Prepared | Status::Queued) {
+            return Ok(());
+        }
+        if active_task.is_some_and(|id| !state.tasks.iter().any(|task| task.id == id)) {
+            return Err("原任务已不存在，请重新核对操作".into());
+        }
+        for task in state.tasks.iter().filter(|task| {
+            task.steps
+                .iter()
+                .any(|step| step.operation_id.as_deref() == Some(op.id.as_str()))
+                || active_task == Some(task.id.as_str()) && belongs(task, op)
+        }) {
+            if matches!(task.status, TaskStatus::Paused | TaskStatus::Completed)
+                || task.goal_id.as_ref().is_some_and(|id| {
+                    !state.goals.iter().any(|goal| {
+                        &goal.id == id
+                            && goal.revision == task.goal_revision
+                            && goal.status == GoalStatus::Active
+                    })
+                })
+            {
+                return Err("任务或目标已变化，旧确认失效，请核对最新建议并重新预览".into());
+            }
+        }
+        Ok(())
+    }
+
     pub fn start_task(
         &mut self,
         id: &str,
@@ -325,6 +391,7 @@ impl IntentStore {
                                 crate::PersonStatus::Confirmed
                                     | crate::PersonStatus::Declined
                                     | crate::PersonStatus::Cancelled
+                                    | crate::PersonStatus::Expired
                             )
                     }),
                     SuggestedAction::ReviewInvitation => operations.iter().any(|op| {

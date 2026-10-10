@@ -1,8 +1,10 @@
-import json,pathlib,sqlite3,tempfile,unittest,struct,subprocess,sys,hashlib,os,shutil,zlib
+import json,pathlib,sqlite3,tempfile,unittest,struct,subprocess,sys,hashlib,os,shutil,zlib,zipfile,io,urllib.error
 from contextlib import closing
 from migrate import migrate
 from release_gate import check,REQUIRED,COMMUNITY_REQUIRED,INTENT_STAGES
 from startup_check import inspect_log,rendered_window,frame_visibility
+from startup_check import check as check_startup
+from startup_check import normal_shutdown,remote_busy
 from package_scan import content_findings,BINARY_PUBLIC_LITERALS
 from pe_stack import normalize
 from fault_acceptance import FaultSuite
@@ -10,8 +12,64 @@ from dual_acceptance import Suite
 from verify_public_download import formal_checksums,check_release_metadata
 from unittest.mock import patch
 from intent_acceptance import IntentSuite
+import stage_release
+from types import SimpleNamespace
 
 class ReleaseTools(unittest.TestCase):
+    def test_shutdown_waits_for_original_busy_command_and_requires_normal_exit(self):
+        def error(message='timeout (app busy or not running its event loop)',code=404):
+            return urllib.error.HTTPError('http://localhost/quit',code,'failed',{},io.BytesIO(json.dumps({'err':message}).encode()))
+        process=unittest.mock.Mock();process.wait.return_value=0
+        get=unittest.mock.Mock(side_effect=error())
+        self.assertFalse(normal_shutdown(process,get));get.assert_called_once_with('quit')
+        process.wait.assert_called_once_with(timeout=25)
+        for exception in [error('no route'),error(code=503)]:
+            get=unittest.mock.Mock(side_effect=exception)
+            with self.assertRaises(urllib.error.HTTPError):normal_shutdown(process,get)
+        process.wait.return_value=1
+        with self.assertRaises(AssertionError):normal_shutdown(process,unittest.mock.Mock(side_effect=error()))
+        process.wait.side_effect=subprocess.TimeoutExpired('native',25)
+        with self.assertRaises(subprocess.TimeoutExpired):normal_shutdown(process,unittest.mock.Mock(side_effect=error()))
+        self.assertFalse(remote_busy(urllib.error.HTTPError('http://localhost/g',404,'failed',{},io.BytesIO(b'not-json'))))
+    def test_release_stages_matching_privacy_as_a_hashed_formal_attachment(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);source=root/'source';package=root/'package';destination=root/'attachments'
+            for folder in (source/'docs',package/'docs'):folder.mkdir(parents=True)
+            text='Privacy: credentials remain on the local host.\n'
+            for folder in (source,package):(folder/'docs/PRIVACY.md').write_text(text,'utf8')
+            release=dict(version='0.2.3',dependency_lock_sha256='lock',build_proof=dict(native_source_sha256='source',source_commit='commit'))
+            (package/'release.json').write_text(json.dumps(release),'utf8')
+            video=root/'demo.mp4';video.write_bytes(b'public-demo')
+            video_report=root/'video.json';video_report.write_text(json.dumps(dict(passed=True,version='0.2.3',video_sha256=hashlib.sha256(video.read_bytes()).hexdigest())),'utf8')
+            args=SimpleNamespace(package=package,destination=destination,video=video,video_report=video_report)
+            with patch.object(stage_release,'ROOT',source),patch.object(stage_release,'scan_source',return_value=dict(passed=True)),patch.object(stage_release,'scan',return_value=dict(passed=True)),patch.object(stage_release,'source_fingerprint',return_value='source'),patch.object(stage_release,'digest',return_value='lock'),patch.object(stage_release.subprocess,'check_output',side_effect=['','commit']):
+                record=stage_release.stage(args)
+            self.assertEqual(record['prepared_files'],4);self.assertFalse(record['publicly_published'])
+            self.assertEqual((destination/'PRIVACY.md').read_bytes(),(package/'docs/PRIVACY.md').read_bytes())
+            hashes=formal_checksums((destination/'SHA256SUMS.txt').read_text('utf8'),'0.2.3')
+            self.assertEqual(hashes['PRIVACY.md'],hashlib.sha256((destination/'PRIVACY.md').read_bytes()).hexdigest())
+            self.assertEqual(set(p.name for p in destination.iterdir()),set(hashes)|{'SHA256SUMS.txt'})
+            with zipfile.ZipFile(destination/'BuWei-v0.2.3-windows-x64.zip') as archive:
+                self.assertEqual(archive.read('docs/PRIVACY.md'),(destination/'PRIVACY.md').read_bytes())
+            (package/'docs/PRIVACY.md').write_text('old notice','utf8')
+            with patch.object(stage_release,'ROOT',source),patch.object(stage_release,'scan_source',return_value=dict(passed=True)),patch.object(stage_release,'scan',return_value=dict(passed=True)),patch.object(stage_release,'source_fingerprint',return_value='source'),patch.object(stage_release,'digest',return_value='lock'):
+                with self.assertRaisesRegex(RuntimeError,'privacy notice differs'):stage_release.stage(args)
+    def test_failed_native_startup_retains_public_diagnostics_and_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);package=root/'package';native=package/'native';native.mkdir(parents=True)
+            binary=native/'buwei-rinx-dual-host.exe';binary.write_bytes(b'fresh-native-fixture')
+            (package/'release.json').write_text(json.dumps({'version':'0.2.2','native_binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest()}),'utf8')
+            process=unittest.mock.Mock();process.poll.return_value=None;process.wait.return_value=0
+            opener=unittest.mock.Mock();opener.open.side_effect=ConnectionRefusedError('offline fixture')
+            with patch('startup_check.subprocess.Popen',return_value=process),patch('startup_check.urllib.request.build_opener',return_value=opener),patch('startup_check.time.monotonic',side_effect=[0,61]):
+                with self.assertRaisesRegex(TimeoutError,'Native startup/render timed out'):
+                    check_startup(package,root/'output')
+            report=json.loads((root/'output/startup.json').read_text('utf8'))
+            self.assertFalse(report['passed']);self.assertFalse(report['actual_native_render'])
+            self.assertEqual(report['failure_phase'],'native_startup')
+            self.assertEqual(report['failure_type'],'TimeoutError')
+            self.assertNotIn('native_log',report);self.assertNotIn('widgets',report)
+            process.terminate.assert_called_once()
     def test_download_keeps_preview_and_draft_release_boundaries(self):
         release=dict(draft=False,prerelease=True,assets=[dict(name='runtime.zip')])
         with self.assertRaises(ValueError):check_release_metadata(release,{'runtime.zip'})
@@ -93,6 +151,9 @@ class ReleaseTools(unittest.TestCase):
         self.assertEqual(len(formal_checksums(lines,'0.2.0')),2)
         for invalid in [lines+lines.splitlines()[0]+'\n',lines+'c'*64+'  developer-report.json\n',lines.replace('0.2.0-demo','0.1.1-demo')]:
             with self.assertRaises(ValueError):formal_checksums(invalid,'0.2.0')
+        current=lines.replace('0.2.0','0.2.3')
+        with self.assertRaises(ValueError):formal_checksums(current,'0.2.3')
+        self.assertEqual(len(formal_checksums(current+'c'*64+'  PRIVACY.md\n','0.2.3')),3)
     def test_startup_capture_selects_visible_app_and_rejects_hidden_labels(self):
         windows={'w':[{'i':0,'sz':[1024,720]},{'i':1,'sz':[1400,900]}]}
         labels=[{'w':1,'ty':'Label','r':[30,100+n*25,400,20],'t':t} for n,t in enumerate(['补位','v0.2.0','未授权'])]

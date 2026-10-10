@@ -536,6 +536,15 @@ impl Controller {
                 _ => {}
             }
         }
+        let confirmation = match &command {
+            Command::ConfirmParticipant(_) => self.participant_current.as_ref(),
+            Command::Execute => self.current.as_ref(),
+            Command::ConfirmShare(_) => self.share_current.as_ref(),
+            _ => None,
+        };
+        if let Some(operation) = confirmation {
+            self.check_assistance_confirmation(operation)?;
+        }
         if community::is_community_command(&command) {
             return self.apply_community(command);
         }

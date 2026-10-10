@@ -12,7 +12,11 @@ def formal_checksums(text,version):
         if not re.fullmatch('[0-9a-f]{64}',expected) or name in hashes:raise ValueError('Invalid or duplicate checksum')
         hashes[name]=expected
     wanted={f'BuWei-v{version}-windows-x64.zip',f'BuWei-v{version}-demo.mp4'}
-    if set(hashes)!=wanted:raise ValueError('Formal release must contain exactly the runtime and demonstration checksums')
+    if tuple(int(p) for p in version.split('.'))>=(0,2,3):wanted.add('PRIVACY.md')
+    # Frozen older releases retain their original attachments. A newly staged
+    # privacy notice is also valid when reusing the older package format.
+    if 'PRIVACY.md' in hashes:wanted.add('PRIVACY.md')
+    if set(hashes)!=wanted:raise ValueError('Formal release attachment checksums differ')
     return hashes
 
 def check_release_metadata(published,asset_names,allow_preview=False):
@@ -63,6 +67,8 @@ def verify(a):
         print('Verified public asset: '+name,flush=True)
     package=a.destination/'windows';extract(a.destination/('BuWei-v'+version+'-windows-x64.zip'),package)
     release=json.loads((package/'release.json').read_text('utf8'));proof=release['build_proof']
+    if 'PRIVACY.md' in hashes and (a.destination/'PRIVACY.md').read_bytes()!=(package/'docs/PRIVACY.md').read_bytes():
+        raise ValueError('Public privacy attachment differs from the runtime notice')
     if release['version']!=version or not proof['passed'] or proof['features']!=['full-host']:raise ValueError('Downloaded runtime is not the verified formal host')
     privacy=scan(package)
     if not privacy['passed']:raise ValueError('Downloaded package privacy check failed')
@@ -72,6 +78,8 @@ def verify(a):
     source=a.destination/'source';extract(source_zip,source)
     roots=list(source.iterdir())
     if len(roots)!=1 or not roots[0].is_dir():raise ValueError('Unexpected fixed-tag source archive')
+    if 'PRIVACY.md' in hashes and (a.destination/'PRIVACY.md').read_bytes()!=(roots[0]/'docs/PRIVACY.md').read_bytes():
+        raise ValueError('Public privacy attachment differs from the fixed-tag source')
     build_proof.ROOT=roots[0]
     if source_fingerprint()!=proof['native_source_sha256']:raise ValueError('Downloaded source differs from the binary build source')
     source_lock=hashlib.sha256((build_proof.ROOT/'dependencies.lock.json').read_bytes()).hexdigest()

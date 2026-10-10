@@ -144,6 +144,50 @@ impl GoalForm {
     }
 }
 impl Controller {
+    fn retain_assistance_previews(&mut self) -> Result<()> {
+        let Some(task_id) = self.active_task.clone() else {
+            return Ok(());
+        };
+        let previews = [
+            self.current.as_ref(),
+            self.participant_current.as_ref(),
+            self.share_current.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+        .cloned()
+        .collect::<Vec<_>>();
+        self.intent_store()?
+            .retain_task_previews(&task_id, &previews, now())
+    }
+
+    fn invalidate_assistance_previews(&mut self) -> Result<()> {
+        let grant = self.g("read")?;
+        self.journal
+            .invalidate_previews(&grant, now())
+            .map_err(|_| "目标已变化，旧预览暂不可撤销；请核实执行记录后重新预览")?;
+        for preview in [
+            &mut self.current,
+            &mut self.participant_current,
+            &mut self.share_current,
+        ] {
+            if preview
+                .as_ref()
+                .is_some_and(|op| matches!(op.status, Status::Prepared | Status::Queued))
+            {
+                *preview = None;
+            }
+        }
+        self.active_task = None;
+        Ok(())
+    }
+
+    pub(super) fn check_assistance_confirmation(&self, op: &Operation) -> Result<()> {
+        self.g("read")?;
+        self.intent_store()?
+            .check_operation_confirmation(op, self.active_task.as_deref())
+    }
+
     pub(super) fn intent_store(&self) -> Result<IntentStore> {
         IntentStore::open(&self.data, &self.actor())
     }
@@ -194,9 +238,20 @@ impl Controller {
             .collect::<Vec<_>>();
         let mut store = self.intent_store()?;
         store.refresh_cards(&facts, clock)?;
+        let task_operation_ids = store
+            .load()?
+            .tasks
+            .iter()
+            .filter(|task| task.status != TaskStatus::Completed)
+            .flat_map(|task| {
+                task.steps
+                    .iter()
+                    .filter_map(|step| step.operation_id.clone())
+            })
+            .collect::<Vec<_>>();
         let mut ops = self
             .journal
-            .recent(&self.g("read")?, clock)
+            .recent_with_references(&self.g("read")?, &task_operation_ids, clock)
             .map_err(|_| "执行记录不可读取")?;
         ops.extend(pending);
         if let Some(task) = &self.active_task {
@@ -213,6 +268,14 @@ impl Controller {
             }
         }
         store.follow_tasks(&facts, &ops, clock)?;
+        let task_state = store.load()?;
+        if self.active_task.as_ref().is_some_and(|id| {
+            !task_state.tasks.iter().any(|task| {
+                &task.id == id && !matches!(task.status, TaskStatus::Completed | TaskStatus::Paused)
+            })
+        }) {
+            self.active_task = None;
+        }
         if self.analysis_until > clock && clock.saturating_sub(self.last_analysis) >= 60 {
             let state = store.load()?;
             if let Some(card) = store
@@ -290,6 +353,17 @@ impl Controller {
     }
     pub(super) fn apply_intention(&mut self, command: IntentCommand) -> Result<String> {
         self.g("read")?;
+        if matches!(
+            &command,
+            IntentCommand::SaveGoal { .. }
+                | IntentCommand::SetGoalStatus { .. }
+                | IntentCommand::DeleteGoal(_)
+                | IntentCommand::PauseTask(_)
+                | IntentCommand::Feedback { .. }
+                | IntentCommand::UndoFeedback(_)
+        ) {
+            self.retain_assistance_previews()?;
+        }
         match command {
             IntentCommand::PreviewAnalysis => {
                 self.g("model")?;
@@ -461,6 +535,7 @@ impl Controller {
                 let mut store = self.intent_store()?;
                 let goal = store.save_goal(id.as_deref(), form.input()?, &activities, now())?;
                 let goal = store.confirm_suggestion_sources(&goal.id, &suggested_fields)?;
+                self.invalidate_assistance_previews()?;
                 self.goal_ai_draft = false;
                 self.selected_goal = Some(goal.id.clone());
                 self.goal_form = Some(GoalForm::from_goal(&goal));
@@ -469,10 +544,12 @@ impl Controller {
             }
             IntentCommand::SetGoalStatus { id, status } => {
                 self.intent_store()?.set_goal_status(&id, status, now())?;
+                self.invalidate_assistance_previews()?;
                 Ok("目标状态已更新。".into())
             }
             IntentCommand::DeleteGoal(id) => {
                 self.intent_store()?.delete_goal(&id)?;
+                self.invalidate_assistance_previews()?;
                 if self.selected_goal.as_deref() == Some(id.as_str()) {
                     self.selected_goal = None;
                     self.goal_form = None;
@@ -507,6 +584,7 @@ impl Controller {
             }
             IntentCommand::PauseTask(id) => {
                 self.intent_store()?.pause_task(&id, now())?;
+                self.invalidate_assistance_previews()?;
                 Ok("任务已暂停，已发生的操作继续沿原编号核实。".into())
             }
             IntentCommand::ResumeTask(id) => {
@@ -539,6 +617,7 @@ impl Controller {
                     &activities,
                     now(),
                 )?;
+                self.invalidate_assistance_previews()?;
                 let g = self
                     .intent_store()?
                     .load()?
@@ -557,6 +636,7 @@ impl Controller {
             }
             IntentCommand::UndoFeedback(id) => {
                 self.intent_store()?.undo_feedback(&id, now())?;
+                self.invalidate_assistance_previews()?;
                 self.goal_form = None;
                 self.selected_goal = None;
                 Ok("反馈已撤回，请重新打开目标核对。".into())

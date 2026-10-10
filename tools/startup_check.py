@@ -1,5 +1,24 @@
 """Start an actual packaged native host on a fresh profile and system-only PATH."""
-import argparse,hashlib,json,os,pathlib,re,socket,struct,subprocess,tempfile,time,urllib.request,zlib
+import argparse,hashlib,json,os,pathlib,re,socket,struct,subprocess,tempfile,time,urllib.error,urllib.request,zlib
+
+def remote_busy(error):
+    """Recognize only the pinned remote's busy reply, not other HTTP failures."""
+    if error.code!=404:return False
+    try:
+        return json.loads(error.read(1024))=={'err':'timeout (app busy or not running its event loop)'}
+    except (OSError,ValueError):return False
+
+def normal_shutdown(process,get):
+    # /quit is queued before the pinned remote's four-second reply deadline.
+    # A busy reply is ambiguous: wait for that original command to finish,
+    # and still require a normal zero exit. Do not enqueue another quit.
+    acknowledged=True
+    try:get('quit')
+    except urllib.error.HTTPError as error:
+        if not remote_busy(error):raise
+        acknowledged=False
+    if process.wait(timeout=25)!=0:raise AssertionError('Native host did not exit normally')
+    return acknowledged
 
 def inspect_log(content):
     # The pinned upstream guard deliberately defers an isolated VM call. Keep
@@ -81,6 +100,8 @@ def check(package,output):
     opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
     def get(route):return opener.open(f'http://127.0.0.1:{port}/{route}',timeout=15 if route.startswith('g?') else 5).read()
     report={'version':release['version'],'passed':False,'binary_sha256':digest,'fresh_profile':True,'system_only_path':True,'model_calls':0,'actual_native_render':False}
+    report['renderer_requested']='Windows WARP software rendering' if env.get('MAKEPAD_FORCE_SOFTWARE_GPU')=='1' else 'automatic'
+    phase='native_startup'
     with tempfile.TemporaryDirectory(prefix='buwei-clean-') as folder,open(output/'startup.private.log','wb') as log:
         command=[str(exe),folder,'--gui','--official-rinx',f'--remote={port}'];process=subprocess.Popen(command,cwd=exe.parent,env=env,stdout=log,stderr=subprocess.STDOUT)
         try:
@@ -98,33 +119,56 @@ def check(package,output):
                     raise RuntimeError('Native host exited before rendering: '+report['early_exit_hex'])
                 try:
                     snap=json.loads(get('snap?all=1'));status=json.loads(get('s'))
+                    report['remote_connected']=True
+                    report['remote_window_count']=len(status.get('w',[]))
                     window=rendered_window(snap,status,release['version'])
                     if window is not None:break
-                except (OSError,ValueError):pass
+                except (OSError,ValueError) as error:
+                    report['last_remote_error_type']=type(error).__name__
                 time.sleep(.2)
             else:raise TimeoutError('Native startup/render timed out')
+            phase='fresh_identity'
             binding=json.loads((pathlib.Path(folder)/'data'/('v'+release['version'])/'rinx-binding-status.json').read_text('utf8'))
             assert not binding['server_identity_verified'] and not binding['action_authorized']
             report['unauthenticated_and_unauthorized']=True;report['captured_window']=window
+            phase='single_writer'
             second=subprocess.run(command,cwd=exe.parent,env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=10)
             assert second.returncode!=0;report['second_writer_refused']=True
+            phase='native_frame'
             deadline=time.monotonic()+60
             while time.monotonic()<deadline:
-                snap=json.loads(get('snap?all=1'));status=json.loads(get('s'))
-                heading=next((w['r'] for w in snap['s'] if w.get('w')==window and w.get('ty')=='Label' and '刚好有位' in w.get('t','') and w.get('v',1)!=0),None)
-                surface=next(w for w in status['w'] if w['i']==window)
-                raw=get('g?w='+str(window)+'&raw=1');visibility=frame_visibility(raw,heading,surface['sz'])
+                try:
+                    snap=json.loads(get('snap?all=1'));status=json.loads(get('s'))
+                    heading=next((w['r'] for w in snap['s'] if w.get('w')==window and w.get('ty')=='Label' and '刚好有位' in w.get('t','') and w.get('v',1)!=0),None)
+                    surface=next(w for w in status['w'] if w['i']==window)
+                    raw=get('g?w='+str(window)+'&raw=1');visibility=frame_visibility(raw,heading,surface['sz'])
+                except urllib.error.HTTPError as error:
+                    if not remote_busy(error):raise
+                    report['frame_busy_replies']=report.get('frame_busy_replies',0)+1
+                    time.sleep(.5);continue
                 if heading is None:visibility['visible']=False
                 (output/'startup.png').write_bytes(raw);report['captured_frame']=visibility
                 if visibility['visible']:break
                 time.sleep(.5)
             else:raise TimeoutError('Native UI labels exist but the actual frame has no visible application body')
             report['actual_native_render']=True
-            get('quit');assert process.wait(timeout=25)==0
+            phase='normal_shutdown'
+            report['quit_acknowledged']=normal_shutdown(process,get)
             log.flush();content=(output/'startup.private.log').read_text('utf8',errors='replace')
             report['renderer']='Windows WARP software rendering' if 'using Windows WARP software rendering' in content else 'hardware D3D11'
             report['known_upstream_diagnostics']=inspect_log(content)
             report['passed']=True
+        except Exception as error:
+            # Keep a useful public failure record without copying session data,
+            # native log contents or widget snapshots into CI artifacts.
+            report['failure_phase']=phase
+            report['failure_type']=type(error).__name__
+            report['failure_message']=re.sub(r'[A-Z]:[\\/]Users[\\/][^\s\"]+', '<fresh-user-path>',str(error),flags=re.I)
+            log.flush()
+            content=(output/'startup.private.log').read_text('utf8',errors='replace')
+            report['software_renderer_observed']='using Windows WARP software rendering' in content
+            print('Fresh native startup failure:',json.dumps(report),flush=True)
+            raise
         finally:
             if process.poll() is None:
                 try:get('quit');process.wait(timeout=15)
