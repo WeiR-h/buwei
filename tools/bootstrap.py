@@ -1,7 +1,7 @@
 """Acquire the reviewed official runtime at fixed commits, without credentials."""
 import argparse, hashlib, json, pathlib, subprocess, sys, os, tempfile
 ROOT=pathlib.Path(__file__).resolve().parents[1]
-PIN='ad0d738bd1c10b735af6b34e11f5826623b6a73b'
+PIN=json.loads((ROOT/'dependencies.lock.json').read_text('utf8'))['octosense_commit']
 URL='https://github.com/OctoSense-org/OctoSense.git'
 
 def call(*args,cwd=None):
@@ -22,6 +22,7 @@ def main():
     if host.exists():
         if not (host/'.git').exists():raise RuntimeError('Existing dependency snapshot preserved. A clean checkout is required for reproducible bootstrap.')
         if git(host,'rev-parse','HEAD')!=PIN:raise RuntimeError('Existing dependency revision differs; preserved.')
+        if git(host,'status','--porcelain','--untracked-files=no'):raise RuntimeError('Modified official OctoSense host preserved; fixed sources required.')
     else:
         cache=args.source_cache/'OctoSense' if args.source_cache else None
         if cache and cache.exists():call('git','clone','--shared','--no-checkout',str(cache),str(host))
@@ -68,12 +69,29 @@ def main():
             for entry in [overlay,*overlay.get('stacked',[])]:
                 if hashlib.sha256((host/entry['patch']).read_bytes()).hexdigest()!=entry['sha256']:raise RuntimeError('Official overlay hash differs')
         elif git(source,'status','--porcelain'):raise RuntimeError('Modified framework preserved: '+name)
+    # Native App Hub and kernel sources are pinned alongside the UI frameworks.
+    # Preserve any mismatched checkout instead of resetting user-owned files.
+    for name,entry in expected.get('runtime_sources',{}).items():
+        source=host/entry['directory']
+        if not source.resolve().is_relative_to((host/'.sources').resolve()):
+            raise RuntimeError('Runtime dependency directory outside .sources: '+name)
+        if not source.exists():
+            cache=args.source_cache/name if args.source_cache else None
+            if cache and cache.exists():call('git','clone','--shared','--no-checkout',str(cache),str(source))
+            else:call('git','clone','--filter=blob:none','--no-checkout',entry['url'],str(source))
+            call('git','-C',str(source),'-c','core.longpaths=true','checkout','--detach',entry['commit'])
+        if git(source,'rev-parse','HEAD')!=entry['commit']:
+            raise RuntimeError('Runtime dependency revision mismatch: '+name)
+        if git(source,'status','--porcelain'):
+            raise RuntimeError('Modified runtime dependency preserved: '+name)
     rinx_expected=expected.get('rinx')
     if rinx_expected:
         rinx=ROOT/'.deps/rinx';rinx_patch=ROOT/rinx_expected['patch']
         if hashlib.sha256(rinx_patch.read_bytes()).hexdigest()!=rinx_expected['patch_sha256']:raise RuntimeError('Rinx patch hash mismatch')
         if not rinx.exists():
-            call('git','clone','--filter=blob:none','--no-checkout','https://github.com/hagency-org/Rinx.git',str(rinx))
+            cache=args.source_cache/'Rinx' if args.source_cache else None
+            if cache and cache.exists():call('git','clone','--shared','--no-checkout',str(cache),str(rinx))
+            else:call('git','clone','--filter=blob:none','--no-checkout','https://github.com/hagency-org/Rinx.git',str(rinx))
             call('git','-C',str(rinx),'-c','core.longpaths=true','checkout','--detach',rinx_expected['commit'])
         if git(rinx,'rev-parse','HEAD')!=rinx_expected['commit']:raise RuntimeError('Rinx revision mismatch')
         if subprocess.run(['git','-C',str(rinx),'apply','--reverse','--check',str(rinx_patch)],capture_output=True).returncode:

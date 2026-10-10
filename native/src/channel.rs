@@ -66,7 +66,7 @@ pub(crate) fn lookup(
 ) -> action_receipts::Result<Option<Evidence>> {
     #[cfg(feature = "full-host")]
     let values = if rinx_bridge::official_mode() {
-        official_sync::timeline(rt, client, room)
+        official_sync::operation_history(rt, client, room, op, kind)
             .map_err(|_| Error::State("服务器历史暂不可完整核实".into()))?
     } else {
         fixture_values(rt, client, room)?

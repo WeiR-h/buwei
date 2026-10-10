@@ -1,16 +1,65 @@
 """Start an actual packaged native host on a fresh profile and system-only PATH."""
-import argparse,hashlib,json,os,pathlib,re,socket,struct,subprocess,tempfile,time,urllib.request,zlib
+import argparse,hashlib,json,os,pathlib,re,socket,struct,subprocess,tempfile,time,urllib.error,urllib.request,zlib
+
+def startup_environment(source,show_window=False):
+    """Isolate a fresh test home; CI can show its measured native surface.
+
+    The pinned Windows backend tests the presence of MAKEPAD_HIDE_WINDOWS,
+    not its value. A visible test must therefore remove an inherited switch.
+    It still uses anonymous temporary data and the same pixel requirements.
+    """
+    env=dict(source);system=pathlib.Path(env.get('SystemRoot','C:/Windows'))
+    for key in ['CARGO_HOME','RUSTUP_HOME','CARGO_MANIFEST_DIR','RINX_DATA_DIR','OCTOSENSE_HOME','OCTOS_APP_CORE_DIR','OCTOSENSE_DEV_MODE','MAKEPAD_REMOTE','MAKEPAD_FOCUS','MAKEPAD_HIDE_WINDOWS']:env.pop(key,None)
+    env['PATH']=';'.join(str(p) for p in [system/'System32',system,system/'System32/WindowsPowerShell/v1.0'])
+    if not show_window:env['MAKEPAD_HIDE_WINDOWS']='1'
+    return env
+
+def deny_optional_rinx_agent(fresh_root,version):
+    """Choose the official optional-agent denial only in a new empty test home.
+
+    The pinned shell renders its first-use consent as a custom modal without
+    remote button labels. Its supported consent file is the deterministic
+    alternative to a blind click. This is not BuWei action authorization.
+    """
+    if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+',version):raise ValueError('Invalid fresh-profile version')
+    fresh_root=pathlib.Path(fresh_root)
+    if fresh_root.is_symlink() or not fresh_root.is_dir() or any(fresh_root.iterdir()):
+        raise RuntimeError('Optional agent choice requires a new empty test profile')
+    path=fresh_root/'data'/('v'+version)/'shell/approvals/consent.json'
+    path.parent.mkdir(parents=True)
+    record={'schema':1,'apps':{'rinx':{'allowed':False,'at':int(time.time())}}}
+    with path.open('x',encoding='utf8') as output:json.dump(record,output)
+    return path,{'app':'rinx','allowed':False,'mechanism':'pinned OctoSense consent file in new anonymous test profile','configuration_sha256':hashlib.sha256(path.read_bytes()).hexdigest()}
+
+def remote_busy(error):
+    """Recognize only the pinned remote's busy reply, not other HTTP failures."""
+    if error.code!=404:return False
+    try:
+        return json.loads(error.read(1024))=={'err':'timeout (app busy or not running its event loop)'}
+    except (OSError,ValueError):return False
+
+def normal_shutdown(process,get):
+    # /quit is queued before the pinned remote's four-second reply deadline.
+    # A busy reply is ambiguous: wait for that original command to finish,
+    # and still require a normal zero exit. Do not enqueue another quit.
+    acknowledged=True
+    try:get('quit')
+    except urllib.error.HTTPError as error:
+        if not remote_busy(error):raise
+        acknowledged=False
+    if process.wait(timeout=25)!=0:raise AssertionError('Native host did not exit normally')
+    return acknowledged
 
 def inspect_log(content):
     # The pinned upstream guard deliberately defers an isolated VM call. Keep
     # this diagnostic visible in the report; never allow other error lines.
     errors=[line for line in content.splitlines() if '[E]' in line]
     guard=re.compile(r'BUG: update_global_ui_handle while isolate SplashVmId\([1-9][0-9]*\) is installed; deferred$')
-    unexpected=[line for line in errors if not guard.search(line) or 'widget_async.rs:787:9' not in line]
+    unexpected=[line for line in errors if not guard.search(line) or 'widget_async.rs:839:9' not in line]
     if unexpected:raise AssertionError('Unexpected native error; see private startup log')
     for marker in ['Failed to load resource','on_render closure failed','instruction limit exceeded']:
         if marker in content:raise AssertionError(marker)
-    return [{'upstream_file':'makepad/widgets/src/widget_async.rs:787','diagnostic':'isolated VM global UI update safely deferred','count':len(errors),'behavior':'upstream guard deferred isolated VM update; native render and shutdown checked'}] if errors else []
+    return [{'upstream_file':'makepad/widgets/src/widget_async.rs:839','diagnostic':'isolated VM global UI update safely deferred','count':len(errors),'behavior':'upstream guard deferred isolated VM update; native render and shutdown checked'}] if errors else []
 def rendered_window(snapshot,status,version):
     """Select the visible BuWei surface, rather than the shell's first window."""
     for window in status.get('w',[]):
@@ -70,18 +119,20 @@ def frame_visibility(raw,header_rectangle=None,logical_size=None):
         ink=sum(count for color,count in header_colors.items() if sum(color)<sum(background)-120)/total
         header_visible=flat>=0.35 and sum(background)>=300 and ink>=0.001
     return {'width':width,'height':height,'body_visible_fraction':round(fraction,4),'application_header_visible':header_visible,'header_background_fraction':round(flat,4),'header_ink_fraction':round(ink,4),'visible':fraction>=0.03 and (header_rectangle is None or header_visible)}
-def check(package,output):
+def check(package,output,show_window=False):
     package=package.resolve();output.mkdir(parents=True,exist_ok=True)
     release=json.loads((package/'release.json').read_text('utf8'));exe=package/'native/buwei-rinx-dual-host.exe'
     digest=hashlib.sha256(exe.read_bytes()).hexdigest();assert digest==release['native_binary_sha256']
     with socket.socket() as s:s.bind(('127.0.0.1',0));port=s.getsockname()[1]
-    env=dict(os.environ);system=pathlib.Path(env.get('SystemRoot','C:/Windows'))
-    for key in ['CARGO_HOME','RUSTUP_HOME','CARGO_MANIFEST_DIR','RINX_DATA_DIR','OCTOSENSE_HOME','OCTOS_APP_CORE_DIR','MAKEPAD_REMOTE','MAKEPAD_FOCUS']:env.pop(key,None)
-    env['PATH']=';'.join(str(p) for p in [system/'System32',system,system/'System32/WindowsPowerShell/v1.0']);env['MAKEPAD_HIDE_WINDOWS']='1'
+    env=startup_environment(os.environ,show_window)
     opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
     def get(route):return opener.open(f'http://127.0.0.1:{port}/{route}',timeout=15 if route.startswith('g?') else 5).read()
-    report={'version':release['version'],'passed':False,'binary_sha256':digest,'fresh_profile':True,'system_only_path':True,'model_calls':0,'actual_native_render':False}
+    report={'version':release['version'],'passed':False,'binary_sha256':digest,'fresh_profile':True,'system_only_path':True,'model_calls':0,'actual_native_render':False,'developer_override_disabled':True}
+    report['window_visibility_requested']='visible' if show_window else 'hidden'
+    report['renderer_requested']='Windows WARP software rendering' if env.get('MAKEPAD_FORCE_SOFTWARE_GPU')=='1' else 'automatic'
+    phase='native_startup'
     with tempfile.TemporaryDirectory(prefix='buwei-clean-') as folder,open(output/'startup.private.log','wb') as log:
+        consent_path,report['optional_agent_choice']=deny_optional_rinx_agent(folder,release['version'])
         command=[str(exe),folder,'--gui','--official-rinx',f'--remote={port}'];process=subprocess.Popen(command,cwd=exe.parent,env=env,stdout=log,stderr=subprocess.STDOUT)
         try:
             start=time.monotonic()
@@ -98,33 +149,60 @@ def check(package,output):
                     raise RuntimeError('Native host exited before rendering: '+report['early_exit_hex'])
                 try:
                     snap=json.loads(get('snap?all=1'));status=json.loads(get('s'))
+                    report['remote_connected']=True
+                    report['remote_window_count']=len(status.get('w',[]))
                     window=rendered_window(snap,status,release['version'])
                     if window is not None:break
-                except (OSError,ValueError):pass
+                except (OSError,ValueError) as error:
+                    report['last_remote_error_type']=type(error).__name__
                 time.sleep(.2)
             else:raise TimeoutError('Native startup/render timed out')
+            phase='fresh_identity'
             binding=json.loads((pathlib.Path(folder)/'data'/('v'+release['version'])/'rinx-binding-status.json').read_text('utf8'))
             assert not binding['server_identity_verified'] and not binding['action_authorized']
+            consent=json.loads(consent_path.read_text('utf8'))
+            assert consent['schema']==1 and consent['apps']['rinx']['allowed'] is False
+            assert hashlib.sha256(consent_path.read_bytes()).hexdigest()==report['optional_agent_choice']['configuration_sha256']
+            report['optional_agent_explicitly_denied']=True
             report['unauthenticated_and_unauthorized']=True;report['captured_window']=window
+            phase='single_writer'
             second=subprocess.run(command,cwd=exe.parent,env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=10)
             assert second.returncode!=0;report['second_writer_refused']=True
+            phase='native_frame'
             deadline=time.monotonic()+60
             while time.monotonic()<deadline:
-                snap=json.loads(get('snap?all=1'));status=json.loads(get('s'))
-                heading=next((w['r'] for w in snap['s'] if w.get('w')==window and w.get('ty')=='Label' and '刚好有位' in w.get('t','') and w.get('v',1)!=0),None)
-                surface=next(w for w in status['w'] if w['i']==window)
-                raw=get('g?w='+str(window)+'&raw=1');visibility=frame_visibility(raw,heading,surface['sz'])
+                try:
+                    snap=json.loads(get('snap?all=1'));status=json.loads(get('s'))
+                    heading=next((w['r'] for w in snap['s'] if w.get('w')==window and w.get('ty')=='Label' and '刚好有位' in w.get('t','') and w.get('v',1)!=0),None)
+                    surface=next(w for w in status['w'] if w['i']==window)
+                    raw=get('g?w='+str(window)+'&raw=1');visibility=frame_visibility(raw,heading,surface['sz'])
+                except urllib.error.HTTPError as error:
+                    if not remote_busy(error):raise
+                    report['frame_busy_replies']=report.get('frame_busy_replies',0)+1
+                    time.sleep(.5);continue
                 if heading is None:visibility['visible']=False
                 (output/'startup.png').write_bytes(raw);report['captured_frame']=visibility
                 if visibility['visible']:break
                 time.sleep(.5)
             else:raise TimeoutError('Native UI labels exist but the actual frame has no visible application body')
             report['actual_native_render']=True
-            get('quit');assert process.wait(timeout=25)==0
+            phase='normal_shutdown'
+            report['quit_acknowledged']=normal_shutdown(process,get)
             log.flush();content=(output/'startup.private.log').read_text('utf8',errors='replace')
             report['renderer']='Windows WARP software rendering' if 'using Windows WARP software rendering' in content else 'hardware D3D11'
             report['known_upstream_diagnostics']=inspect_log(content)
             report['passed']=True
+        except Exception as error:
+            # Keep a useful public failure record without copying session data,
+            # native log contents or widget snapshots into CI artifacts.
+            report['failure_phase']=phase
+            report['failure_type']=type(error).__name__
+            report['failure_message']=re.sub(r'[A-Z]:[\\/]Users[\\/][^\s\"]+', '<fresh-user-path>',str(error),flags=re.I)
+            log.flush()
+            content=(output/'startup.private.log').read_text('utf8',errors='replace')
+            report['software_renderer_observed']='using Windows WARP software rendering' in content
+            print('Fresh native startup failure:',json.dumps(report),flush=True)
+            raise
         finally:
             if process.poll() is None:
                 try:get('quit');process.wait(timeout=15)
@@ -132,4 +210,4 @@ def check(package,output):
             (output/'startup.json').write_text(json.dumps(report,indent=2),'utf8')
     return report
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('package',type=pathlib.Path);p.add_argument('--output',type=pathlib.Path,required=True);a=p.parse_args();print(json.dumps(check(a.package,a.output)))
+    p=argparse.ArgumentParser();p.add_argument('package',type=pathlib.Path);p.add_argument('--output',type=pathlib.Path,required=True);p.add_argument('--show-window',action='store_true',help='Show only the new anonymous native test window, preserving pixel verification');a=p.parse_args();print(json.dumps(check(a.package,a.output,a.show_window)))

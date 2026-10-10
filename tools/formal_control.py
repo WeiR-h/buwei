@@ -26,8 +26,14 @@ class Control:
             time.sleep(.2)
         raise TimeoutError('Host result unavailable; request ID retained. Do not resend blindly: '+request)
     def authorize(self):
-        preview=self.command('Authorize');nonce=preview.get('consent_id')
-        if not nonce:raise RuntimeError('Host consent preview unavailable')
+        for attempt in range(3):
+            preview=self.command('Authorize');nonce=preview.get('consent_id')
+            if nonce:break
+            # Only retry a definitely unsent identity preflight for the
+            # authorization preview. Execution/confirmation is never retried.
+            if preview.get('message')!='正式服务器身份核验超时；尚未执行动作' or attempt==2:
+                raise RuntimeError('Host consent preview unavailable: '+preview.get('message',''))
+            time.sleep(2)
         result=self.command('ConfirmAuthorization',nonce)
         if not result.get('authorized'):raise RuntimeError('Host did not grant consent')
         return result

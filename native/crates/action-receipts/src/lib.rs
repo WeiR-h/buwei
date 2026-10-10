@@ -385,6 +385,16 @@ impl Journal {
         op.status = Status::Cancelled;
         self.transition(&op, &[Status::Prepared, Status::Queued])
     }
+    /// A current host read grant may retire all unsent previews for its own
+    /// app/account, including previews bound to an earlier consent. Attempted
+    /// operations keep their original IDs and must still be reconciled.
+    pub fn invalidate_previews(&mut self, grant: &Grant, now: u64) -> Result<usize> {
+        grant.check("read", now)?;
+        Ok(self.db.execute(
+            "UPDATE operations SET status='cancelled',body=json_set(body,'$.status','cancelled') WHERE app=?1 AND account=?2 AND status IN ('prepared','queued')",
+            params![grant.app, grant.account],
+        )?)
+    }
     pub fn execute(
         &mut self,
         grant: &Grant,
@@ -534,5 +544,25 @@ impl Journal {
         ids.into_iter()
             .map(|id| self.receipt(grant, &id, now))
             .collect()
+    }
+    /// Task recovery is independent of the forty-row display history. Every
+    /// referenced receipt is still checked against the host's current grant.
+    pub fn recent_with_references(
+        &self,
+        grant: &Grant,
+        references: &[String],
+        now: u64,
+    ) -> Result<Vec<Operation>> {
+        let mut operations = self.recent(grant, now)?;
+        let mut seen = operations
+            .iter()
+            .map(|op| op.id.clone())
+            .collect::<BTreeSet<_>>();
+        for id in references {
+            if seen.insert(id.clone()) {
+                operations.push(self.receipt(grant, id, now)?);
+            }
+        }
+        Ok(operations)
     }
 }

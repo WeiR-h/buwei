@@ -10,9 +10,21 @@ def stage(binary,destination,metadata=None):
     if metadata is None:
         result=subprocess.check_output(['cargo','metadata','--manifest-path',str(ROOT/'native/Cargo.toml'),'--locked','--features','full-host','--filter-platform',proof['rust_host'],'--format-version','1'],cwd=ROOT)
         metadata=json.loads(result)
+    kernel_metadata=json.loads(subprocess.check_output([
+        'cargo','metadata','--manifest-path',str(ROOT/'.deps/octosense/.sources/octos/Cargo.toml'),
+        '--locked','--offline','--no-default-features','--features','api,git,ast',
+        '--filter-platform',proof['rust_host'],'--format-version','1'],cwd=ROOT))
+    metadata['packages']=list({p['id']:p for p in [*metadata['packages'],*kernel_metadata['packages']]}.values())
     version=tomllib.loads((ROOT/'native/Cargo.toml').read_text('utf8'))['package']['version']
+    # Latest official OctoSense verifies this companion's revision and hash.
+    kernel=binary.parent/'octos-kernel.exe';receipt=binary.parent/'octos-kernel.json'
+    record=json.loads(receipt.read_text('utf8'))
+    pins=json.loads((ROOT/'dependencies.lock.json').read_text('utf8'))
+    if record['revision']!=pins['runtime_sources']['octos']['commit'] or record['sha256']!=digest(kernel):
+        raise RuntimeError('Official kernel receipt does not match pinned sources')
     native=destination/'native';native.mkdir(parents=True)
     shutil.copy2(binary,native/'buwei-rinx-dual-host.exe')
+    shutil.copy2(kernel,native/kernel.name);shutil.copy2(receipt,native/receipt.name)
     (native/'Cargo.toml').write_text('[package]\nname="buwei-runtime"\nversion="'+version+'"\nedition="2024"\n','utf8')
     (native/'upstream').mkdir();shutil.copy2(ROOT/'.deps/octosense/desktop/upstream/makepad.json',native/'upstream/makepad.json')
     (native/'config').mkdir();(native/'config/apps.json').write_text('[]\n','utf8')
@@ -47,4 +59,4 @@ def stage(binary,destination,metadata=None):
     return report
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--binary',type=pathlib.Path,required=True);p.add_argument('--destination',type=pathlib.Path,required=True);p.add_argument('--metadata',type=pathlib.Path);a=p.parse_args()
-    r=stage(a.binary,a.destination,json.loads(a.metadata.read_text('utf8')) if a.metadata else None);print(json.dumps({'version':r['version'],'files':len(r['sha256']),'private_configuration_copied':False}))
+    r=stage(a.binary,a.destination,json.loads(a.metadata.read_text('utf-8-sig')) if a.metadata else None);print(json.dumps({'version':r['version'],'files':len(r['sha256']),'private_configuration_copied':False}))

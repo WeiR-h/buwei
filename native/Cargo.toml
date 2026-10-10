@@ -1,6 +1,6 @@
 [package]
 name = "buwei-rinx-dual-host"
-version = "0.2.0"
+version = "0.2.3"
 edition = "2024"
 license = "Apache-2.0"
 publish = false
@@ -9,7 +9,7 @@ publish = false
 members = [".", "crates/action-receipts", "crates/buwei-host-core"]
 
 [dependencies]
-rinx = { git = "https://github.com/hagency-org/Rinx.git", rev = "68afcf796d303aaf646eeb832d65c450a56c92b5", default-features = false, features = ["octosense-module"], optional = true }
+rinx = { git = "https://github.com/hagency-org/Rinx.git", rev = "4b89097d8791a7190d01de1c576979c93df0013d", default-features = false, features = ["octosense-module"], optional = true }
 action-receipts = { path = "crates/action-receipts" }
 buwei-host-core = { path = "crates/buwei-host-core" }
 matrix-sdk = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "6892cb217ae4a886571e928c8efcccfbec5490a6", default-features = false }
@@ -28,6 +28,9 @@ ureq = { version = "2", default-features = false, features = ["tls"], optional =
 sha2 = "0.10"
 hex = "0.4"
 httpdate = "=1.0.3"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_UI_Shell", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
 
 [features]
 default = []
@@ -64,8 +67,6 @@ opt-level = 3
 opt-level = 3
 
 [patch."https://github.com/OctoSense-org/makepad.git"]
-makepad-ai = { path = "../.deps/octosense/.sources/makepad/libs/makepad_ai" }
-makepad-aichat = { path = "../.deps/octosense/.sources/makepad/apps/aichat" }
 makepad-script = { path = "../.deps/octosense/.sources/makepad/platform/script" }
 makepad-widgets = { path = "../.deps/octosense/.sources/makepad/widgets" }
 makepad-code-editor = { path = "../.deps/octosense/.sources/makepad/code_editor" }
@@ -91,11 +92,15 @@ makepad-code-editor = { path = "../.deps/octosense/.sources/makepad/code_editor"
 octoscript-ui-l0 = { path = "../.deps/octosense/.sources/octoscript/crates/octoscript-ui-l0" }
 octoscript-core = { path = "../.deps/octosense/.sources/octoscript/crates/octoscript-core" }
 
+
+
 [patch."https://github.com/OctoSense-org/Octoscript-Makepad.git"]
 octoscript-makepad = { path = "../.deps/octosense/.sources/octoscript-makepad/crates/octoscript-makepad" }
 octoscript-widgets = { path = "../.deps/octosense/.sources/octoscript-makepad/crates/octoscript-widgets" }
 octoscript-node = { path = "../.deps/octosense/.sources/octoscript-makepad/crates/octoscript-node" }
 
+
+octoscript-render = { path = "../.deps/octosense/.sources/octoscript-makepad/crates/octoscript-render" }
 [patch."https://github.com/OctoSense-org/OctoSense.git"]
 octosense-app-peers = { path = "../.deps/octosense/crates/app-peers" }
 octosense-kernel = { path = "../.deps/octosense/crates/kernel" }
@@ -104,5 +109,27 @@ octosense-llm-config = { path = "../.deps/octosense/apps/ai-providers/config" }
 [patch."crates-io"]
 nix = { git = "https://github.com/octos-org/octos.git", rev = "18fcd3f16e527d2b601d7ae244f056fb711bb6b8" }
 
+
+octosense-app-contract = { path = "../.deps/octosense/.sources/app-hub/crates/app-contract" }
 [patch."https://github.com/hagency-org/Rinx.git"]
 rinx = { path = "../.deps/rinx" }
+article-core = { path = "../.deps/rinx/crates/article-core" }
+article-makepad = { path = "../.deps/rinx/crates/article-makepad" }
+
+[patch."https://github.com/OctoSense-org/OctoSense-App-Hub"]
+
+octosense-appstore = { path = "../.deps/octosense/.sources/app-hub/crates/appstore" }
+
+octosense-app-policy = { path = "../.deps/octosense/.sources/app-hub/crates/app-policy" }
+
+octosense-app-hub = { path = "../.deps/octosense/.sources/app-hub/crates/app-hub" }
+
+octosense-app-hub-app = { path = "../.deps/octosense/.sources/app-hub/crates/app-hub-app" }
+
+[patch."https://github.com/octos-org/octos.git"]
+
+octos-core = { path = "../.deps/octosense/.sources/octos/crates/octos-core" }
+
+octos-cli = { path = "../.deps/octosense/.sources/octos/crates/octos-cli" }
+
+octos-research = { path = "../.deps/octosense/.sources/octos/crates/octos-research" }

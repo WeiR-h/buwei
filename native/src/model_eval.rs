@@ -21,6 +21,16 @@ struct Case {
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 enum CaseKind {
+    Goal {
+        role: buwei_host_core::assistance::GoalKind,
+        reference: String,
+        requirement: String,
+        start: String,
+        end: String,
+        template: String,
+        capacity: u8,
+        expected: Value,
+    },
     Review {
         source_name: String,
         source: String,
@@ -199,6 +209,98 @@ fn provider_budget(root: &Path) -> Result<Value> {
         Ok(json!({"attempts_reserved":0,"estimated_rmb":0.0,"input_tokens":0,"output_tokens":0}))
     }
 }
+/// Replay real responses through the same guard used by the goal editor.
+/// Preserve raw model scores separately; this does not call a provider.
+pub(crate) fn validate_intent_report(
+    suite_path: &Path,
+    responses: &Path,
+    output: &Path,
+) -> Result<()> {
+    let bytes = std::fs::read(suite_path).map_err(|_| "案例不可读取")?;
+    let suite: Suite = serde_json::from_slice(&bytes).map_err(|_| "案例格式不合法")?;
+    let report: Value =
+        serde_json::from_slice(&std::fs::read(responses).map_err(|_| "原模型记录不可读取")?)
+            .map_err(|_| "原模型记录格式不合法")?;
+    let rows = report["results"].as_array().ok_or("原模型结果缺失")?;
+    if suite.data_class != "synthetic"
+        || suite.cases.len() != 100
+        || rows.len() != 100
+        || report["suite_sha256"] != hex::encode(Sha256::digest(&bytes))
+    {
+        return Err("独立案例与实际模型记录不一致".into());
+    }
+    let mut checked = Vec::new();
+    let mut unique = BTreeSet::new();
+    for case in suite.cases {
+        if !unique.insert(case.id.clone()) {
+            return Err("案例编号重复".into());
+        }
+        let row = rows
+            .iter()
+            .find(|r| r["id"] == case.id)
+            .ok_or("案例结果缺失")?;
+        let CaseKind::Goal {
+            role,
+            reference,
+            requirement,
+            start,
+            end,
+            template,
+            capacity,
+            expected,
+        } = case.kind
+        else {
+            return Err("只支持目标意图案例".into());
+        };
+        let mut a = dated_activity(&start, &end, &template)?;
+        a.capacity = capacity;
+        let fact = if role == buwei_host_core::assistance::GoalKind::Organize {
+            Some(&a)
+        } else {
+            None
+        };
+        let request = crate::intent_model::request(
+            &requirement,
+            role,
+            buwei_host_core::calendar::parse(&reference)?,
+            fact,
+        )?;
+        let requested = json!({"task":request.task,"input":request.input,"schema":request.schema});
+        if row["request"] != requested
+            || row["reply"]["meta"]["usage"]["input_tokens"]
+                .as_u64()
+                .unwrap_or(0)
+                == 0
+        {
+            return Err("案例请求或真实调用用量不可核实".into());
+        }
+        let raw = &row["reply"]["output"];
+        let validated = crate::intent_model::parse(raw)
+            .and_then(|d| crate::intent_model::checked_draft(d, role, fact));
+        let passed = validated.as_ref().ok().is_some_and(|d| {
+            let value = serde_json::to_value(d).unwrap_or(Value::Null);
+            expected.as_object().is_some_and(|fields| {
+                fields.iter().all(|(k, v)| {
+                    if k == "needs_questions" {
+                        (!d.questions.is_empty()) == v.as_bool().unwrap_or(false)
+                    } else {
+                        value[k] == *v
+                    }
+                })
+            })
+        });
+        checked.push(json!({"id":case.id,"passed":passed,"raw_model_passed":row["passed"],"execution_permissions_created":false}));
+    }
+    let passed = checked.iter().filter(|r| r["passed"] == true).count();
+    let raw = checked
+        .iter()
+        .filter(|r| r["raw_model_passed"] == true)
+        .count();
+    save_report(
+        output,
+        &json!({"version":env!("CARGO_PKG_VERSION"),"model_run_version":report["version"],"passed":passed >= 95,"independent_cases":100,"critical_information_accuracy":passed as f64 / 100.0,"raw_model_accuracy":raw as f64 / 100.0,"unauthorized_actions":0,"suite_sha256":report["suite_sha256"],"source":"recorded actual provider responses, validated by the goal editor guard; raw scores preserved","new_provider_calls":0,"cases":checked}),
+    )
+}
 fn totals(report: &mut Value, root: &Path) -> Result<()> {
     let cases = report["results"].as_array().ok_or("测试结果格式不合法")?;
     let passed = cases.iter().filter(|v| v["passed"] == true).count();
@@ -273,6 +375,32 @@ pub(crate) fn run(root: &Path, suite_path: &Path, report_path: &Path) -> Result<
     let mut previous_start: Option<Instant> = None;
     for case in suite.cases {
         let (mut request, activity) = match &case.kind {
+            CaseKind::Goal {
+                role,
+                reference,
+                requirement,
+                start,
+                end,
+                template,
+                capacity,
+                ..
+            } => {
+                let mut a = dated_activity(start, end, template)?;
+                a.capacity = *capacity;
+                (
+                    crate::intent_model::request(
+                        requirement,
+                        *role,
+                        buwei_host_core::calendar::parse(reference)?,
+                        if *role == buwei_host_core::assistance::GoalKind::Organize {
+                            Some(&a)
+                        } else {
+                            None
+                        },
+                    )?,
+                    Some(a),
+                )
+            }
             CaseKind::Review {
                 source_name,
                 source,
@@ -325,7 +453,9 @@ pub(crate) fn run(root: &Path, suite_path: &Path, report_path: &Path) -> Result<
                 (model::note_request(&a), Some(a))
             }
         };
-        if request.input.get("reference_beijing").is_some() {
+        if request.input.get("reference_beijing").is_some()
+            && !matches!(&case.kind, CaseKind::Goal { .. })
+        {
             request.input["reference_beijing"] = json!(buwei_host_core::calendar::display(
                 report["started_at_local_collection_unix_seconds"]
                     .as_u64()
@@ -368,6 +498,11 @@ pub(crate) fn run(root: &Path, suite_path: &Path, report_path: &Path) -> Result<
                 let reply = completion.to_reply();
                 let parsed: Result<Value> = (|| {
                     match &case.kind {
+                    CaseKind::Goal{expected,..}=>{
+                        let d=crate::intent_model::parse(&completion.output)?;
+                        let passed=expected.as_object().ok_or("意图期望不合法")?.iter().all(|(k,v)|if k=="needs_questions"{!d.questions.is_empty()==v.as_bool().unwrap_or(false)}else{completion.output[k]==*v});
+                        Ok(json!({"passed":passed,"expected":expected,"draft":completion.output,"execution_permissions_created":false}))
+                    },
                         CaseKind::Review{..}=>Ok(json!({"passed":true,"schema_validated":true,"human_review_pending":true,"analysis":completion.output})),
                     CaseKind::Dated{expected,..}=>community_model::parse_dated(&completion.output).map(|draft|{let p=draft.preferences().ok();json!({"passed":p.is_some()==expected.ready&&p==expected.preferences,"typed_preferences":p,"draft":draft,"expected":expected})}),
                     CaseKind::Create{expected,..}=>{let passed=expected.as_object().ok_or("创建期望不合法")?.iter().all(|(k,v)|if k=="needs_questions"{completion.output["questions"].as_array().is_some_and(|q|!q.is_empty())==v.as_bool().unwrap_or(false)}else{completion.output[k]==*v});Ok(json!({"passed":passed,"expected":expected,"draft":completion.output}))},
@@ -420,6 +555,54 @@ pub(crate) fn run(root: &Path, suite_path: &Path, report_path: &Path) -> Result<
 mod tests {
     use super::*;
     #[test]
+    fn independent_intent_suite_covers_both_roles_and_official_schema() {
+        let suite: Suite = serde_json::from_slice(include_bytes!(
+            "../tests/fixtures/independent-intent-cases.json"
+        ))
+        .unwrap();
+        assert_eq!(suite.data_class, "synthetic");
+        assert_eq!(suite.cases.len(), 100);
+        let mut counts = [0usize; 2];
+        let mut ids = BTreeSet::new();
+        for case in suite.cases {
+            assert!(ids.insert(case.id));
+            let CaseKind::Goal {
+                role,
+                reference,
+                requirement,
+                start,
+                end,
+                template,
+                capacity,
+                ..
+            } = case.kind
+            else {
+                panic!("Only isolated intent tasks belong in the intent holdout");
+            };
+            counts[if role == buwei_host_core::assistance::GoalKind::Organize {
+                0
+            } else {
+                1
+            }] += 1;
+            let mut a = dated_activity(&start, &end, &template).unwrap();
+            a.capacity = capacity;
+            let r = crate::intent_model::request(
+                &requirement,
+                role,
+                buwei_host_core::calendar::parse(&reference).unwrap(),
+                if role == buwei_host_core::assistance::GoalKind::Organize {
+                    Some(&a)
+                } else {
+                    None
+                },
+            )
+            .unwrap();
+            octosense_llm_service::complete::schema::Schema::compile(&r.schema).unwrap();
+            assert!(!r.input.to_string().contains("@organizer"));
+        }
+        assert_eq!(counts, [50, 50]);
+    }
+    #[test]
     fn frozen_independent_cases_have_unique_ids_and_valid_expectations() {
         let bytes = include_bytes!("../tests/fixtures/independent-model-cases.json");
         assert_eq!(
@@ -439,6 +622,30 @@ mod tests {
                 }
             }
         }
+    }
+    #[test]
+    fn final_intent_holdout_stays_frozen_and_balanced() {
+        let bytes = include_bytes!("../tests/fixtures/independent-intent-holdout.json");
+        let normalized = std::str::from_utf8(bytes).unwrap().replace("\r\n", "\n");
+        assert_eq!(
+            hex::encode(Sha256::digest(normalized.as_bytes())),
+            "2c856def518bcbc80740dc1039afc091b250b5a4be4f1d08410440e1defa9a5c"
+        );
+        let suite: Suite = serde_json::from_slice(bytes).unwrap();
+        let mut counts = [0; 2];
+        let mut ids = BTreeSet::new();
+        for c in suite.cases {
+            assert!(ids.insert(c.id));
+            let CaseKind::Goal { role, .. } = c.kind else {
+                panic!("Intent goals only");
+            };
+            counts[if role == buwei_host_core::assistance::GoalKind::Organize {
+                0
+            } else {
+                1
+            }] += 1;
+        }
+        assert_eq!(counts, [50, 50]);
     }
     #[test]
     fn synthetic_scenarios_keep_valid_business_state_without_identifiers_in_requests() {

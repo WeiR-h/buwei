@@ -97,6 +97,63 @@ fn normal_and_repeated_execute_have_one_effect() {
     assert_eq!(b.calls.load(Ordering::SeqCst), 1);
 }
 #[test]
+fn invalidating_previews_preserves_attempts_and_other_accounts_or_apps() {
+    let authority = Authority::default();
+    authority.set_account(Some("alice"));
+    let grant = authority.grant("buwei", &["invite", "read"], 100, 1000).unwrap();
+    let mut journal = Journal::open(path()).unwrap();
+    let confirmed_backend = Backend::new(0);
+    let confirmed = queued(&mut journal, &grant, &confirmed_backend);
+    journal.execute(&grant, &confirmed.id, &confirmed_backend, 102).unwrap();
+    let uncertain_backend = Backend::new(1);
+    let uncertain = queued(&mut journal, &grant, &uncertain_backend);
+    journal.execute(&grant, &uncertain.id, &uncertain_backend, 102).unwrap();
+    let preview = journal.prepare(&grant, action(), 0, 103, 120).unwrap();
+
+    let other_authority = Authority::default();
+    other_authority.set_account(Some("bob"));
+    let other_account = other_authority.grant("buwei", &["invite", "read"], 100, 1000).unwrap();
+    let bob_preview = journal.prepare(&other_account, action(), 0, 103, 120).unwrap();
+    let other_app = authority.grant("another-app", &["invite", "read"], 100, 1000).unwrap();
+    let app_preview = journal.prepare(&other_app, action(), 0, 103, 120).unwrap();
+
+    // Only cancellation crosses a consent boundary: an old action is never sent.
+    let renewed = authority.grant("buwei", &["read"], 104, 1000).unwrap();
+    assert_eq!(journal.invalidate_previews(&renewed, 105).unwrap(), 1);
+    assert_eq!(journal.receipt(&grant, &preview.id, 105).unwrap().status, Status::Cancelled);
+    assert!(journal.confirm(&grant, &preview.id, &Backend::new(0), 105).is_err());
+    assert_eq!(journal.receipt(&grant, &confirmed.id, 105).unwrap().status, Status::Confirmed);
+    assert_eq!(journal.receipt(&grant, &uncertain.id, 105).unwrap().status, Status::Unknown);
+    assert_eq!(journal.receipt(&other_account, &bob_preview.id, 105).unwrap().status, Status::Prepared);
+    assert_eq!(journal.receipt(&other_app, &app_preview.id, 105).unwrap().status, Status::Prepared);
+    assert_eq!(confirmed_backend.calls.load(Ordering::SeqCst), 1);
+    assert_eq!(uncertain_backend.calls.load(Ordering::SeqCst), 1);
+    renewed.revoke();
+    assert!(journal.invalidate_previews(&renewed, 106).is_err());
+    assert!(journal.invalidate_previews(&authority.grant("buwei", &["invite"], 106, 1000).unwrap(), 107).is_err());
+}
+
+#[test]
+fn invalidated_queued_operation_remains_unsent_after_restart() {
+    let authority = Authority::default();
+    authority.set_account(Some("alice"));
+    let grant = authority.grant("buwei", &["invite", "read"], 100, 1000).unwrap();
+    let db_path = path();
+    let mut journal = Journal::open(&db_path).unwrap();
+    let backend = Backend::new(0);
+    let preview = queued(&mut journal, &grant, &backend);
+    let renewed = authority.grant("buwei", &["read"], 104, 1000).unwrap();
+    assert_eq!(journal.invalidate_previews(&renewed, 105).unwrap(), 1);
+    drop(journal);
+    let mut recovered = Journal::open(&db_path).unwrap();
+    assert_eq!(recovered.receipt(&grant, &preview.id, 106).unwrap().status, Status::Cancelled);
+    assert!(recovered.execute(&grant, &preview.id, &backend, 106).is_err());
+    assert_eq!(backend.calls.load(Ordering::SeqCst), 0);
+    assert_eq!(recovered.invalidate_previews(&renewed, 107).unwrap(), 0);
+    authority.set_account(Some("bob"));
+    assert!(recovered.invalidate_previews(&renewed, 108).is_err());
+}
+#[test]
 fn confirmation_visibility_agrees_with_expiry_and_new_consent() {
     let (a, g, mut j) = setup();
     let backend = Backend::new(0);
@@ -545,4 +602,56 @@ fn crash_after_effect_recovers_dispatching_without_resend() {
         Status::Confirmed
     );
     assert_eq!(b.0.calls.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn task_recovery_keeps_confirmed_receipts_beyond_display_history() {
+    let (_, g, mut journal) = setup();
+    let backend = Backend::new(0);
+    let oldest = queued(&mut journal, &g, &backend);
+    journal.execute(&g, &oldest.id, &backend, 102).unwrap();
+    for _ in 0..45 {
+        let later_backend = Backend::new(0);
+        let later = queued(&mut journal, &g, &later_backend);
+        journal.execute(&g, &later.id, &later_backend, 102).unwrap();
+    }
+    assert!(
+        !journal
+            .recent(&g, 103)
+            .unwrap()
+            .iter()
+            .any(|op| op.id == oldest.id)
+    );
+    let recovered = journal
+        .recent_with_references(&g, &[oldest.id.clone(), oldest.id.clone()], 103)
+        .unwrap();
+    assert_eq!(recovered.len(), 41);
+    assert_eq!(recovered.iter().filter(|op| op.id == oldest.id).count(), 1);
+    assert_eq!(
+        recovered
+            .iter()
+            .find(|op| op.id == oldest.id)
+            .unwrap()
+            .status,
+        Status::Confirmed
+    );
+    assert_eq!(backend.calls.load(Ordering::SeqCst), 1);
+    g.revoke();
+    assert!(
+        journal
+            .recent_with_references(&g, &[oldest.id], 104)
+            .is_err()
+    );
+}
+
+#[test]
+fn referenced_receipts_cannot_read_another_accounts_operations() {
+    let (authority, alice, mut journal) = setup();
+    let oldest = queued(&mut journal, &alice, &Backend::new(0));
+    authority.set_account(Some("bob"));
+    let bob = authority.grant("buwei", &["invite"], 102, 1000).unwrap();
+    assert!(matches!(
+        journal.recent_with_references(&bob, &[oldest.id], 103),
+        Err(Error::Authorization)
+    ));
 }

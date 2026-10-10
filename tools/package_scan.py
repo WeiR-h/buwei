@@ -8,12 +8,28 @@ FORBIDDEN={'.run','.secrets','profiles','data','logs','.git','.deps','target'}
 SUFFIX={'.dpapi','.db','.sqlite','.sqlite3','.key','.pem','.log'}
 PEM_BLOCK=re.compile(rb'-----BEGIN ((?:RSA |EC |OPENSSH )?PRIVATE KEY)-----\s*[A-Za-z0-9+/=\r\n]{80,}\s*-----END \1-----')
 
+# At locked octos b0759a5, LLVM pools these separate public literals:
+# memory_refresh/redact.rs key prefixes and workspace_policy/contract.rs
+# HTML probes plus notification text; OctoSense shell/system_chat/model.rs
+# contributes its separate public prefix list. These exact byte fragments contain
+# no credential or room. Text files and every other binary match still fail.
+BINARY_PUBLIC_LITERALS={
+    'provider_key':{b''.join([b'sk-',b'sk_live_',b'sk_test_',b'ghp_',b'gho_',
+        b'github_pat_',b'xoxb-',b'xoxp-',b'AKIA',b'ASIA',b'ya29']),
+        b''.join([b'sk-',b'sk_',b'pk-',b'rk-',b'gsk_',b'xai-',b'AIza',b'ghp_',b'github_pat_'])},
+    'private_room':{b'!DOCTYPE'+b'notify_user:Skill'},
+}
+
+def has_content_match(content,label,pattern,binary):
+    return any(not(binary and match.group() in BINARY_PUBLIC_LITERALS.get(label,set()))
+        for match in pattern.finditer(content))
+
 def content_findings(content,binary=False):
     result=[]
     for label,pattern in PATTERNS.items():
         effective=PEM_BLOCK if binary and label=='private_key' else pattern
-        if effective.search(content):result.append(label)
-        if binary and any(effective.search(content[parity::2]) for parity in [0,1]):result.append(label+'_utf16')
+        if has_content_match(content,label,effective,binary):result.append(label)
+        if binary and any(has_content_match(content[parity::2],label,effective,True) for parity in [0,1]):result.append(label+'_utf16')
     return result
 
 def scan(directory):

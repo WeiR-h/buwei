@@ -4,6 +4,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: windows-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
 jobs:
   clean-windows:
     runs-on: windows-2025
@@ -13,6 +16,8 @@ jobs:
       RUSTUP_TOOLCHAIN: 1.98.0-x86_64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -26,17 +31,22 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            .deps/octosense
-            .deps/rinx
+            .deps
             .run/cargo-home/registry
             .run/cargo-home/git
             native/target
-          key: windows-gnu-v4-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-${{ hashFiles('native/Cargo.lock') }}
+          key: windows-msvc-v6-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-${{ hashFiles('native/Cargo.lock') }}
           restore-keys: |
-            windows-gnu-v4-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-
-            windows-gnu-v4-
+            windows-msvc-v6-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-
+            windows-msvc-v5-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-
+            windows-msvc-v5-
       - name: Verify or download pinned official dependencies
         run: python tools/bootstrap.py
+      - name: Fetch locked kernel dependencies for offline package inventory
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          cargo fetch --manifest-path .deps/octosense/.sources/octos/Cargo.toml --locked --target x86_64-pc-windows-msvc
       - name: Check public source and history
         run: python tools/public_scan.py
       - name: Test and build complete official host
@@ -51,8 +61,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            .deps/octosense
-            .deps/rinx
+            .deps
             .run/cargo-home/registry
             .run/cargo-home/git
             native/target
@@ -64,16 +73,45 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $true
           python tools/package.py --binary native/target/release/buwei-rinx-dual-host.exe --destination .run/windows-package
           python tools/package_scan.py .run/windows-package --output .run/startup-evidence/package-privacy.json
-      - name: Start on fresh Windows profile
+      - name: Build separate opt-in acceptance executable
+        id: acceptance
+        timeout-minutes: 30
         shell: pwsh
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          python tools/startup_check.py .run/windows-package --output .run/startup-evidence
+          # Match Build.ps1's release path remapping so dependency artifacts stay reusable.
+          $buweiAcceptanceFlags=@('--remap-path-prefix',($env:GITHUB_WORKSPACE+'=/buwei'))
+          foreach($buweiPrivateRoot in @($env:USERPROFILE,$env:CARGO_HOME,$env:RUSTUP_HOME)){
+            if($buweiPrivateRoot){$buweiAcceptanceFlags+=@('--remap-path-prefix',($buweiPrivateRoot+'=/toolchain'))}
+          }
+          $env:CARGO_ENCODED_RUSTFLAGS=$buweiAcceptanceFlags -join [char]31
+          $env:CARGO_BUILD_JOBS='3'
+          python tools/build_proof.py --start .run/acceptance-build-start.json --features acceptance
+          cargo build --manifest-path native/Cargo.toml --locked --offline --release --features acceptance
+          python tools/pe_stack.py native/target/release/buwei-rinx-dual-host.exe
+          python tools/build_proof.py --finish .run/acceptance-build-start.json --features acceptance --binary native/target/release/buwei-rinx-dual-host.exe --output native/target/release/buwei-rinx-dual-host.exe.build.json
+          New-Item -ItemType Directory -Path .run/acceptance-binary | Out-Null
+          Copy-Item -LiteralPath native/target/release/buwei-rinx-dual-host.exe -Destination .run/acceptance-binary/buwei-rinx-dual-host.exe
+          Copy-Item -LiteralPath native/target/release/buwei-rinx-dual-host.exe.build.json -Destination .run/acceptance-binary/buwei-rinx-dual-host.exe.build.json
+      - name: Upload opt-in acceptance executable separately
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-acceptance
+          path: .run/acceptance-binary/
+          if-no-files-found: error
+      - name: Start on fresh Windows profile
+        shell: pwsh
+        env:
+          MAKEPAD_FORCE_SOFTWARE_GPU: '1'
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          python tools/startup_check.py .run/windows-package --output .run/startup-evidence --show-window
       - name: Upload measured build logs and binary
         if: always() && steps.stage.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: windows-preview
+          include-hidden-files: true
           path: |
             .run/windows-package/
             .run/startup-evidence/startup.json
@@ -94,13 +132,16 @@ jobs:
           path: downloaded
       - name: Verify downloaded package without source or dependency checkout
         shell: pwsh
+        env:
+          MAKEPAD_FORCE_SOFTWARE_GPU: '1'
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           if (Test-Path native) { throw 'Source unexpectedly present' }
           if (Test-Path .deps) { throw 'Dependency checkout unexpectedly present' }
           python downloaded/windows-package/tools/package_scan.py downloaded/windows-package --output .run/fresh-runtime/package-privacy.json
-          python downloaded/windows-package/tools/startup_check.py downloaded/windows-package --output .run/fresh-runtime
+          python downloaded/windows-package/tools/startup_check.py downloaded/windows-package --output .run/fresh-runtime --show-window
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: fresh-windows-runtime
           path: |

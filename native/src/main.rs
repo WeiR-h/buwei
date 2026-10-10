@@ -43,6 +43,8 @@ mod gui;
 #[cfg(feature = "desktop")]
 mod host;
 #[cfg(feature = "desktop")]
+mod intent_model;
+#[cfg(feature = "desktop")]
 mod model;
 #[cfg(feature = "desktop")]
 mod model_eval;
@@ -53,6 +55,8 @@ mod participant;
 mod rinx_bridge;
 #[cfg(feature = "desktop")]
 mod shell_app;
+#[cfg(feature = "desktop")]
+mod tray;
 type Result<T> = std::result::Result<T, String>;
 fn now() -> u64 {
     SystemTime::now()
@@ -636,6 +640,25 @@ fn main() {
         .nth(1)
         .map(PathBuf::from)
         .unwrap_or_else(|| std::env::current_dir().unwrap());
+    #[cfg(feature = "desktop")]
+    if let Some(index) = std::env::args().position(|a| a == "--intent-validation") {
+        let args = std::env::args().collect::<Vec<_>>();
+        if args.len() != index + 4 {
+            eprintln!("请提供独立案例、原始模型记录和校验结果路径");
+            std::process::exit(1);
+        }
+        match model_eval::validate_intent_report(
+            Path::new(&args[index + 1]),
+            Path::new(&args[index + 2]),
+            Path::new(&args[index + 3]),
+        ) {
+            Ok(()) => return,
+            Err(reason) => {
+                eprintln!("{reason}");
+                std::process::exit(1);
+            }
+        }
+    }
     #[cfg(feature = "desktop")]
     if let Some(index) = std::env::args().position(|a| a == "--model-eval") {
         let args = std::env::args().collect::<Vec<_>>();

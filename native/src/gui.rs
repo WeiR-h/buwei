@@ -1,5 +1,8 @@
 use super::Preferences;
+use super::controller::intentions::{GoalForm, IntentCommand};
 use super::controller::{Command, View as HostView};
+use buwei_host_core::assistance::{GoalKind, GoalStatus, PersonalPreferences};
+use buwei_host_core::proactive::AssistanceCard;
 use makepad_app_module::{
     AppModule, ExecOutcome, InstanceHandles, InstanceParts, OpenSchema, ServiceExecutor,
     ValidatedOpen,
@@ -30,6 +33,7 @@ script_mod! {
                 message:=Text{text:"正式服务器 https://matrix.rinx.chat；浏览器认证由本人完成。"}
                 View{width:Fill height:40 flow:Right spacing:8
                     nav_activity:=Action{text:"我的活动"}
+                    nav_goals:=Action{text:"我的目标"}
                     nav_confirm:=Action{text:"当前确认" visible:false}
                     nav_history:=Action{text:"活动记录"}
                     nav_article:=Action{text:"活动小记"}
@@ -37,6 +41,16 @@ script_mod! {
                 }
                 page_activity:=ScrollYView{width:Fill height:Fill flow:Down spacing:12 padding:16 show_bg:true draw_bg.color:#xf2f6ef
                     activity_heading:=Heading{text:"我的活动"}
+                    assistance_area:=View{width:Fill height:Fit flow:Down spacing:8 visible:false
+                        Heading{text:"补位发现了这些变化"}
+                        assistance_0:=Action{width:Fill height:140 visible:false}
+                        assistance_1:=Action{width:Fill height:140 visible:false}
+                        assistance_2:=Action{width:Fill height:140 visible:false}
+                        View{width:Fill height:Fit flow:Right spacing:8
+                            assistance_prev:=Action{text:"上一条"} assistance_next:=Action{text:"下一条"}
+                            assistance_snooze:=Action{text:"本页首条稍后提醒"} assistance_ignore:=Action{text:"忽略首条"} assistance_disable:=Action{text:"不再推荐这类"}
+                        }
+                    }
                     card_status:=Text{}
                     join_card:=Action{text:"确认加入并查看活动" visible:false}
                     home_current:=Text{}
@@ -134,6 +148,49 @@ script_mod! {
                     ask:=Action{text:"询问本场活动"}
                     }
                 }
+                page_goals:=ScrollYView{visible:false width:Fill height:Fill flow:Down spacing:12 padding:16 show_bg:true draw_bg.color:#xf2f6ef
+                    Heading{text:"我的目标 · 让补位持续帮你跟进"}
+                    Small{text:"目标和长期偏好按本人账号保存在本机。填写的本次要求优先；活动中的其他成员看不到这些个人资料。"}
+                    View{width:Fill height:Fit flow:Right spacing:8
+                        new_organize_goal:=Action{text:"组织这场活动"} new_participate_goal:=Action{text:"找到适合我的活动"}
+                    }
+                    goal_request:=Input{height:65 is_multiline:true empty_text:"例如：周末晚上想打羽毛球，通常两个人。这次有空的具体日期和时段可以一起填写。"}
+                    View{width:Fill height:Fit flow:Right spacing:8
+                        goal_ai_organize:=Action{text:"AI 准备组织目标"} goal_ai_participate:=Action{text:"AI 理解参与意愿"}
+                    }
+                    goal_0:=Action{width:Fill height:90 visible:false} goal_1:=Action{width:Fill height:90 visible:false} goal_2:=Action{width:Fill height:90 visible:false}
+                    goal_pagination:=View{width:Fill height:Fit flow:Right spacing:8 visible:false goal_prev:=Action{text:"上一页目标"} goal_next:=Action{text:"下一页目标"}}
+                    intention_result:=Text{}
+                    feedback_status:=Text{}
+                    undo_feedback:=Action{text:"撤回最近反馈" visible:false}
+                    goal_editor:=View{width:Fill height:Fit flow:Down spacing:8 visible:false
+                        Heading{text:"核对并保存目标"}
+                        goal_sources:=Small{}
+                        goal_title:=Input{empty_text:"想完成什么"}
+                        goal_template:=Input{empty_text:"羽毛球 / 桌游 / 读书会 / 不限类型"}
+                        View{width:Fill height:Fit flow:Right spacing:8
+                            goal_earliest:=Input{width:210 empty_text:"开始日期时间"} goal_latest:=Input{width:210 empty_text:"结束日期时间"}
+                            Small{text:"同行人数" width:70} goal_group:=Input{width:65 empty_text:"1–8"}
+                        }
+                        goal_organizer_fields:=View{width:Fill height:Fit flow:Down spacing:8
+                            View{width:Fill height:Fit flow:Right spacing:8
+                                Small{text:"目标确认人数" width:100} goal_target:=Input{width:65}
+                                Small{text:"检查时间" width:70} goal_check:=Input{width:210 empty_text:"开始前的完整日期时间"}
+                            }
+                            View{width:Fill height:Fit flow:Right spacing:8
+                                Small{text:"重复周期（天）" width:100} goal_recurrence:=Input{width:65 empty_text:"留空不重复"}
+                                Small{text:"提前筹备（小时）" width:120} goal_preparation:=Input{width:65 text:"24"}
+                            }
+                        }
+                        feedback_actions:=View{width:Fill height:Fit flow:Right spacing:8
+                            feedback_once:=Action{text:"类型与人数：仅这次"} feedback_long:=Action{text:"类型与人数：以后也是"}
+                        }
+                        Small{text:"来源：本人填写或已确认的偏好。缺失信息请补充，保存目标不会发送消息或替你报名。"}
+                        View{width:Fill height:Fit flow:Right spacing:8
+                            save_goal:=Action{text:"确认保存目标"} pause_goal:=Action{text:"暂停目标"} resume_goal:=Action{text:"继续关注"} delete_goal:=Action{text:"删除目标"}
+                        }
+                    }
+                }
                 page_confirm:=ScrollYView{visible:false width:Fill height:240 flow:Down spacing:12 padding:16 show_bg:true draw_bg.color:#xfffbf3
                     Heading{text:"核对并确认本次操作"}
                     Small{text:"核对本人账号、活动、时间与人数后确认。修改内容后请重新预览。"}
@@ -149,6 +206,15 @@ script_mod! {
                     }
                 }
                 page_history:=ScrollYView{visible:false width:Fill height:Fill flow:Down spacing:12 padding:16 show_bg:true draw_bg.color:#xf2f6ef
+                    Heading{text:"主动任务的进展"}
+                    task_0:=Action{width:Fill height:65 visible:false}
+                    task_1:=Action{width:Fill height:65 visible:false}
+                    task_2:=Action{width:Fill height:65 visible:false}
+                    task_pagination:=View{width:Fill height:Fit flow:Right spacing:8 visible:false
+                        task_prev:=Action{text:"上一页任务"} task_next:=Action{text:"下一页任务"}
+                    }
+                    pause_task:=Action{text:"暂停本页首项任务" visible:false}
+                    assistance_tasks:=Text{}
                     Heading{text:"活动记录与恢复"}
                     pending_reconcile:=Action{text:"沿原编号核实全部待恢复回执"}
                     Small{text:"待核实表示尚不能判断发送结果。重启并重新授权后查询原编号，不要创建相同的新操作。"}
@@ -179,12 +245,35 @@ script_mod! {
                         refresh:=Action{text:"刷新记录"}
                     }
                     authorization:=Text{text:"查看本人账号的权限范围，核对后确认授权。"}
+                    Heading{text:"Windows 值守"}
+                    background_status:=Text{}
+                    Small{text:"开启后关闭宿主窗口将隐藏到托盘，继续在已授权范围内同步和自动补位。最长一小时，到期停止。退出补位将停止；电脑关机时不能继续。"}
+                    View{width:Fill height:Fit flow:Right spacing:8
+                        enable_background:=Action{text:"开启托盘值守"} pause_background:=Action{text:"暂停值守"} disable_background:=Action{text:"关闭托盘值守"}
+                    }
                     sync_status:=Small{text:"自动同步尚未授权"}
+                    Heading{text:"本人确认的长期偏好"}
+                    pref_template:=Input{empty_text:"活动类型：羽毛球 / 桌游 / 读书会 / 不限类型"}
+                    View{width:Fill height:Fit flow:Right spacing:8
+                        Small{text:"同行人数" width:75} pref_group:=Input{width:65 empty_text:"可留空"}
+                        Small{text:"星期" width:40} pref_weekdays:=Input{width:180 empty_text:"1=周一，例如 6,7"}
+                    }
+                    View{width:Fill height:Fit flow:Right spacing:8
+                        Small{text:"可用时段" width:75} pref_start:=Input{width:100 empty_text:"19:00"} pref_end:=Input{width:100 empty_text:"21:30"}
+                        Small{text:"安静时段" width:75} pref_quiet_start:=Input{width:60 text:"22"} pref_quiet_end:=Input{width:60 text:"8"}
+                    }
+                    View{width:Fill height:Fit flow:Right spacing:8
+                        save_preferences:=Action{text:"确认保存长期偏好"} reset_preferences:=Action{text:"删除偏好并恢复默认"}
+                    }
                     Heading{text:"开始使用"}
                     Text{text:"1. 在 Rinx 完成本人登录，查看权限并确认授权。\n2. 组织者新建活动，选择联系人分享活动卡片。\n3. 成员从卡片进入活动，核对时段和同行人数后报名。\n4. 组织者核对规则并启用自动补位，成员亲自回复邀请。\n5. 不明结果在活动记录中沿原编号恢复。同场仅使用一个组织者宿主。"}
                     Heading{text:"模型设置"}
                     Small{text:"AI 建议会将填写的需求发送到 MiniMax；邀请和文章按完整预览单独确认。"}
                     model_status:=Text{text:"模型配置由宿主管理"}
+                    analysis_status:=Text{}
+                    View{width:Fill height:Fit flow:Right spacing:8
+                        preview_analysis:=Action{text:"查看主动 AI 分析说明"} confirm_analysis:=Action{text:"确认开启主动分析"} revoke_analysis:=Action{text:"撤销主动分析"}
+                    }
                     configure_model:=Action{text:"填写或更新本机 MiniMax 密钥"}
                     Small{text:"活动助手可以理解日期和报名意愿。必要信息会先显示为可编辑草稿，由本人核对确认。"}
                     fault:=Action{text:"高级诊断" visible:false}
@@ -243,9 +332,223 @@ pub struct BuWeiView {
     pending_revoke: bool,
     #[rust]
     current_activity: String,
+    #[rust]
+    goals: Vec<(String, String)>,
+    #[rust]
+    goal_page: usize,
+    #[rust]
+    goal_id: Option<String>,
+    #[rust]
+    goal_form: Option<GoalForm>,
+    #[rust]
+    last_goal_form: Option<String>,
+    #[rust]
+    preferences: Option<PersonalPreferences>,
+    #[rust]
+    last_preferences: Option<String>,
+    #[rust]
+    assistance_cards: Vec<AssistanceCard>,
+    #[rust]
+    assistance_page: usize,
+    #[rust]
+    feedback_id: Option<String>,
+    #[rust]
+    analysis_consent_id: Option<String>,
+    #[rust]
+    task_choices: Vec<(String, String)>,
+    #[rust]
+    task_page: usize,
 }
 impl BuWeiView {
     fn display(&mut self, cx: &mut Cx, view: HostView) {
+        self.task_choices = view.task_choices.clone();
+        self.task_page = self
+            .task_page
+            .min(self.task_choices.len().saturating_sub(1) / 3);
+        macro_rules! task_button {
+            ($id:ident, $n:expr) => {
+                let item = self.task_choices.get(self.task_page * 3 + $n);
+                self.view
+                    .button(cx, ids!($id))
+                    .set_visible(cx, item.is_some());
+                if let Some((_, text)) = item {
+                    self.view.button(cx, ids!($id)).set_text(
+                        cx,
+                        &format!("{}\n点击继续原任务", text.lines().next().unwrap_or("")),
+                    );
+                }
+            };
+        }
+        task_button!(task_0, 0);
+        task_button!(task_1, 1);
+        task_button!(task_2, 2);
+        self.view
+            .view(cx, ids!(task_pagination))
+            .set_visible(cx, self.task_choices.len() > 3);
+        self.view
+            .button(cx, ids!(pause_task))
+            .set_visible(cx, !self.task_choices.is_empty());
+        self.analysis_consent_id = view.analysis_consent_id.clone();
+        self.view
+            .label(cx, ids!(analysis_status))
+            .set_text(cx, &view.analysis_status);
+        self.view
+            .label(cx, ids!(assistance_tasks))
+            .set_text(cx, &view.assistance_tasks);
+        self.view
+            .label(cx, ids!(background_status))
+            .set_text(cx, &view.background_status);
+        self.feedback_id = view.latest_feedback.as_ref().map(|f| f.0.clone());
+        self.view.label(cx, ids!(feedback_status)).set_text(
+            cx,
+            view.latest_feedback
+                .as_ref()
+                .map(|f| f.1.as_str())
+                .unwrap_or(""),
+        );
+        self.view
+            .button(cx, ids!(undo_feedback))
+            .set_visible(cx, self.feedback_id.is_some());
+        self.assistance_cards = view.assistance_cards.clone();
+        self.assistance_page = self
+            .assistance_page
+            .min(self.assistance_cards.len().saturating_sub(1) / 3);
+        self.view
+            .view(cx, ids!(assistance_area))
+            .set_visible(cx, !self.assistance_cards.is_empty());
+        macro_rules! assistance_button {
+            ($id:ident,$n:expr) => {
+                self.view.button(cx, ids!($id)).set_visible(
+                    cx,
+                    self.assistance_cards.len() > self.assistance_page * 3 + $n,
+                );
+                if let Some(c) = self.assistance_cards.get(self.assistance_page * 3 + $n) {
+                    self.view.button(cx, ids!($id)).set_text(
+                        cx,
+                        &format!(
+                            "{}\n{}\n{}\n核验采集于 {} · 点击准备下一步",
+                            c.title,
+                            c.reason,
+                            c.evidence,
+                            buwei_host_core::calendar::display(c.observed_at)
+                        ),
+                    );
+                }
+            };
+        }
+        assistance_button!(assistance_0, 0);
+        assistance_button!(assistance_1, 1);
+        assistance_button!(assistance_2, 2);
+        if let Some(tab) = view.assistance_route {
+            self.tab = tab;
+            self.pages(cx);
+        }
+        self.goals = view.goals.clone();
+        self.goal_id = view.goal_id.clone();
+        self.goal_form = view.goal_form.clone();
+        self.goal_page = self.goal_page.min(self.goals.len().saturating_sub(1) / 3);
+        macro_rules! goal_button {
+            ($id:ident,$n:expr) => {
+                self.view
+                    .button(cx, ids!($id))
+                    .set_visible(cx, self.goals.len() > self.goal_page * 3 + $n);
+                if let Some((_, text)) = self.goals.get(self.goal_page * 3 + $n) {
+                    self.view.button(cx, ids!($id)).set_text(cx, text);
+                }
+            };
+        }
+        goal_button!(goal_0, 0);
+        goal_button!(goal_1, 1);
+        goal_button!(goal_2, 2);
+        self.view
+            .view(cx, ids!(goal_pagination))
+            .set_visible(cx, self.goals.len() > 3);
+        self.view
+            .label(cx, ids!(intention_result))
+            .set_text(cx, &view.intention_result);
+        self.view
+            .label(cx, ids!(goal_sources))
+            .set_text(cx, &view.goal_sources);
+        self.view
+            .view(cx, ids!(goal_editor))
+            .set_visible(cx, view.goal_form.is_some());
+        let goal_stamp = serde_json::to_string(&view.goal_form).unwrap_or_default();
+        if self.last_goal_form.as_deref() != Some(goal_stamp.as_str()) {
+            if let Some(f) = &view.goal_form {
+                macro_rules! field {
+                    ($id:ident,$value:expr) => {
+                        self.view.text_input(cx, ids!($id)).set_text(cx, $value);
+                    };
+                }
+                field!(goal_title, &f.title);
+                field!(
+                    goal_template,
+                    buwei_host_core::assistance::template_name(&f.template)
+                );
+                field!(goal_earliest, &f.earliest);
+                field!(goal_latest, &f.latest);
+                field!(goal_group, &f.group);
+                field!(goal_target, &f.target);
+                field!(goal_check, &f.check_at);
+                self.view
+                    .view(cx, ids!(goal_organizer_fields))
+                    .set_visible(cx, f.kind == GoalKind::Organize);
+                self.view.view(cx, ids!(feedback_actions)).set_visible(
+                    cx,
+                    f.kind == GoalKind::Participate && self.goal_id.is_some(),
+                );
+                field!(goal_recurrence, &f.recurrence_days);
+                field!(goal_preparation, &f.preparation_hours);
+            }
+            self.last_goal_form = Some(goal_stamp);
+        }
+        for id in [ids!(pause_goal), ids!(resume_goal), ids!(delete_goal)] {
+            self.view
+                .button(cx, id)
+                .set_visible(cx, self.goal_id.is_some());
+        }
+        let pref_stamp = serde_json::to_string(&view.personal_preferences).unwrap_or_default();
+        if self.last_preferences.as_deref() != Some(pref_stamp.as_str()) {
+            if let Some(p) = &view.personal_preferences {
+                self.view.text_input(cx, ids!(pref_template)).set_text(
+                    cx,
+                    p.template
+                        .as_deref()
+                        .map(buwei_host_core::assistance::template_name)
+                        .unwrap_or(""),
+                );
+                self.view
+                    .text_input(cx, ids!(pref_group))
+                    .set_text(cx, &p.group.map(|n| n.to_string()).unwrap_or_default());
+                self.view.text_input(cx, ids!(pref_weekdays)).set_text(
+                    cx,
+                    &p.weekdays
+                        .iter()
+                        .map(|d| (d + 1).to_string())
+                        .collect::<Vec<_>>()
+                        .join(","),
+                );
+                for (path, value) in [
+                    (ids!(pref_start), p.earliest_minute),
+                    (ids!(pref_end), p.latest_minute),
+                ] {
+                    self.view.text_input(cx, path).set_text(
+                        cx,
+                        &value
+                            .map(|m| format!("{:02}:{:02}", m / 60, m % 60))
+                            .unwrap_or_default(),
+                    );
+                }
+                self.view
+                    .text_input(cx, ids!(pref_quiet_start))
+                    .set_text(cx, &p.quiet_start.to_string());
+                self.view
+                    .text_input(cx, ids!(pref_quiet_end))
+                    .set_text(cx, &p.quiet_end.to_string());
+            }
+            self.last_preferences = Some(pref_stamp);
+        }
+        self.preferences = view.personal_preferences.clone();
         self.current_activity = view.activity_identity.clone();
         let context = format!("{}:{}", view.account, view.activity_identity);
         if self.last_account.as_deref() != Some(context.as_str()) {
@@ -516,6 +819,12 @@ impl BuWeiView {
     }
     fn pages(&mut self, cx: &mut Cx) {
         self.view
+            .view(cx, ids!(assistance_area))
+            .set_visible(cx, self.tab == 0 && !self.assistance_cards.is_empty());
+        self.view
+            .view(cx, ids!(page_goals))
+            .set_visible(cx, self.tab == 5);
+        self.view
             .view(cx, ids!(activity_cards))
             .set_visible(cx, self.tab == 0);
         self.view.view(cx, ids!(activity_details)).set_visible(
@@ -665,6 +974,8 @@ impl Widget for BuWeiView {
             }
             if let Some(tab) = if clicked!(nav_activity) || clicked!(back_to_activities) {
                 Some(0)
+            } else if clicked!(nav_goals) {
+                Some(5)
             } else if clicked!(nav_confirm) || clicked!(open_current) || clicked!(join_card) {
                 Some(1)
             } else if clicked!(nav_history) {
@@ -686,6 +997,136 @@ impl Widget for BuWeiView {
                 ($id:ident) => {
                     self.view.text_input(cx, ids!($id)).text()
                 };
+            }
+            if clicked!(enable_background) {
+                if super::tray::enable() {
+                    super::host::set_background(true);
+                    self.send(cx, Command::Refresh);
+                } else {
+                    self.view
+                        .label(cx, ids!(message))
+                        .set_text(cx, "托盘未成功开启，窗口保持打开；请重试。");
+                }
+                return;
+            }
+            if clicked!(pause_background) {
+                super::host::pause_background();
+                self.send(cx, Command::Revoke);
+                return;
+            }
+            if clicked!(disable_background) {
+                super::host::set_background(false);
+                super::tray::disable();
+                self.send(cx, Command::Refresh);
+                return;
+            }
+            if clicked!(assistance_prev) || clicked!(assistance_next) {
+                if clicked!(assistance_prev) {
+                    self.assistance_page = self.assistance_page.saturating_sub(1);
+                } else {
+                    self.assistance_page = (self.assistance_page + 1)
+                        .min(self.assistance_cards.len().saturating_sub(1) / 3);
+                }
+                self.send(cx, Command::Refresh);
+                return;
+            }
+            if let Some(index) = if clicked!(assistance_0) {
+                Some(0)
+            } else if clicked!(assistance_1) {
+                Some(1)
+            } else if clicked!(assistance_2) {
+                Some(2)
+            } else {
+                None
+            } {
+                if let Some(c) = self.assistance_cards.get(self.assistance_page * 3 + index) {
+                    self.send(
+                        cx,
+                        Command::Assistance(IntentCommand::UseCard {
+                            id: c.id.clone(),
+                            fingerprint: c.fingerprint.clone(),
+                        }),
+                    );
+                }
+                return;
+            }
+            if clicked!(assistance_snooze)
+                || clicked!(assistance_ignore)
+                || clicked!(assistance_disable)
+            {
+                if let Some(c) = self.assistance_cards.get(self.assistance_page * 3) {
+                    self.send(
+                        cx,
+                        Command::Assistance(IntentCommand::ControlCard {
+                            id: c.id.clone(),
+                            snooze: clicked!(assistance_snooze),
+                            disable: clicked!(assistance_disable),
+                        }),
+                    );
+                }
+                return;
+            }
+            if clicked!(goal_prev) || clicked!(goal_next) {
+                if clicked!(goal_prev) {
+                    self.goal_page = self.goal_page.saturating_sub(1);
+                } else {
+                    self.goal_page =
+                        (self.goal_page + 1).min(self.goals.len().saturating_sub(1) / 3);
+                }
+                self.send(cx, Command::Refresh);
+                return;
+            }
+            if clicked!(task_prev) || clicked!(task_next) {
+                self.task_page = if clicked!(task_prev) {
+                    self.task_page.saturating_sub(1)
+                } else {
+                    (self.task_page + 1).min(self.task_choices.len().saturating_sub(1) / 3)
+                };
+                self.send(cx, Command::Refresh);
+                return;
+            }
+            if clicked!(pause_task) {
+                if let Some((id, _)) = self.task_choices.get(self.task_page * 3) {
+                    self.send(
+                        cx,
+                        Command::Assistance(IntentCommand::PauseTask(id.clone())),
+                    );
+                }
+                return;
+            }
+            if let Some(n) = if clicked!(task_0) {
+                Some(0)
+            } else if clicked!(task_1) {
+                Some(1)
+            } else if clicked!(task_2) {
+                Some(2)
+            } else {
+                None
+            } {
+                if let Some((id, _)) = self.task_choices.get(self.task_page * 3 + n) {
+                    self.send(
+                        cx,
+                        Command::Assistance(IntentCommand::ResumeTask(id.clone())),
+                    );
+                }
+                return;
+            }
+            if let Some(n) = if clicked!(goal_0) {
+                Some(0)
+            } else if clicked!(goal_1) {
+                Some(1)
+            } else if clicked!(goal_2) {
+                Some(2)
+            } else {
+                None
+            } {
+                if let Some((id, _)) = self.goals.get(self.goal_page * 3 + n) {
+                    self.send(
+                        cx,
+                        Command::Assistance(IntentCommand::SelectGoal(id.clone())),
+                    );
+                }
+                return;
             }
             if clicked!(new_activity) {
                 self.creating = true;
@@ -801,168 +1242,300 @@ impl Widget for BuWeiView {
                 })
             };
             let command: super::Result<Option<Command>> = (|| {
-                Ok(if clicked!(authorize) {
-                    Some(Command::Authorize)
-                } else if clicked!(confirm_authorization) {
-                    Some(Command::ConfirmAuthorization(
-                        self.consent_id.clone().ok_or("请先查看授权范围")?,
-                    ))
-                } else if clicked!(switch) {
-                    Some(Command::Switch)
-                } else if clicked!(revoke) {
-                    Some(Command::Revoke)
-                } else if clicked!(refresh) {
-                    Some(Command::Refresh)
-                } else if clicked!(invite_member) {
-                    Some(Command::InviteMember(text!(member)))
-                } else if clicked!(sync_activity) {
-                    Some(Command::SyncActivity)
-                } else if clicked!(join_room) {
-                    Some(Command::JoinRoom(text!(room)))
-                } else if clicked!(create) {
-                    Some(Command::CreateDated(
-                        super::controller::community::ActivityForm {
-                            title: text!(title),
-                            capacity: parse(text!(capacity))?,
-                            start: text!(start),
-                            end: text!(end),
-                            template: if self.template.is_empty() {
-                                "custom".into()
+                Ok(
+                    if clicked!(new_organize_goal) || clicked!(new_participate_goal) {
+                        Some(Command::Assistance(IntentCommand::PrepareGoal(
+                            if clicked!(new_organize_goal) {
+                                GoalKind::Organize
                             } else {
-                                self.template.clone()
+                                GoalKind::Participate
                             },
-                            location: text!(location),
-                            description: text!(description),
-                        },
-                    ))
-                } else if clicked!(template_badminton) {
-                    Some(Command::UseTemplate("badminton".into()))
-                } else if clicked!(template_boardgame) {
-                    Some(Command::UseTemplate("boardgame".into()))
-                } else if clicked!(template_reading) {
-                    Some(Command::UseTemplate("reading".into()))
-                } else if clicked!(copy_activity) {
-                    Some(Command::CopyActivity)
-                } else if clicked!(archive_activity) {
-                    Some(Command::ArchiveActivity)
-                } else if clicked!(recover_setup) {
-                    Some(Command::RecoverSetup)
-                } else if clicked!(load_contacts) {
-                    Some(Command::LoadContacts)
-                } else if clicked!(prepare_share) {
-                    Some(Command::PrepareShare(text!(member)))
-                } else if clicked!(confirm_share) {
-                    Some(Command::ConfirmShare(text!(member)))
-                } else if clicked!(join_card) {
-                    Some(Command::JoinCard)
-                } else if clicked!(preview_automation) {
-                    Some(Command::PreviewAutomation(settings(
-                        text!(invitation_minutes),
-                        text!(quiet_start),
-                        text!(quiet_end),
-                        text!(max_invitations),
-                    )?))
-                } else if clicked!(confirm_automation) {
-                    Some(Command::ConfirmAutomation {
-                        id: self
-                            .policy_consent_id
-                            .clone()
-                            .ok_or("请先查看自动补位规则")?,
-                        settings: settings(
+                        )))
+                    } else if clicked!(goal_ai_organize) || clicked!(goal_ai_participate) {
+                        Some(Command::Assistance(IntentCommand::PrepareGoalWithAi {
+                            text: text!(goal_request),
+                            kind: if clicked!(goal_ai_organize) {
+                                GoalKind::Organize
+                            } else {
+                                GoalKind::Participate
+                            },
+                        }))
+                    } else if clicked!(save_goal) {
+                        let mut f = self.goal_form.clone().ok_or("请先新建或选择目标")?;
+                        f.title = text!(goal_title);
+                        f.template = text!(goal_template);
+                        f.earliest = text!(goal_earliest);
+                        f.latest = text!(goal_latest);
+                        f.group = text!(goal_group);
+                        if f.kind == GoalKind::Organize {
+                            f.target = text!(goal_target);
+                            f.check_at = text!(goal_check);
+                            f.recurrence_days = text!(goal_recurrence);
+                            f.preparation_hours = text!(goal_preparation);
+                        }
+                        Some(Command::Assistance(IntentCommand::SaveGoal {
+                            id: self.goal_id.clone(),
+                            form: f,
+                        }))
+                    } else if clicked!(pause_goal) || clicked!(resume_goal) {
+                        Some(Command::Assistance(IntentCommand::SetGoalStatus {
+                            id: self.goal_id.clone().ok_or("请先选择目标")?,
+                            status: if clicked!(pause_goal) {
+                                GoalStatus::Paused
+                            } else {
+                                GoalStatus::Active
+                            },
+                        }))
+                    } else if clicked!(delete_goal) {
+                        Some(Command::Assistance(IntentCommand::DeleteGoal(
+                            self.goal_id.clone().ok_or("请先选择目标")?,
+                        )))
+                    } else if clicked!(feedback_once) || clicked!(feedback_long) {
+                        Some(Command::Assistance(IntentCommand::Feedback {
+                            goal_id: self.goal_id.clone().ok_or("请先保存本次目标")?,
+                            template: text!(goal_template),
+                            group: parse(text!(goal_group))?,
+                            scope: if clicked!(feedback_once) {
+                                buwei_host_core::intent_feedback::FeedbackScope::ThisOccasion
+                            } else {
+                                buwei_host_core::intent_feedback::FeedbackScope::LongTerm
+                            },
+                        }))
+                    } else if clicked!(undo_feedback) {
+                        Some(Command::Assistance(IntentCommand::UndoFeedback(
+                            self.feedback_id.clone().ok_or("没有可撤回反馈")?,
+                        )))
+                    } else if clicked!(save_preferences) {
+                        let minute = |s: String| -> super::Result<Option<u16>> {
+                            if s.trim().is_empty() {
+                                return Ok(None);
+                            }
+                            let (h, m) = s.trim().split_once(':').ok_or("可用时段请填写 HH:MM")?;
+                            let h: u16 = h.parse().map_err(|_| "小时不合法")?;
+                            let m: u16 = m.parse().map_err(|_| "分钟不合法")?;
+                            if h > 24 || m > 59 || (h == 24 && m > 0) {
+                                return Err("可用时段不合法".into());
+                            }
+                            Ok(Some(h * 60 + m))
+                        };
+                        let template = if text!(pref_template).trim().is_empty() {
+                            None
+                        } else {
+                            Some(super::controller::intentions::parse_template(&text!(
+                                pref_template
+                            ))?)
+                        };
+                        let weekdays = if text!(pref_weekdays).trim().is_empty() {
+                            vec![]
+                        } else {
+                            text!(pref_weekdays)
+                                .replace('，', ",")
+                                .split(',')
+                                .map(|s| {
+                                    s.trim()
+                                        .parse::<u8>()
+                                        .ok()
+                                        .filter(|d| (1..=7).contains(d))
+                                        .map(|d| d - 1)
+                                        .ok_or("星期请填写 1–7，以逗号分隔")
+                                })
+                                .collect::<Result<Vec<_>, _>>()?
+                        };
+                        Some(Command::Assistance(IntentCommand::SavePreferences(
+                            PersonalPreferences {
+                                template,
+                                group: if text!(pref_group).trim().is_empty() {
+                                    None
+                                } else {
+                                    Some(parse(text!(pref_group))?)
+                                },
+                                weekdays,
+                                earliest_minute: minute(text!(pref_start))?,
+                                latest_minute: minute(text!(pref_end))?,
+                                quiet_start: parse(text!(pref_quiet_start))?,
+                                quiet_end: parse(text!(pref_quiet_end))?,
+                                reminders: self.preferences.as_ref().is_none_or(|p| p.reminders),
+                                confirmed_at: 0,
+                            },
+                        )))
+                    } else if clicked!(reset_preferences) {
+                        Some(Command::Assistance(IntentCommand::ResetPreferences))
+                    } else if clicked!(preview_analysis) {
+                        Some(Command::Assistance(IntentCommand::PreviewAnalysis))
+                    } else if clicked!(confirm_analysis) {
+                        Some(Command::Assistance(IntentCommand::ConfirmAnalysis(
+                            self.analysis_consent_id
+                                .clone()
+                                .ok_or("请先查看主动分析说明")?,
+                        )))
+                    } else if clicked!(revoke_analysis) {
+                        if let Some(scope) = self.scope {
+                            super::host::invalidate_automation(scope, Some("_intent_ai"));
+                        }
+                        Some(Command::Assistance(IntentCommand::RevokeAnalysis))
+                    } else if clicked!(authorize) {
+                        Some(Command::Authorize)
+                    } else if clicked!(confirm_authorization) {
+                        Some(Command::ConfirmAuthorization(
+                            self.consent_id.clone().ok_or("请先查看授权范围")?,
+                        ))
+                    } else if clicked!(switch) {
+                        Some(Command::Switch)
+                    } else if clicked!(revoke) {
+                        Some(Command::Revoke)
+                    } else if clicked!(refresh) {
+                        Some(Command::Refresh)
+                    } else if clicked!(invite_member) {
+                        Some(Command::InviteMember(text!(member)))
+                    } else if clicked!(sync_activity) {
+                        Some(Command::SyncActivity)
+                    } else if clicked!(join_room) {
+                        Some(Command::JoinRoom(text!(room)))
+                    } else if clicked!(create) {
+                        Some(Command::CreateDated(
+                            super::controller::community::ActivityForm {
+                                title: text!(title),
+                                capacity: parse(text!(capacity))?,
+                                start: text!(start),
+                                end: text!(end),
+                                template: if self.template.is_empty() {
+                                    "custom".into()
+                                } else {
+                                    self.template.clone()
+                                },
+                                location: text!(location),
+                                description: text!(description),
+                            },
+                        ))
+                    } else if clicked!(template_badminton) {
+                        Some(Command::UseTemplate("badminton".into()))
+                    } else if clicked!(template_boardgame) {
+                        Some(Command::UseTemplate("boardgame".into()))
+                    } else if clicked!(template_reading) {
+                        Some(Command::UseTemplate("reading".into()))
+                    } else if clicked!(copy_activity) {
+                        Some(Command::CopyActivity)
+                    } else if clicked!(archive_activity) {
+                        Some(Command::ArchiveActivity)
+                    } else if clicked!(recover_setup) {
+                        Some(Command::RecoverSetup)
+                    } else if clicked!(load_contacts) {
+                        Some(Command::LoadContacts)
+                    } else if clicked!(prepare_share) {
+                        Some(Command::PrepareShare(text!(member)))
+                    } else if clicked!(confirm_share) {
+                        Some(Command::ConfirmShare(text!(member)))
+                    } else if clicked!(join_card) {
+                        Some(Command::JoinCard)
+                    } else if clicked!(preview_automation) {
+                        Some(Command::PreviewAutomation(settings(
                             text!(invitation_minutes),
                             text!(quiet_start),
                             text!(quiet_end),
                             text!(max_invitations),
-                        )?,
-                    })
-                } else if clicked!(pause_automation) {
-                    Some(Command::PauseAutomation)
-                } else if clicked!(create_with_ai) {
-                    Some(Command::CreateWithAi(text!(requirement)))
-                } else if clicked!(ask) {
-                    Some(Command::Ask(text!(question)))
-                } else if clicked!(join) {
-                    Some(Command::Join(Preferences {
-                        earliest: time(text!(earliest))?,
-                        latest: time(text!(latest))?,
-                        group: parse(text!(group))?,
-                    }))
-                } else if clicked!(participant_confirm) {
-                    Some(Command::ConfirmParticipant(Preferences {
-                        earliest: time(text!(earliest))?,
-                        latest: time(text!(latest))?,
-                        group: parse(text!(group))?,
-                    }))
-                } else if clicked!(pending_reconcile) {
-                    Some(Command::ReconcilePending)
-                } else if clicked!(prepare) {
-                    Some(Command::Prepare)
-                } else if clicked!(execute) {
-                    Some(Command::Execute)
-                } else if clicked!(reconcile) {
-                    Some(Command::Reconcile)
-                } else if clicked!(accept) {
-                    Some(Command::Accept(true))
-                } else if clicked!(decline) {
-                    Some(Command::Accept(false))
-                } else if clicked!(cancel) {
-                    Some(Command::Cancel)
-                } else if clicked!(expire) {
-                    Some(Command::Expire)
-                } else if clicked!(suggest) {
-                    let requirement = text!(requirement);
-                    self.view
-                        .text_input(cx, ids!(clarification))
-                        .set_text(cx, "");
-                    Some(Command::SuggestDated {
-                        requirement,
-                        answer: String::new(),
-                    })
-                } else if clicked!(clarify) {
-                    Some(Command::SuggestDated {
-                        requirement: text!(requirement),
-                        answer: text!(clarification),
-                    })
-                } else if clicked!(apply_advice) {
-                    Some(Command::ApplyDatedSuggestion {
-                        requirement: text!(requirement),
-                        answer: text!(clarification),
-                    })
-                } else if clicked!(explain) {
-                    Some(Command::Explain)
-                } else if clicked!(generate_note) {
-                    Some(Command::GenerateNote)
-                } else if clicked!(apply_note) {
-                    Some(Command::ApplyNote {
-                        title: text!(article_title),
-                        markdown: text!(markdown),
-                    })
-                } else if clicked!(configure_model) {
-                    Some(Command::ConfigureModel)
-                } else if clicked!(draft) {
-                    Some(Command::Draft {
-                        title: text!(article_title),
-                        markdown: text!(markdown),
-                    })
-                } else if clicked!(new_article) {
-                    Some(Command::NewArticle {
-                        title: text!(article_title),
-                        markdown: text!(markdown),
-                    })
-                } else if clicked!(article_prepare) {
-                    Some(Command::PrepareArticle)
-                } else if clicked!(publish) {
-                    Some(Command::PublishArticle {
-                        title: text!(article_title),
-                        markdown: text!(markdown),
-                    })
-                } else if clicked!(article_reconcile) {
-                    Some(Command::ReconcileArticle)
-                } else if clicked!(fault) {
-                    Some(Command::Fault)
-                } else {
-                    None
-                })
+                        )?))
+                    } else if clicked!(confirm_automation) {
+                        Some(Command::ConfirmAutomation {
+                            id: self
+                                .policy_consent_id
+                                .clone()
+                                .ok_or("请先查看自动补位规则")?,
+                            settings: settings(
+                                text!(invitation_minutes),
+                                text!(quiet_start),
+                                text!(quiet_end),
+                                text!(max_invitations),
+                            )?,
+                        })
+                    } else if clicked!(pause_automation) {
+                        Some(Command::PauseAutomation)
+                    } else if clicked!(create_with_ai) {
+                        Some(Command::CreateWithAi(text!(requirement)))
+                    } else if clicked!(ask) {
+                        Some(Command::Ask(text!(question)))
+                    } else if clicked!(join) {
+                        Some(Command::Join(Preferences {
+                            earliest: time(text!(earliest))?,
+                            latest: time(text!(latest))?,
+                            group: parse(text!(group))?,
+                        }))
+                    } else if clicked!(participant_confirm) {
+                        Some(Command::ConfirmParticipant(Preferences {
+                            earliest: time(text!(earliest))?,
+                            latest: time(text!(latest))?,
+                            group: parse(text!(group))?,
+                        }))
+                    } else if clicked!(pending_reconcile) {
+                        Some(Command::ReconcilePending)
+                    } else if clicked!(prepare) {
+                        Some(Command::Prepare)
+                    } else if clicked!(execute) {
+                        Some(Command::Execute)
+                    } else if clicked!(reconcile) {
+                        Some(Command::Reconcile)
+                    } else if clicked!(accept) {
+                        Some(Command::Accept(true))
+                    } else if clicked!(decline) {
+                        Some(Command::Accept(false))
+                    } else if clicked!(cancel) {
+                        Some(Command::Cancel)
+                    } else if clicked!(expire) {
+                        Some(Command::Expire)
+                    } else if clicked!(suggest) {
+                        let requirement = text!(requirement);
+                        self.view
+                            .text_input(cx, ids!(clarification))
+                            .set_text(cx, "");
+                        Some(Command::SuggestDated {
+                            requirement,
+                            answer: String::new(),
+                        })
+                    } else if clicked!(clarify) {
+                        Some(Command::SuggestDated {
+                            requirement: text!(requirement),
+                            answer: text!(clarification),
+                        })
+                    } else if clicked!(apply_advice) {
+                        Some(Command::ApplyDatedSuggestion {
+                            requirement: text!(requirement),
+                            answer: text!(clarification),
+                        })
+                    } else if clicked!(explain) {
+                        Some(Command::Explain)
+                    } else if clicked!(generate_note) {
+                        Some(Command::GenerateNote)
+                    } else if clicked!(apply_note) {
+                        Some(Command::ApplyNote {
+                            title: text!(article_title),
+                            markdown: text!(markdown),
+                        })
+                    } else if clicked!(configure_model) {
+                        Some(Command::ConfigureModel)
+                    } else if clicked!(draft) {
+                        Some(Command::Draft {
+                            title: text!(article_title),
+                            markdown: text!(markdown),
+                        })
+                    } else if clicked!(new_article) {
+                        Some(Command::NewArticle {
+                            title: text!(article_title),
+                            markdown: text!(markdown),
+                        })
+                    } else if clicked!(article_prepare) {
+                        Some(Command::PrepareArticle)
+                    } else if clicked!(publish) {
+                        Some(Command::PublishArticle {
+                            title: text!(article_title),
+                            markdown: text!(markdown),
+                        })
+                    } else if clicked!(article_reconcile) {
+                        Some(Command::ReconcileArticle)
+                    } else if clicked!(fault) {
+                        Some(Command::Fault)
+                    } else {
+                        None
+                    },
+                )
             })();
             match command {
                 Ok(Some(command)) => self.send(cx, command),

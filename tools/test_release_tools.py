@@ -1,16 +1,220 @@
-import json,pathlib,sqlite3,tempfile,unittest,struct,subprocess,sys,hashlib,os,shutil,zlib
+import json,pathlib,sqlite3,tempfile,unittest,struct,subprocess,sys,hashlib,os,shutil,zlib,zipfile,io,urllib.error
 from contextlib import closing
 from migrate import migrate
-from release_gate import check,REQUIRED,COMMUNITY_REQUIRED
+from release_gate import check,REQUIRED,COMMUNITY_REQUIRED,INTENT_STAGES
 from startup_check import inspect_log,rendered_window,frame_visibility
-from package_scan import content_findings
+from startup_check import check as check_startup
+from startup_check import normal_shutdown,remote_busy,deny_optional_rinx_agent,startup_environment
+from package_scan import content_findings,BINARY_PUBLIC_LITERALS
 from pe_stack import normalize
 from fault_acceptance import FaultSuite
 from dual_acceptance import Suite
-from verify_public_download import formal_checksums
+from verify_public_download import formal_checksums,check_release_metadata,downloaded_runtime_startup
 from unittest.mock import patch
+from intent_acceptance import IntentSuite
+import stage_release
+import build_proof,package
+import bootstrap
+from types import SimpleNamespace
+from formal_control import Control
+from capture_native import redaction_targets
 
 class ReleaseTools(unittest.TestCase):
+    def test_public_download_uses_visible_fresh_startup_and_requires_actual_native_frame(self):
+        package=pathlib.Path('downloaded/windows');evidence=pathlib.Path('downloaded/runtime-evidence')
+        valid={'passed':True,'version':'0.2.3','actual_native_render':True}
+        with patch('verify_public_download.startup',return_value=valid) as run:
+            self.assertEqual(downloaded_runtime_startup(package,evidence,'0.2.3'),valid)
+            run.assert_called_once_with(package,evidence,show_window=True)
+        for invalid in [dict(valid,passed=False),dict(valid,version='0.2.2'),dict(valid,actual_native_render=False),{'passed':True,'version':'0.2.3'}]:
+            with patch('verify_public_download.startup',return_value=invalid):
+                with self.assertRaisesRegex(ValueError,'Downloaded native startup failed'):
+                    downloaded_runtime_startup(package,evidence,'0.2.3')
+    def test_visible_fresh_startup_removes_hide_switch_and_private_environment(self):
+        private=['CARGO_HOME','RUSTUP_HOME','CARGO_MANIFEST_DIR','RINX_DATA_DIR','OCTOSENSE_HOME','OCTOS_APP_CORE_DIR','OCTOSENSE_DEV_MODE','MAKEPAD_REMOTE','MAKEPAD_FOCUS']
+        for inherited_hide in ['1','0','']:
+            source=dict.fromkeys(private,'private-or-override')
+            source.update(SystemRoot='C:/Windows',PATH='private-toolchain',MAKEPAD_HIDE_WINDOWS=inherited_hide,MAKEPAD_FORCE_SOFTWARE_GPU='1')
+            original=dict(source);visible=startup_environment(source,show_window=True);hidden=startup_environment(source)
+            self.assertEqual(source,original)
+            for key in private:self.assertNotIn(key,visible);self.assertNotIn(key,hidden)
+            self.assertNotIn('MAKEPAD_HIDE_WINDOWS',visible)
+            self.assertEqual(hidden['MAKEPAD_HIDE_WINDOWS'],'1')
+            self.assertEqual(visible['MAKEPAD_FORCE_SOFTWARE_GPU'],'1')
+            self.assertEqual(hidden['PATH'],visible['PATH'])
+            self.assertNotIn('private-toolchain',visible['PATH'])
+    def test_cached_official_host_mutation_stops_before_setup_and_is_preserved(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);host=root/'.deps/octosense';host.mkdir(parents=True)
+            subprocess.run(['git','init','-q',str(host)],check=True)
+            source=host/'official.rs';source.write_text('reviewed source\n','utf8')
+            subprocess.run(['git','-C',str(host),'-c','core.autocrlf=false','add','official.rs'],check=True)
+            subprocess.run(['git','-C',str(host),'-c','user.name=CacheIntegrityTest','-c','user.email=cache@example.invalid','-c','commit.gpgsign=false','commit','-qm','fixture'],check=True)
+            commit=subprocess.check_output(['git','-C',str(host),'rev-parse','HEAD'],text=True).strip()
+            source.write_text('unexpected cached host change\n','utf8')
+            with patch.object(bootstrap,'ROOT',root),patch.object(bootstrap,'PIN',commit),patch.object(bootstrap,'call') as setup,patch.object(sys,'argv',['bootstrap.py']),patch.dict(os.environ,dict(os.environ),clear=True):
+                with self.assertRaisesRegex(RuntimeError,'Modified official OctoSense host preserved'):bootstrap.main()
+                setup.assert_not_called()
+            self.assertEqual(source.read_text('utf8'),'unexpected cached host change\n')
+            self.assertEqual(subprocess.check_output(['git','-C',str(host),'rev-parse','HEAD'],text=True).strip(),commit)
+    def test_authorization_only_retries_definitely_unsent_preflight_preview(self):
+        control=Control.__new__(Control)
+        control.command=unittest.mock.Mock(side_effect=[
+            {'message':'正式服务器身份核验超时；尚未执行动作'},
+            {'consent_id':'new-preview'}, {'authorized':True}])
+        with patch('formal_control.time.sleep'):self.assertTrue(control.authorize()['authorized'])
+        self.assertEqual(control.command.call_args_list,[unittest.mock.call('Authorize'),unittest.mock.call('Authorize'),unittest.mock.call('ConfirmAuthorization','new-preview')])
+        for message in ['正式服务器身份核验失败；尚未执行动作','授权已撤销']:
+            control.command=unittest.mock.Mock(return_value={'message':message})
+            with self.assertRaises(RuntimeError):control.authorize()
+            control.command.assert_called_once_with('Authorize')
+        control.command=unittest.mock.Mock(side_effect=[{'consent_id':'preview'},{'authorized':False}])
+        with self.assertRaises(RuntimeError):control.authorize()
+        self.assertEqual(control.command.call_count,2)
+    def test_optional_agent_denial_is_limited_to_a_new_anonymous_profile(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp)
+            path,report=deny_optional_rinx_agent(root,'0.2.3')
+            self.assertEqual(path.relative_to(root).as_posix(),'data/v0.2.3/shell/approvals/consent.json')
+            record=json.loads(path.read_text('utf8'))
+            self.assertEqual(record['schema'],1);self.assertEqual(set(record['apps']),{'rinx'})
+            self.assertIs(record['apps']['rinx']['allowed'],False)
+            self.assertEqual(report['configuration_sha256'],hashlib.sha256(path.read_bytes()).hexdigest())
+            original=path.read_bytes()
+            with self.assertRaisesRegex(RuntimeError,'new empty test profile'):deny_optional_rinx_agent(root,'0.2.3')
+            self.assertEqual(path.read_bytes(),original)
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);marker=root/'signed-in-profile';marker.write_bytes(b'preserve')
+            with self.assertRaises(RuntimeError):deny_optional_rinx_agent(root,'0.2.3')
+            self.assertEqual(marker.read_bytes(),b'preserve')
+            self.assertFalse((root/'data').exists())
+        with tempfile.TemporaryDirectory() as tmp:
+            for version in ['../other','0.2.3/../other','0.2.3-preview']:
+                with self.assertRaises(ValueError):deny_optional_rinx_agent(pathlib.Path(tmp),version)
+            self.assertEqual(list(pathlib.Path(tmp).iterdir()),[])
+    def test_build_proof_distinguishes_acceptance_from_formal_host(self):
+        replies=['commit','rustc 1.98.0','host: x86_64-unknown-linux-gnu\n']
+        with patch.object(build_proof.subprocess,'check_output',side_effect=replies*2),patch.object(build_proof,'source_fingerprint',return_value='source'),patch.object(build_proof,'digest',return_value='lock'):
+            formal=build_proof.snapshot();acceptance=build_proof.snapshot('acceptance')
+        self.assertEqual(formal['features'],['full-host']);self.assertEqual(acceptance['features'],['acceptance'])
+        self.assertEqual({k:v for k,v in formal.items() if k!='features'},{k:v for k,v in acceptance.items() if k!='features'})
+        with self.assertRaises(ValueError):build_proof.snapshot('desktop')
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);binary=root/'acceptance.exe';binary.write_bytes(b'acceptance fixture')
+            pathlib.Path(str(binary)+'.build.json').write_text(json.dumps(dict(acceptance,passed=True)),'utf8')
+            with self.assertRaisesRegex(RuntimeError,'measured full-host'):package.stage(binary,root/'formal-package')
+            self.assertFalse((root/'formal-package').exists())
+    def test_shutdown_waits_for_original_busy_command_and_requires_normal_exit(self):
+        def error(message='timeout (app busy or not running its event loop)',code=404):
+            return urllib.error.HTTPError('http://localhost/quit',code,'failed',{},io.BytesIO(json.dumps({'err':message}).encode()))
+        process=unittest.mock.Mock();process.wait.return_value=0
+        get=unittest.mock.Mock(side_effect=error())
+        self.assertFalse(normal_shutdown(process,get));get.assert_called_once_with('quit')
+        process.wait.assert_called_once_with(timeout=25)
+        for exception in [error('no route'),error(code=503)]:
+            get=unittest.mock.Mock(side_effect=exception)
+            with self.assertRaises(urllib.error.HTTPError):normal_shutdown(process,get)
+        process.wait.return_value=1
+        with self.assertRaises(AssertionError):normal_shutdown(process,unittest.mock.Mock(side_effect=error()))
+        process.wait.side_effect=subprocess.TimeoutExpired('native',25)
+        with self.assertRaises(subprocess.TimeoutExpired):normal_shutdown(process,unittest.mock.Mock(side_effect=error()))
+        self.assertFalse(remote_busy(urllib.error.HTTPError('http://localhost/g',404,'failed',{},io.BytesIO(b'not-json'))))
+    def test_release_stages_matching_privacy_as_a_hashed_formal_attachment(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);source=root/'source';package=root/'package';destination=root/'attachments'
+            for folder in (source/'docs',package/'docs'):folder.mkdir(parents=True)
+            text='Privacy: credentials remain on the local host.\n'
+            for folder in (source,package):(folder/'docs/PRIVACY.md').write_text(text,'utf8')
+            release=dict(version='0.2.3',dependency_lock_sha256='lock',build_proof=dict(native_source_sha256='source',source_commit='commit'))
+            (package/'release.json').write_text(json.dumps(release),'utf8')
+            video=root/'demo.mp4';video.write_bytes(b'public-demo')
+            video_report=root/'video.json';video_report.write_text(json.dumps(dict(passed=True,version='0.2.3',video_sha256=hashlib.sha256(video.read_bytes()).hexdigest())),'utf8')
+            args=SimpleNamespace(package=package,destination=destination,video=video,video_report=video_report)
+            with patch.object(stage_release,'ROOT',source),patch.object(stage_release,'scan_source',return_value=dict(passed=True)),patch.object(stage_release,'scan',return_value=dict(passed=True)),patch.object(stage_release,'source_fingerprint',return_value='source'),patch.object(stage_release,'digest',return_value='lock'),patch.object(stage_release.subprocess,'check_output',side_effect=['','commit']):
+                record=stage_release.stage(args)
+            self.assertEqual(record['prepared_files'],4);self.assertFalse(record['publicly_published'])
+            self.assertEqual((destination/'PRIVACY.md').read_bytes(),(package/'docs/PRIVACY.md').read_bytes())
+            hashes=formal_checksums((destination/'SHA256SUMS.txt').read_text('utf8'),'0.2.3')
+            self.assertEqual(hashes['PRIVACY.md'],hashlib.sha256((destination/'PRIVACY.md').read_bytes()).hexdigest())
+            self.assertEqual(set(p.name for p in destination.iterdir()),set(hashes)|{'SHA256SUMS.txt'})
+            with zipfile.ZipFile(destination/'BuWei-v0.2.3-windows-x64.zip') as archive:
+                self.assertEqual(archive.read('docs/PRIVACY.md'),(destination/'PRIVACY.md').read_bytes())
+            (package/'docs/PRIVACY.md').write_text('old notice','utf8')
+            with patch.object(stage_release,'ROOT',source),patch.object(stage_release,'scan_source',return_value=dict(passed=True)),patch.object(stage_release,'scan',return_value=dict(passed=True)),patch.object(stage_release,'source_fingerprint',return_value='source'),patch.object(stage_release,'digest',return_value='lock'):
+                with self.assertRaisesRegex(RuntimeError,'privacy notice differs'):stage_release.stage(args)
+    def test_failed_native_startup_retains_public_diagnostics_and_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);package=root/'package';native=package/'native';native.mkdir(parents=True)
+            binary=native/'buwei-rinx-dual-host.exe';binary.write_bytes(b'fresh-native-fixture')
+            (package/'release.json').write_text(json.dumps({'version':'0.2.2','native_binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest()}),'utf8')
+            process=unittest.mock.Mock();process.poll.return_value=None;process.wait.return_value=0
+            opener=unittest.mock.Mock();opener.open.side_effect=ConnectionRefusedError('offline fixture')
+            with patch('startup_check.subprocess.Popen',return_value=process),patch('startup_check.urllib.request.build_opener',return_value=opener),patch('startup_check.time.monotonic',side_effect=[0,61]):
+                with self.assertRaisesRegex(TimeoutError,'Native startup/render timed out'):
+                    check_startup(package,root/'output')
+            report=json.loads((root/'output/startup.json').read_text('utf8'))
+            self.assertFalse(report['passed']);self.assertFalse(report['actual_native_render'])
+            self.assertEqual(report['failure_phase'],'native_startup')
+            self.assertEqual(report['failure_type'],'TimeoutError')
+            self.assertNotIn('native_log',report);self.assertNotIn('widgets',report)
+            process.terminate.assert_called_once()
+    def test_download_keeps_preview_and_draft_release_boundaries(self):
+        release=dict(draft=False,prerelease=True,assets=[dict(name='runtime.zip')])
+        with self.assertRaises(ValueError):check_release_metadata(release,{'runtime.zip'})
+        check_release_metadata(release,{'runtime.zip'},allow_preview=True)
+        with self.assertRaises(ValueError):check_release_metadata(dict(release,draft=True),{'runtime.zip'},allow_preview=True)
+        with self.assertRaises(ValueError):check_release_metadata(release,{'different.zip'},allow_preview=True)
+    def test_assistance_recovery_selects_the_requested_activity(self):
+        suite=IntentSuite.__new__(IntentSuite);suite.activity_id='requested'
+        other=dict(id='other-card',kind='opportunity',activity_id='other')
+        wanted=dict(id='wanted-card',kind='opportunity',activity_id='requested')
+        suite.call=lambda control,name:dict(assistance_cards=[other,wanted])
+        self.assertEqual(suite.card(object(),'opportunity'),wanted)
+    def test_article_recovery_stages_first_and_following_drafts(self):
+        suite = FaultSuite.__new__(FaultSuite)
+        suite.o = object()
+        suite.room = 'current-room'
+        draft = dict(title='Verified draft', markdown='Reviewed body')
+        for current, expected in ((None, 'Draft'),
+                                  (dict(status='confirmed', action=dict(target='current-room')), 'NewArticle'),
+                                  (dict(status='prepared', action=dict(target='current-room')), 'Draft'),
+                                  (dict(status='confirmed', action=dict(target='other-room')), 'Draft')):
+            calls = []
+            def call(control, name, value=None):
+                calls.append((name,value))
+                return dict(success=True, article=current)
+            suite.call = call
+            suite.stage_article(draft)
+            self.assertEqual(calls, [('Refresh',None),(expected,draft)])
+        suite.call = lambda control,name,value=None: dict(success=False,message='refused')
+        with self.assertRaises(AssertionError):suite.stage_article(draft)
+    def test_stale_card_retries_only_unchanged_rejected_preparation(self):
+        suite=IntentSuite.__new__(IntentSuite)
+        card=dict(id='same',fingerprint='old',kind='opportunity',goal_id='goal',goal_revision=1,activity_id='activity',action='register')
+        fresh=dict(card,fingerprint='new')
+        messages=[]
+        def call(control,name,value=None):
+            messages.append((name,value))
+            if name=='Refresh':return {'assistance_cards':[fresh]}
+            return {'success':value['value']['fingerprint']=='new','message':'建议依据已变化或过期，请核对最新卡片'}
+        suite.call=call
+        self.assertTrue(suite.use(None,card)['success'])
+        self.assertEqual([x[0] for x in messages],['Assistance','Refresh','Assistance'])
+        fresh['goal_revision']=2
+        with self.assertRaisesRegex(AssertionError,'same user-confirmed goal'):suite.use(None,card)
+        suite.call=lambda *args:{'success':False,'message':'发送结果待核实'}
+        with self.assertRaisesRegex(AssertionError,'发送结果待核实'):suite.use(None,card)
+    def test_new_releases_cannot_skip_their_intent_and_background_gates(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);path=root/'acceptance.json'
+            report={'version':'0.2.5'}
+            for name in REQUIRED+COMMUNITY_REQUIRED:
+                file=root/(name+'.json');file.write_text(json.dumps({'version':'0.2.5','passed':True,'independent_cases':100,'critical_information_accuracy':1,'unauthorized_actions':0}),'utf8')
+                report[name]={'passed':True,'evidence':file.name}
+            path.write_text(json.dumps(report),'utf8')
+            checked=check(path)
+            self.assertFalse(checked['stable_release_allowed'])
+            self.assertEqual(set(checked['missing_or_failed']),{name for names in INTENT_STAGES.values() for name in names})
     def test_startup_refuses_wallpaper_or_uniform_background_instead_of_title(self):
         def png(rows):
             def chunk(kind,body):return struct.pack('>I',len(body))+kind+body+struct.pack('>I',zlib.crc32(kind+body)&0xffffffff)
@@ -35,6 +239,9 @@ class ReleaseTools(unittest.TestCase):
         self.assertEqual(len(formal_checksums(lines,'0.2.0')),2)
         for invalid in [lines+lines.splitlines()[0]+'\n',lines+'c'*64+'  developer-report.json\n',lines.replace('0.2.0-demo','0.1.1-demo')]:
             with self.assertRaises(ValueError):formal_checksums(invalid,'0.2.0')
+        current=lines.replace('0.2.0','0.2.3')
+        with self.assertRaises(ValueError):formal_checksums(current,'0.2.3')
+        self.assertEqual(len(formal_checksums(current+'c'*64+'  PRIVACY.md\n','0.2.3')),3)
     def test_startup_capture_selects_visible_app_and_rejects_hidden_labels(self):
         windows={'w':[{'i':0,'sz':[1024,720]},{'i':1,'sz':[1400,900]}]}
         labels=[{'w':1,'ty':'Label','r':[30,100+n*25,400,20],'t':t} for n,t in enumerate(['补位','v0.2.0','未授权'])]
@@ -86,6 +293,22 @@ class ReleaseTools(unittest.TestCase):
             changed=bytearray(file.read_bytes());struct.pack_into('<II',changed,296,800,8);file.write_bytes(changed)
             with self.assertRaises(ValueError):normalize(file)
             self.assertEqual(file.read_bytes(),changed)
+    def test_binary_public_literals_are_exact_and_do_not_exempt_text(self):
+        for label,fragments in BINARY_PUBLIC_LITERALS.items():
+            for fragment in fragments:
+                self.assertNotIn(label,content_findings(fragment,True))
+                self.assertNotIn(label+'_utf16',content_findings(fragment.decode().encode('utf-16le'),True))
+                self.assertIn(label,content_findings(fragment,False))
+    def test_binary_public_literals_do_not_hide_real_or_similar_values(self):
+        key=b'sk-'+b'a1'*24
+        self.assertIn('provider_key',content_findings(key,True))
+        self.assertIn('provider_key_utf16',content_findings(key.decode().encode('utf-16le'),True))
+        prefix=next(iter(BINARY_PUBLIC_LITERALS['provider_key']))
+        self.assertIn('provider_key',content_findings(prefix+b'extra',True))
+        room=b'!'+b'RoomFixture12345678'+b':matrix.example'
+        self.assertIn('private_room',content_findings(room,True))
+        pooled=next(iter(BINARY_PUBLIC_LITERALS['private_room']))
+        self.assertIn('private_room',content_findings(pooled.replace(b'Skill',b'matrix.example'),True))
     def test_binary_key_parser_labels_are_distinct_from_embedded_key_material(self):
         marker=b'-----BEGIN '+b'PRIVATE KEY-----'
         self.assertNotIn('private_key',content_findings(marker,True))
@@ -93,10 +316,10 @@ class ReleaseTools(unittest.TestCase):
         self.assertIn('private_key',content_findings(material,True))
         self.assertIn('private_key_utf16',content_findings(material.decode().encode('utf-16le'),True))
     def test_startup_accepts_only_the_pinned_deferred_vm_guard(self):
-        line='[E] public/makepad/widgets/src/widget_async.rs:787:9 - BUG: update_global_ui_handle while isolate SplashVmId(2) is installed; deferred'
+        line='[E] public/makepad/widgets/src/widget_async.rs:839:9 - BUG: update_global_ui_handle while isolate SplashVmId(2) is installed; deferred'
         self.assertEqual(inspect_log(line)[0]['count'],1)
         self.assertEqual(inspect_log(line.replace('SplashVmId(2)','SplashVmId(1)'))[0]['count'],1)
-        for error in [line+'\n[E] unexpected error','[E] renderer failed','Failed to load resource']:
+        for error in [line.replace('widget_async.rs:839','widget_async.rs:787'),line+'\n[E] unexpected error','[E] renderer failed','Failed to load resource']:
             with self.assertRaises(AssertionError):inspect_log(error)
     def test_sqlite_header_and_wal_migrate_preserve_ids_and_original(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -130,4 +353,29 @@ class ReleaseTools(unittest.TestCase):
             measured={'version':'0.2.0','passed':True,'independent_cases':100,'critical_information_accuracy':0.96,'unauthorized_actions':0};proof.write_text(json.dumps(measured),'utf8');self.assertTrue(check(path)['stable_release_allowed'])
             for field,value in [('independent_cases',99),('critical_information_accuracy',0.94),('unauthorized_actions',1)]:
                 proof.write_text(json.dumps({**measured,field:value}),'utf8');self.assertFalse(check(path)['stable_release_allowed'])
+class NativeCapturePrivacyTests(unittest.TestCase):
+    """Invented privacy strings; actual private capture fixtures stay local."""
+    def test_registration_facts_remain_outside_private_account_line(self):
+        widget={'i':'participant_preview','ty':'Label','r':[44,714,1312,96],
+                't':'账号：@example:example.org\n活动：六人羽毛球\n操作：登记候补，19:30 至 21:30，2 人\n请确认以上内容'}
+        self.assertEqual(redaction_targets(widget),[(44,714,1312,24)])
+    def test_activity_preserves_time_place_and_capacity_lines(self):
+        widget={'i':'activity','ty':'Label','r':[20,100,1312,78],
+                't':'六人羽毛球\n19:30 至 21:30\n地点：球馆\n说明：同行不拆组\n已确认 2 · 剩余 4\n房间：!example:example.org'}
+        self.assertEqual(redaction_targets(widget),[(20,165,1312,13)])
+    def test_html_unknown_labels_and_wrapped_text_use_full_cover(self):
+        text='账号：@example:example.org\n活动：羽毛球\n操作：报名 2 人\n请确认'
+        for changed in [{'ty':'Html'}, {'i':'other'}, {'r':[0,0,80,96]}, {'t':text+'\n多一行'}, {'r':[0,0,1312,140]}]:
+            widget={'i':'participant_preview','ty':'Label','r':[0,0,1312,96],'t':text,**changed}
+            self.assertEqual(redaction_targets(widget),[widget['r']])
+    def test_long_parameter_json_does_not_use_line_mask(self):
+        widget={'i':'history','ty':'Label','r':[10,20,1312,96],
+                't':'已确认\n参数：'+('a'*32)+'\n人数 2\n回执已核验'}
+        self.assertEqual(redaction_targets(widget),[widget['r']])
+    def test_non_private_or_zero_sized_widgets_are_unchanged(self):
+        widget={'i':'participant_preview','ty':'Label','r':[0,0,1312,96],'t':'活动\n19:30\n2 人\n请确认'}
+        self.assertEqual(redaction_targets(widget),[])
+        widget.update(t='@example:example.org',r=[0,0,0,0])
+        self.assertEqual(redaction_targets(widget),[])
+
 if __name__=='__main__':unittest.main()
