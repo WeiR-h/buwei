@@ -4,7 +4,7 @@ from migrate import migrate
 from release_gate import check,REQUIRED,COMMUNITY_REQUIRED,INTENT_STAGES
 from startup_check import inspect_log,rendered_window,frame_visibility
 from startup_check import check as check_startup
-from startup_check import normal_shutdown,remote_busy
+from startup_check import normal_shutdown,remote_busy,deny_optional_rinx_agent
 from package_scan import content_findings,BINARY_PUBLIC_LITERALS
 from pe_stack import normalize
 from fault_acceptance import FaultSuite
@@ -13,9 +13,43 @@ from verify_public_download import formal_checksums,check_release_metadata
 from unittest.mock import patch
 from intent_acceptance import IntentSuite
 import stage_release
+import build_proof,package
 from types import SimpleNamespace
 
 class ReleaseTools(unittest.TestCase):
+    def test_optional_agent_denial_is_limited_to_a_new_anonymous_profile(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp)
+            path,report=deny_optional_rinx_agent(root,'0.2.3')
+            self.assertEqual(path.relative_to(root).as_posix(),'data/v0.2.3/shell/approvals/consent.json')
+            record=json.loads(path.read_text('utf8'))
+            self.assertEqual(record['schema'],1);self.assertEqual(set(record['apps']),{'rinx'})
+            self.assertIs(record['apps']['rinx']['allowed'],False)
+            self.assertEqual(report['configuration_sha256'],hashlib.sha256(path.read_bytes()).hexdigest())
+            original=path.read_bytes()
+            with self.assertRaisesRegex(RuntimeError,'new empty test profile'):deny_optional_rinx_agent(root,'0.2.3')
+            self.assertEqual(path.read_bytes(),original)
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);marker=root/'signed-in-profile';marker.write_bytes(b'preserve')
+            with self.assertRaises(RuntimeError):deny_optional_rinx_agent(root,'0.2.3')
+            self.assertEqual(marker.read_bytes(),b'preserve')
+            self.assertFalse((root/'data').exists())
+        with tempfile.TemporaryDirectory() as tmp:
+            for version in ['../other','0.2.3/../other','0.2.3-preview']:
+                with self.assertRaises(ValueError):deny_optional_rinx_agent(pathlib.Path(tmp),version)
+            self.assertEqual(list(pathlib.Path(tmp).iterdir()),[])
+    def test_build_proof_distinguishes_acceptance_from_formal_host(self):
+        replies=['commit','rustc 1.98.0','host: x86_64-unknown-linux-gnu\n']
+        with patch.object(build_proof.subprocess,'check_output',side_effect=replies*2),patch.object(build_proof,'source_fingerprint',return_value='source'),patch.object(build_proof,'digest',return_value='lock'):
+            formal=build_proof.snapshot();acceptance=build_proof.snapshot('acceptance')
+        self.assertEqual(formal['features'],['full-host']);self.assertEqual(acceptance['features'],['acceptance'])
+        self.assertEqual({k:v for k,v in formal.items() if k!='features'},{k:v for k,v in acceptance.items() if k!='features'})
+        with self.assertRaises(ValueError):build_proof.snapshot('desktop')
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);binary=root/'acceptance.exe';binary.write_bytes(b'acceptance fixture')
+            pathlib.Path(str(binary)+'.build.json').write_text(json.dumps(dict(acceptance,passed=True)),'utf8')
+            with self.assertRaisesRegex(RuntimeError,'measured full-host'):package.stage(binary,root/'formal-package')
+            self.assertFalse((root/'formal-package').exists())
     def test_shutdown_waits_for_original_busy_command_and_requires_normal_exit(self):
         def error(message='timeout (app busy or not running its event loop)',code=404):
             return urllib.error.HTTPError('http://localhost/quit',code,'failed',{},io.BytesIO(json.dumps({'err':message}).encode()))

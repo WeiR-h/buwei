@@ -33,7 +33,8 @@ def setup_activity(hosts):
     o,p=controls;o.authorize();p.authorize()
     tomorrow=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8)))+datetime.timedelta(days=1)
     start=int(tomorrow.replace(hour=19,minute=30,second=0,microsecond=0).timestamp())
-    form=dict(title='补位主动帮助验收',capacity=2,start=display(start),end=display(start+7200),template='badminton',location='私有测试场地',description='用于主动建议与真实回执闭环验收；不代表实际到场。')
+    title='补位主动帮助验收 v'+hosts.version+' '+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+    form=dict(title=title,capacity=2,start=display(start),end=display(start+7200),template='badminton',location='私有测试场地',description='用于主动建议与真实回执闭环验收；不代表实际到场。')
     created=request(o,'CreateDated',form);a=created['activity'];identifier=a['metadata']['activity_id'];room=a['room']
     o=Control(hosts.profiles['organizer'],accounts[0],room)
     request(o,'LoadContacts');preview=request(o,'PrepareShare',accounts[1]);operation=preview['share']

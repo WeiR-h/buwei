@@ -10,7 +10,7 @@ from capture_native import capture
 
 class CapturedSuite(Suite):
     def __init__(self,hosts,private,media,font):
-        super().__init__(hosts.profiles['organizer'],hosts.profiles['participant'],hosts.version,private)
+        super().__init__(hosts.profiles['organizer'],hosts.profiles['participant'],hosts.version,private,hosts.activity_id)
         self.hosts=hosts;self.media=media;self.font=font;self.frames=[]
     def frame(self,role,label):
         if self.rounds:return
@@ -37,7 +37,7 @@ class CapturedSuite(Suite):
         op=super().cancel();self.frame('organizer','本人取消，组织者核验并释放名额');return op
 
 def run(a):
-    h=Hosts(a.executable,a.owner_profile,a.participant_profile,a.version,a.owner_port,a.participant_port)
+    h=Hosts(a.executable,a.owner_profile,a.participant_profile,a.version,a.owner_port,a.participant_port,a.activity_id)
     try:
         h.start('organizer');h.start('participant')
         suite=CapturedSuite(h,a.private_trace,a.media,a.font)
@@ -51,7 +51,7 @@ def run(a):
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--executable',type=pathlib.Path,required=True)
     p.add_argument('--owner-profile',type=pathlib.Path,required=True);p.add_argument('--participant-profile',type=pathlib.Path,required=True)
-    p.add_argument('--version',required=True);p.add_argument('--owner-port',type=int,default=8160);p.add_argument('--participant-port',type=int,default=8161)
+    p.add_argument('--version',required=True);p.add_argument('--activity-id',required=True);p.add_argument('--owner-port',type=int,default=8160);p.add_argument('--participant-port',type=int,default=8161)
     p.add_argument('--private-trace',type=pathlib.Path,required=True);p.add_argument('--public-evidence',type=pathlib.Path,required=True)
     p.add_argument('--media',type=pathlib.Path,required=True);p.add_argument('--font',type=pathlib.Path,required=True)
     run(p.parse_args())

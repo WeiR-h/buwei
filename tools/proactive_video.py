@@ -30,7 +30,7 @@ def build(args):
         else:
             for i, line in enumerate(lines):
                 draw.text((90, 250+i*110), line, font=font, fill='#c4ded3')
-        draw.text((70, 1018), f'补位 v{version} 预览 · 实际原生界面截图序列 · 测试账号 · 私密字段已遮盖', font=small, fill='#c4ded3')
+        draw.text((70, 1018), f'补位 v{version} · 原生 SDK 验收构建截图序列 · 测试账号 · 私密字段已遮盖', font=small, fill='#c4ded3')
         file = args.directory/f'{len(slides):02d}.png'
         canvas.save(file)
         slides.append({'file': file.name, 'duration_seconds': seconds,

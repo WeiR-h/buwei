@@ -7,17 +7,22 @@
 模型辅助形成需求建议和活动草稿，授权与持久化回执框架贯穿活动和文章两个场景。
 
 评审可从固定 Release 下载作品，并按使用指南启动。宿主、框架和补丁版本见 dependencies.lock.json；源码、构建流程及测试完整提供。
-演示覆盖真实输入、独立授权、执行和接收者回复。截图与视频使用虚构活动，隐私处理见隐私说明。
+对应 Release 的演示展示目标、主动建议、独立授权、执行和接收者回复。截图与视频使用虚构活动，隐私处理见[隐私说明](PRIVACY.md)。
 
 初赛使用截止前通过验收的固定版本，后续功能以对应正式 Release 为准。
 
 ## 本次提交
 
-正式运行版本固定为 [v0.2.0](https://github.com/WeiR-h/buwei/releases/tag/v0.2.0)，原标签与附件保持固定。
+当前候选版本为 **v0.2.3**，统一提供活动管理、本人目标、主动建议、持续任务及授权回执流程。候选源码中的目标变更会使尚未执行的旧预览失效，恢复任务沿原操作编号核实结果。
 
-[App Hub 原生扩展接入审核](https://github.com/OctoSense-org/OctoSense-App-Hub/issues/110)已经提交，等待维护者审核。
-本作品使用完整 Windows 原生宿主，接入方式由 App Hub 维护者确认。
+正式运行包、三分钟操作讲解、隐私文件和 SHA-256 清单在本轮综合验收完成后发布。评审与用户使用对应固定 Release 的源码和附件；[正式下载](https://github.com/WeiR-h/buwei/releases/latest)以 Release 状态为准。
 
-[主动帮助功能源码](https://github.com/WeiR-h/buwei/pull/1)和[三分钟操作讲解](../assets/proactive/BuWei-proactive-walkthrough.mp4)展示后续开发版。
-视频使用人工检查后的实际原生界面截图序列，业务由授权测试入口驱动，展示虚构活动；账号、房间及操作编号已遮盖。
-开发版已完成五轮真实双账号主动帮助闭环、独立模型意图验收和真实账号切换检查。正式下载以已完成综合验收的 Release 为准。
+作品发布形式为完整 Windows 原生宿主扩展。App Hub 商店不接纳原生项目；[原接入沟通记录](https://github.com/OctoSense-org/OctoSense-App-Hub/issues/110)保留。官方宿主的原生收录另按上游源码评审推进。
+
+视频使用人工检查后的实际原生界面截图序列，业务由显式授权的测试入口驱动；账号、房间及操作编号遮盖。演示的测试活动不代表实际到场，验收报告区分真实服务端证据与固定事件测试。
+
+## 初赛历史
+
+初赛评审固定为 [v0.2.2](https://github.com/WeiR-h/buwei/releases/tag/v0.2.2)（`d130093`），结果为入围、81/100。该标签与原附件保持固定，后续发布不替换初赛记录。
+
+[v0.2.0](https://github.com/WeiR-h/buwei/releases/tag/v0.2.0)保留活动管理正式版的历史交付。版本更新见[版本记录](../CHANGELOG.md)。

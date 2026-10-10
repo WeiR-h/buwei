@@ -10,7 +10,8 @@ def source_fingerprint():
         if file.suffix in {'.rs','.toml','.md','.txt','.svg'} or file.name=='Cargo.lock':content=content.replace(b'\r\n',b'\n')
         files[file.relative_to(ROOT).as_posix()]=hashlib.sha256(content).hexdigest()
     return hashlib.sha256(json.dumps(files,sort_keys=True,separators=(',',':')).encode()).hexdigest()
-def snapshot():
+def snapshot(features='full-host'):
+    if features not in {'full-host','acceptance'}:raise ValueError('Unsupported measured build feature')
     try:commit=subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True).strip()
     except subprocess.CalledProcessError:commit=None
     rustc=subprocess.check_output(['rustc','--version'],text=True).strip()
@@ -25,12 +26,12 @@ def snapshot():
         compiler['visual_studio']=subprocess.check_output(args+['-property','installationVersion'],text=True).strip()
         install=pathlib.Path(subprocess.check_output(args+['-property','installationPath'],text=True).strip())
         compiler['msvc_tools']=(install/'VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt').read_text('utf8').strip()
-    return {'source_commit':commit,'native_source_sha256':source_fingerprint(),'dependencies_lock_sha256':digest(ROOT/'dependencies.lock.json'),'cargo_lock_sha256':digest(ROOT/'native/Cargo.lock'),'rustc':rustc,'rust_host':host.split('host: ')[1].splitlines()[0],'compiler':compiler,'features':['full-host']}
+    return {'source_commit':commit,'native_source_sha256':source_fingerprint(),'dependencies_lock_sha256':digest(ROOT/'dependencies.lock.json'),'cargo_lock_sha256':digest(ROOT/'native/Cargo.lock'),'rustc':rustc,'rust_host':host.split('host: ')[1].splitlines()[0],'compiler':compiler,'features':[features]}
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--start',type=pathlib.Path);p.add_argument('--finish',type=pathlib.Path);p.add_argument('--binary',type=pathlib.Path);p.add_argument('--output',type=pathlib.Path);a=p.parse_args()
-    if a.start:a.start.parent.mkdir(parents=True,exist_ok=True);a.start.write_text(json.dumps(snapshot(),indent=2),'utf8')
+    p=argparse.ArgumentParser();p.add_argument('--start',type=pathlib.Path);p.add_argument('--finish',type=pathlib.Path);p.add_argument('--binary',type=pathlib.Path);p.add_argument('--output',type=pathlib.Path);p.add_argument('--features',choices=['full-host','acceptance'],default='full-host');a=p.parse_args()
+    if a.start:a.start.parent.mkdir(parents=True,exist_ok=True);a.start.write_text(json.dumps(snapshot(a.features),indent=2),'utf8')
     else:
-        previous=json.loads(a.finish.read_text('utf8'));current=snapshot()
+        previous=json.loads(a.finish.read_text('utf8'));current=snapshot(a.features)
         if previous!=current:raise RuntimeError('Source or toolchain changed while compiling; do not package this binary')
         content=a.binary.read_bytes();offset=struct.unpack_from('<I',content,60)[0]+24
         current['stack_reserve_bytes']=struct.unpack_from('<Q',content,offset+72)[0]

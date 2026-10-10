@@ -68,6 +68,32 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $true
           python tools/package.py --binary native/target/release/buwei-rinx-dual-host.exe --destination .run/windows-package
           python tools/package_scan.py .run/windows-package --output .run/startup-evidence/package-privacy.json
+      - name: Build separate opt-in acceptance executable
+        id: acceptance
+        timeout-minutes: 30
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          # Match Build.ps1's release path remapping so dependency artifacts stay reusable.
+          $buweiAcceptanceFlags=@('--remap-path-prefix',($env:GITHUB_WORKSPACE+'=/buwei'))
+          foreach($buweiPrivateRoot in @($env:USERPROFILE,$env:CARGO_HOME,$env:RUSTUP_HOME)){
+            if($buweiPrivateRoot){$buweiAcceptanceFlags+=@('--remap-path-prefix',($buweiPrivateRoot+'=/toolchain'))}
+          }
+          $env:CARGO_ENCODED_RUSTFLAGS=$buweiAcceptanceFlags -join [char]31
+          $env:CARGO_BUILD_JOBS='3'
+          python tools/build_proof.py --start .run/acceptance-build-start.json --features acceptance
+          cargo build --manifest-path native/Cargo.toml --locked --offline --release --features acceptance
+          python tools/pe_stack.py native/target/release/buwei-rinx-dual-host.exe
+          python tools/build_proof.py --finish .run/acceptance-build-start.json --features acceptance --binary native/target/release/buwei-rinx-dual-host.exe --output native/target/release/buwei-rinx-dual-host.exe.build.json
+          New-Item -ItemType Directory -Path .run/acceptance-binary | Out-Null
+          Copy-Item -LiteralPath native/target/release/buwei-rinx-dual-host.exe -Destination .run/acceptance-binary/buwei-rinx-dual-host.exe
+          Copy-Item -LiteralPath native/target/release/buwei-rinx-dual-host.exe.build.json -Destination .run/acceptance-binary/buwei-rinx-dual-host.exe.build.json
+      - name: Upload opt-in acceptance executable separately
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-acceptance
+          path: .run/acceptance-binary/
+          if-no-files-found: error
       - name: Start on fresh Windows profile
         shell: pwsh
         env:

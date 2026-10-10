@@ -1,6 +1,23 @@
 """Start an actual packaged native host on a fresh profile and system-only PATH."""
 import argparse,hashlib,json,os,pathlib,re,socket,struct,subprocess,tempfile,time,urllib.error,urllib.request,zlib
 
+def deny_optional_rinx_agent(fresh_root,version):
+    """Choose the official optional-agent denial only in a new empty test home.
+
+    The pinned shell renders its first-use consent as a custom modal without
+    remote button labels. Its supported consent file is the deterministic
+    alternative to a blind click. This is not BuWei action authorization.
+    """
+    if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+',version):raise ValueError('Invalid fresh-profile version')
+    fresh_root=pathlib.Path(fresh_root)
+    if fresh_root.is_symlink() or not fresh_root.is_dir() or any(fresh_root.iterdir()):
+        raise RuntimeError('Optional agent choice requires a new empty test profile')
+    path=fresh_root/'data'/('v'+version)/'shell/approvals/consent.json'
+    path.parent.mkdir(parents=True)
+    record={'schema':1,'apps':{'rinx':{'allowed':False,'at':int(time.time())}}}
+    with path.open('x',encoding='utf8') as output:json.dump(record,output)
+    return path,{'app':'rinx','allowed':False,'mechanism':'pinned OctoSense consent file in new anonymous test profile','configuration_sha256':hashlib.sha256(path.read_bytes()).hexdigest()}
+
 def remote_busy(error):
     """Recognize only the pinned remote's busy reply, not other HTTP failures."""
     if error.code!=404:return False
@@ -95,14 +112,15 @@ def check(package,output):
     digest=hashlib.sha256(exe.read_bytes()).hexdigest();assert digest==release['native_binary_sha256']
     with socket.socket() as s:s.bind(('127.0.0.1',0));port=s.getsockname()[1]
     env=dict(os.environ);system=pathlib.Path(env.get('SystemRoot','C:/Windows'))
-    for key in ['CARGO_HOME','RUSTUP_HOME','CARGO_MANIFEST_DIR','RINX_DATA_DIR','OCTOSENSE_HOME','OCTOS_APP_CORE_DIR','MAKEPAD_REMOTE','MAKEPAD_FOCUS']:env.pop(key,None)
+    for key in ['CARGO_HOME','RUSTUP_HOME','CARGO_MANIFEST_DIR','RINX_DATA_DIR','OCTOSENSE_HOME','OCTOS_APP_CORE_DIR','OCTOSENSE_DEV_MODE','MAKEPAD_REMOTE','MAKEPAD_FOCUS']:env.pop(key,None)
     env['PATH']=';'.join(str(p) for p in [system/'System32',system,system/'System32/WindowsPowerShell/v1.0']);env['MAKEPAD_HIDE_WINDOWS']='1'
     opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
     def get(route):return opener.open(f'http://127.0.0.1:{port}/{route}',timeout=15 if route.startswith('g?') else 5).read()
-    report={'version':release['version'],'passed':False,'binary_sha256':digest,'fresh_profile':True,'system_only_path':True,'model_calls':0,'actual_native_render':False}
+    report={'version':release['version'],'passed':False,'binary_sha256':digest,'fresh_profile':True,'system_only_path':True,'model_calls':0,'actual_native_render':False,'developer_override_disabled':True}
     report['renderer_requested']='Windows WARP software rendering' if env.get('MAKEPAD_FORCE_SOFTWARE_GPU')=='1' else 'automatic'
     phase='native_startup'
     with tempfile.TemporaryDirectory(prefix='buwei-clean-') as folder,open(output/'startup.private.log','wb') as log:
+        consent_path,report['optional_agent_choice']=deny_optional_rinx_agent(folder,release['version'])
         command=[str(exe),folder,'--gui','--official-rinx',f'--remote={port}'];process=subprocess.Popen(command,cwd=exe.parent,env=env,stdout=log,stderr=subprocess.STDOUT)
         try:
             start=time.monotonic()
@@ -130,6 +148,10 @@ def check(package,output):
             phase='fresh_identity'
             binding=json.loads((pathlib.Path(folder)/'data'/('v'+release['version'])/'rinx-binding-status.json').read_text('utf8'))
             assert not binding['server_identity_verified'] and not binding['action_authorized']
+            consent=json.loads(consent_path.read_text('utf8'))
+            assert consent['schema']==1 and consent['apps']['rinx']['allowed'] is False
+            assert hashlib.sha256(consent_path.read_bytes()).hexdigest()==report['optional_agent_choice']['configuration_sha256']
+            report['optional_agent_explicitly_denied']=True
             report['unauthenticated_and_unauthorized']=True;report['captured_window']=window
             phase='single_writer'
             second=subprocess.run(command,cwd=exe.parent,env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=10)
