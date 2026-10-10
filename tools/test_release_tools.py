@@ -1,7 +1,7 @@
 import json,pathlib,sqlite3,tempfile,unittest,struct,subprocess,sys,hashlib,os,shutil,zlib,zipfile,io,urllib.error
 from contextlib import closing
 from migrate import migrate
-from release_gate import check,REQUIRED,COMMUNITY_REQUIRED,INTENT_STAGES
+from release_gate import check,REQUIRED,COMMUNITY_REQUIRED,INTENT_STAGES,READING_REQUIRED
 from startup_check import inspect_log,rendered_window,frame_visibility
 from startup_check import check as check_startup
 from startup_check import normal_shutdown,remote_busy,deny_optional_rinx_agent,startup_environment
@@ -214,7 +214,15 @@ class ReleaseTools(unittest.TestCase):
             path.write_text(json.dumps(report),'utf8')
             checked=check(path)
             self.assertFalse(checked['stable_release_allowed'])
-            self.assertEqual(set(checked['missing_or_failed']),{name for names in INTENT_STAGES.values() for name in names})
+            self.assertEqual(set(checked['missing_or_failed']),{name for names in INTENT_STAGES.values() for name in names}|set(READING_REQUIRED))
+    def test_reading_gate_rejects_controlled_loops_as_a_three_identity_user_trial(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);path=root/'acceptance.json';file=root/'trial.json'
+            file.write_text(json.dumps({'version':'0.2.5','passed':True,'distinct_identities':2,'actual_user_trial':False}),'utf8')
+            path.write_text(json.dumps({'version':'0.2.5','three_identity_reading_trial':{'passed':True,'evidence':file.name}}),'utf8')
+            self.assertIn('three_identity_reading_trial',check(path)['missing_or_failed'])
+            file.write_text(json.dumps({'version':'0.2.5','passed':True,'distinct_identities':3,'actual_user_trial':True}),'utf8')
+            self.assertNotIn('three_identity_reading_trial',check(path)['missing_or_failed'])
     def test_startup_refuses_wallpaper_or_uniform_background_instead_of_title(self):
         def png(rows):
             def chunk(kind,body):return struct.pack('>I',len(body))+kind+body+struct.pack('>I',zlib.crc32(kind+body)&0xffffffff)

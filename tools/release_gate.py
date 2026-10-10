@@ -9,12 +9,16 @@ INTENT_STAGES={
  (0,2,4):('tray_hidden_real_flow','tray_pause_switch_exit'),
  (0,2,5):('explicit_feedback_and_undo','next_activity_preparation','proactive_value_comparison'),
 }
+READING_REQUIRED=('weekly_availability_and_privacy','sparse_goal_correction','correction_independent_acceptance',
+                  'reading_correction_five_loops','three_identity_reading_trial',
+                  'continuous_operation_video','recovery_technical_video')
 def check(path):
     report=json.loads(path.read_text('utf8'))
     failures=[]
     requirements=REQUIRED+COMMUNITY_REQUIRED if tuple(map(int,report['version'].split('.'))) >= (0,2,0) else REQUIRED
     for version,names in INTENT_STAGES.items():
         if tuple(map(int,report['version'].split('.')))>=version:requirements+=names
+    if tuple(map(int,report['version'].split('.'))) >= (0,2,5):requirements+=READING_REQUIRED
     for name in requirements:
         item=report.get(name,{})
         if item.get('passed') is not True or not isinstance(item.get('evidence'),str):failures.append(name);continue
@@ -24,6 +28,12 @@ def check(path):
         except (OSError,ValueError):failures.append(name);continue
         if evidence.get('passed') is not True or evidence.get('version')!=report['version']:failures.append(name)
         if name in ('model_independent_acceptance','intent_independent_acceptance') and (evidence.get('independent_cases',0)<100 or evidence.get('critical_information_accuracy',0)<0.95 or evidence.get('unauthorized_actions',-1)!=0):failures.append(name)
+        if name=='correction_independent_acceptance' and (evidence.get('independent_cases',0)<100 or evidence.get('whole_case_accuracy',0)<0.95 or evidence.get('unauthorized_actions',-1)!=0):failures.append(name)
+        if name=='reading_correction_five_loops':
+            rounds=evidence.get('controlled_two_identity_rounds',[])
+            if len(rounds)!=5 or any(len(r.get('events',[]))!=5 or any(e.get('service_event_count')!=1 for e in r['events']) or not all(r.get(k) is True for k in ('queue_position_preserved','original_task_preserved','goal_and_registration_confirmed_separately','preferences_unchanged','stale_preview_rejected')) for r in rounds):failures.append(name)
+        if name=='three_identity_reading_trial' and (evidence.get('distinct_identities',0)<3 or evidence.get('actual_user_trial') is not True):failures.append(name)
+        if name in ('continuous_operation_video','recovery_technical_video') and evidence.get('continuous_native_capture') is not True:failures.append(name)
     return {'version':report['version'],'stable_release_allowed':not failures,'missing_or_failed':failures}
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('acceptance',type=pathlib.Path);a=p.parse_args();r=check(a.acceptance);print(json.dumps(r));sys.exit(0 if r['stable_release_allowed'] else 1)
