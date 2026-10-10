@@ -106,6 +106,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-preview
+          include-hidden-files: true
           path: |
             .run/windows-package/
             .run/startup-evidence/startup.json

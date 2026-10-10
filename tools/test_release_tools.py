@@ -15,8 +15,23 @@ from intent_acceptance import IntentSuite
 import stage_release
 import build_proof,package
 from types import SimpleNamespace
+from formal_control import Control
 
 class ReleaseTools(unittest.TestCase):
+    def test_authorization_only_retries_definitely_unsent_preflight_preview(self):
+        control=Control.__new__(Control)
+        control.command=unittest.mock.Mock(side_effect=[
+            {'message':'正式服务器身份核验超时；尚未执行动作'},
+            {'consent_id':'new-preview'}, {'authorized':True}])
+        with patch('formal_control.time.sleep'):self.assertTrue(control.authorize()['authorized'])
+        self.assertEqual(control.command.call_args_list,[unittest.mock.call('Authorize'),unittest.mock.call('Authorize'),unittest.mock.call('ConfirmAuthorization','new-preview')])
+        for message in ['正式服务器身份核验失败；尚未执行动作','授权已撤销']:
+            control.command=unittest.mock.Mock(return_value={'message':message})
+            with self.assertRaises(RuntimeError):control.authorize()
+            control.command.assert_called_once_with('Authorize')
+        control.command=unittest.mock.Mock(side_effect=[{'consent_id':'preview'},{'authorized':False}])
+        with self.assertRaises(RuntimeError):control.authorize()
+        self.assertEqual(control.command.call_count,2)
     def test_optional_agent_denial_is_limited_to_a_new_anonymous_profile(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=pathlib.Path(tmp)
