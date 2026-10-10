@@ -105,7 +105,7 @@ jobs:
           MAKEPAD_FORCE_SOFTWARE_GPU: '1'
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          python tools/startup_check.py .run/windows-package --output .run/startup-evidence
+          python tools/startup_check.py .run/windows-package --output .run/startup-evidence --show-window
       - name: Upload measured build logs and binary
         if: always() && steps.stage.outcome == 'success'
         uses: actions/upload-artifact@v4
@@ -139,7 +139,7 @@ jobs:
           if (Test-Path native) { throw 'Source unexpectedly present' }
           if (Test-Path .deps) { throw 'Dependency checkout unexpectedly present' }
           python downloaded/windows-package/tools/package_scan.py downloaded/windows-package --output .run/fresh-runtime/package-privacy.json
-          python downloaded/windows-package/tools/startup_check.py downloaded/windows-package --output .run/fresh-runtime
+          python downloaded/windows-package/tools/startup_check.py downloaded/windows-package --output .run/fresh-runtime --show-window
       - uses: actions/upload-artifact@v4
         if: always()
         with:

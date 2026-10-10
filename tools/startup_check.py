@@ -1,6 +1,19 @@
 """Start an actual packaged native host on a fresh profile and system-only PATH."""
 import argparse,hashlib,json,os,pathlib,re,socket,struct,subprocess,tempfile,time,urllib.error,urllib.request,zlib
 
+def startup_environment(source,show_window=False):
+    """Isolate a fresh test home; CI can show its measured native surface.
+
+    The pinned Windows backend tests the presence of MAKEPAD_HIDE_WINDOWS,
+    not its value. A visible test must therefore remove an inherited switch.
+    It still uses anonymous temporary data and the same pixel requirements.
+    """
+    env=dict(source);system=pathlib.Path(env.get('SystemRoot','C:/Windows'))
+    for key in ['CARGO_HOME','RUSTUP_HOME','CARGO_MANIFEST_DIR','RINX_DATA_DIR','OCTOSENSE_HOME','OCTOS_APP_CORE_DIR','OCTOSENSE_DEV_MODE','MAKEPAD_REMOTE','MAKEPAD_FOCUS','MAKEPAD_HIDE_WINDOWS']:env.pop(key,None)
+    env['PATH']=';'.join(str(p) for p in [system/'System32',system,system/'System32/WindowsPowerShell/v1.0'])
+    if not show_window:env['MAKEPAD_HIDE_WINDOWS']='1'
+    return env
+
 def deny_optional_rinx_agent(fresh_root,version):
     """Choose the official optional-agent denial only in a new empty test home.
 
@@ -106,17 +119,16 @@ def frame_visibility(raw,header_rectangle=None,logical_size=None):
         ink=sum(count for color,count in header_colors.items() if sum(color)<sum(background)-120)/total
         header_visible=flat>=0.35 and sum(background)>=300 and ink>=0.001
     return {'width':width,'height':height,'body_visible_fraction':round(fraction,4),'application_header_visible':header_visible,'header_background_fraction':round(flat,4),'header_ink_fraction':round(ink,4),'visible':fraction>=0.03 and (header_rectangle is None or header_visible)}
-def check(package,output):
+def check(package,output,show_window=False):
     package=package.resolve();output.mkdir(parents=True,exist_ok=True)
     release=json.loads((package/'release.json').read_text('utf8'));exe=package/'native/buwei-rinx-dual-host.exe'
     digest=hashlib.sha256(exe.read_bytes()).hexdigest();assert digest==release['native_binary_sha256']
     with socket.socket() as s:s.bind(('127.0.0.1',0));port=s.getsockname()[1]
-    env=dict(os.environ);system=pathlib.Path(env.get('SystemRoot','C:/Windows'))
-    for key in ['CARGO_HOME','RUSTUP_HOME','CARGO_MANIFEST_DIR','RINX_DATA_DIR','OCTOSENSE_HOME','OCTOS_APP_CORE_DIR','OCTOSENSE_DEV_MODE','MAKEPAD_REMOTE','MAKEPAD_FOCUS']:env.pop(key,None)
-    env['PATH']=';'.join(str(p) for p in [system/'System32',system,system/'System32/WindowsPowerShell/v1.0']);env['MAKEPAD_HIDE_WINDOWS']='1'
+    env=startup_environment(os.environ,show_window)
     opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
     def get(route):return opener.open(f'http://127.0.0.1:{port}/{route}',timeout=15 if route.startswith('g?') else 5).read()
     report={'version':release['version'],'passed':False,'binary_sha256':digest,'fresh_profile':True,'system_only_path':True,'model_calls':0,'actual_native_render':False,'developer_override_disabled':True}
+    report['window_visibility_requested']='visible' if show_window else 'hidden'
     report['renderer_requested']='Windows WARP software rendering' if env.get('MAKEPAD_FORCE_SOFTWARE_GPU')=='1' else 'automatic'
     phase='native_startup'
     with tempfile.TemporaryDirectory(prefix='buwei-clean-') as folder,open(output/'startup.private.log','wb') as log:
@@ -198,4 +210,4 @@ def check(package,output):
             (output/'startup.json').write_text(json.dumps(report,indent=2),'utf8')
     return report
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('package',type=pathlib.Path);p.add_argument('--output',type=pathlib.Path,required=True);a=p.parse_args();print(json.dumps(check(a.package,a.output)))
+    p=argparse.ArgumentParser();p.add_argument('package',type=pathlib.Path);p.add_argument('--output',type=pathlib.Path,required=True);p.add_argument('--show-window',action='store_true',help='Show only the new anonymous native test window, preserving pixel verification');a=p.parse_args();print(json.dumps(check(a.package,a.output,a.show_window)))

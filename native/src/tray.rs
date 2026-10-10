@@ -56,6 +56,83 @@ pub(crate) fn test_action(name: &str) -> Result<(), String> {
     });
     Ok(())
 }
+#[cfg(any(windows, test))]
+mod target {
+    #[derive(Clone, Copy)]
+    pub(super) struct MainWindowFacts {
+        pub process_id: u32,
+        pub valid: bool,
+        pub has_owner: bool,
+        pub app_window: bool,
+        pub makepad_class: bool,
+    }
+    pub(super) fn eligible(facts: MainWindowFacts, expected_process: u32) -> bool {
+        facts.valid
+            && facts.process_id == expected_process
+            && !facts.has_owner
+            && facts.app_window
+            && facts.makepad_class
+    }
+    pub(super) fn unique(candidates: &[isize]) -> Option<isize> {
+        if candidates.len() == 1 {
+            Some(candidates[0])
+        } else {
+            None
+        }
+    }
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        fn main() -> MainWindowFacts {
+            MainWindowFacts {
+                process_id: 42,
+                valid: true,
+                has_owner: false,
+                app_window: true,
+                makepad_class: true,
+            }
+        }
+        #[test]
+        fn tray_does_not_bind_another_process_or_destroyed_window() {
+            let valid = main();
+            assert!(eligible(valid, 42));
+            assert!(!eligible(valid, 43));
+            assert!(!eligible(
+                MainWindowFacts {
+                    valid: false,
+                    ..valid
+                },
+                42
+            ));
+        }
+        #[test]
+        fn tray_excludes_popups_and_notification_windows() {
+            let valid = main();
+            for popup in [
+                MainWindowFacts {
+                    has_owner: true,
+                    ..valid
+                },
+                MainWindowFacts {
+                    app_window: false,
+                    ..valid
+                },
+                MainWindowFacts {
+                    makepad_class: false,
+                    ..valid
+                },
+            ] {
+                assert!(!eligible(popup, 42));
+            }
+        }
+        #[test]
+        fn tray_fallback_requires_exactly_one_owned_main_window() {
+            assert_eq!(unique(&[]), None);
+            assert_eq!(unique(&[101]), Some(101));
+            assert_eq!(unique(&[101, 202]), None);
+        }
+    }
+}
 #[cfg(windows)]
 mod native {
     use super::*;
@@ -97,6 +174,51 @@ mod native {
         d.hWnd = hwnd;
         d.uID = 1;
         d
+    }
+    unsafe fn owned_main(hwnd: HWND) -> bool {
+        unsafe {
+            if hwnd.is_null() {
+                return false;
+            }
+            let mut pid = 0;
+            GetWindowThreadProcessId(hwnd, &mut pid);
+            let mut class = [0u16; 64];
+            let length = GetClassNameW(hwnd, class.as_mut_ptr(), class.len() as i32);
+            target::eligible(
+                target::MainWindowFacts {
+                    process_id: pid,
+                    valid: IsWindow(hwnd) != 0,
+                    has_owner: !GetWindow(hwnd, GW_OWNER).is_null(),
+                    app_window: GetWindowLongPtrW(hwnd, GWL_EXSTYLE) & WS_EX_APPWINDOW as isize
+                        != 0,
+                    makepad_class: length > 0
+                        && class[..length as usize] == wide("MakepadWindow")[..13],
+                },
+                std::process::id(),
+            )
+        }
+    }
+    fn main_window() -> HWND {
+        unsafe extern "system" fn collect(hwnd: HWND, context: LPARAM) -> i32 {
+            unsafe {
+                if owned_main(hwnd) {
+                    (*(context as *mut Vec<isize>)).push(hwnd as isize);
+                }
+            }
+            1
+        }
+        unsafe {
+            let active = GetActiveWindow();
+            if owned_main(active) {
+                return active;
+            }
+            // A native widget command can arrive while another application has
+            // focus. Bind the tray to our unique main window, never that app's
+            // foreground window or a Makepad popup.
+            let mut candidates = Vec::<isize>::new();
+            EnumWindows(Some(collect), &mut candidates as *mut _ as LPARAM);
+            target::unique(&candidates).map_or(std::ptr::null_mut(), |h| h as HWND)
+        }
     }
     unsafe extern "system" fn window(hwnd: HWND, msg: u32, w: WPARAM, l: LPARAM) -> LRESULT {
         unsafe {
@@ -166,8 +288,9 @@ mod native {
         }
     }
     pub(super) fn enable() -> bool {
-        let main = unsafe { GetActiveWindow() };
+        let main = main_window();
         if main.is_null() {
+            makepad_widgets::log!("[buwei-tray] enable no unambiguous owned main window");
             return false;
         }
         MAIN.store(main as isize, Ordering::SeqCst);
@@ -228,8 +351,14 @@ mod native {
             }
         });
         match rx.recv_timeout(std::time::Duration::from_secs(3)) {
-            Ok(ok) => ok,
+            Ok(ok) => {
+                if !ok {
+                    makepad_widgets::log!("[buwei-tray] notification icon could not be created");
+                }
+                ok
+            }
             Err(_) => {
+                makepad_widgets::log!("[buwei-tray] enable notification icon timed out");
                 cancelled.store(true, Ordering::SeqCst);
                 disable();
                 false
@@ -239,6 +368,11 @@ mod native {
     pub(super) fn hide() -> bool {
         let h = MAIN.load(Ordering::SeqCst) as HWND;
         if !enabled() || h.is_null() {
+            makepad_widgets::log!(
+                "[buwei-tray] hide unavailable enabled={} main_present={}",
+                enabled(),
+                !h.is_null()
+            );
             return false;
         }
         unsafe {
@@ -247,7 +381,14 @@ mod native {
             identifier.hWnd = ICON.load(Ordering::SeqCst) as HWND;
             identifier.uID = 1;
             let mut rect: RECT = std::mem::zeroed();
-            if Shell_NotifyIconGetRect(&identifier, &mut rect) != 0 {
+            let result = Shell_NotifyIconGetRect(&identifier, &mut rect);
+            if result != 0 {
+                makepad_widgets::log!(
+                    "[buwei-tray] icon rect failed hresult={} main_valid={} icon_valid={}",
+                    result,
+                    IsWindow(h) != 0,
+                    IsWindow(identifier.hWnd) != 0
+                );
                 return false;
             }
             ShowWindow(h, SW_HIDE);

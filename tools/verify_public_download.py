@@ -38,6 +38,12 @@ def extract(archive,destination):
                 raise ValueError('Unsafe archive entry')
         z.extractall(destination)
 
+def downloaded_runtime_startup(package,evidence,version):
+    runtime=startup(package,evidence,show_window=True)
+    if not runtime['passed'] or runtime['version']!=version or runtime.get('actual_native_render') is not True:
+        raise ValueError('Downloaded native startup failed')
+    return runtime
+
 def verify(a):
     url=urllib.parse.urlsplit(a.base_url)
     if url.scheme!='https' or url.netloc!='github.com' or not url.path.startswith('/WeiR-h/buwei/releases/download/') or url.query or url.fragment:
@@ -72,8 +78,7 @@ def verify(a):
     if release['version']!=version or not proof['passed'] or proof['features']!=['full-host']:raise ValueError('Downloaded runtime is not the verified formal host')
     privacy=scan(package)
     if not privacy['passed']:raise ValueError('Downloaded package privacy check failed')
-    runtime=startup(package,a.destination/'runtime-evidence')
-    if not runtime['passed'] or runtime['version']!=version:raise ValueError('Downloaded native startup failed')
+    runtime=downloaded_runtime_startup(package,a.destination/'runtime-evidence',version)
     source_zip=download('source-'+tag+'.zip','https://github.com/WeiR-h/buwei/archive/refs/tags/'+tag+'.zip')
     source=a.destination/'source';extract(source_zip,source)
     roots=list(source.iterdir())

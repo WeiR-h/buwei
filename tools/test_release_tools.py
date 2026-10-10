@@ -4,12 +4,12 @@ from migrate import migrate
 from release_gate import check,REQUIRED,COMMUNITY_REQUIRED,INTENT_STAGES
 from startup_check import inspect_log,rendered_window,frame_visibility
 from startup_check import check as check_startup
-from startup_check import normal_shutdown,remote_busy,deny_optional_rinx_agent
+from startup_check import normal_shutdown,remote_busy,deny_optional_rinx_agent,startup_environment
 from package_scan import content_findings,BINARY_PUBLIC_LITERALS
 from pe_stack import normalize
 from fault_acceptance import FaultSuite
 from dual_acceptance import Suite
-from verify_public_download import formal_checksums,check_release_metadata
+from verify_public_download import formal_checksums,check_release_metadata,downloaded_runtime_startup
 from unittest.mock import patch
 from intent_acceptance import IntentSuite
 import stage_release
@@ -20,6 +20,29 @@ from formal_control import Control
 from capture_native import redaction_targets
 
 class ReleaseTools(unittest.TestCase):
+    def test_public_download_uses_visible_fresh_startup_and_requires_actual_native_frame(self):
+        package=pathlib.Path('downloaded/windows');evidence=pathlib.Path('downloaded/runtime-evidence')
+        valid={'passed':True,'version':'0.2.3','actual_native_render':True}
+        with patch('verify_public_download.startup',return_value=valid) as run:
+            self.assertEqual(downloaded_runtime_startup(package,evidence,'0.2.3'),valid)
+            run.assert_called_once_with(package,evidence,show_window=True)
+        for invalid in [dict(valid,passed=False),dict(valid,version='0.2.2'),dict(valid,actual_native_render=False),{'passed':True,'version':'0.2.3'}]:
+            with patch('verify_public_download.startup',return_value=invalid):
+                with self.assertRaisesRegex(ValueError,'Downloaded native startup failed'):
+                    downloaded_runtime_startup(package,evidence,'0.2.3')
+    def test_visible_fresh_startup_removes_hide_switch_and_private_environment(self):
+        private=['CARGO_HOME','RUSTUP_HOME','CARGO_MANIFEST_DIR','RINX_DATA_DIR','OCTOSENSE_HOME','OCTOS_APP_CORE_DIR','OCTOSENSE_DEV_MODE','MAKEPAD_REMOTE','MAKEPAD_FOCUS']
+        for inherited_hide in ['1','0','']:
+            source=dict.fromkeys(private,'private-or-override')
+            source.update(SystemRoot='C:/Windows',PATH='private-toolchain',MAKEPAD_HIDE_WINDOWS=inherited_hide,MAKEPAD_FORCE_SOFTWARE_GPU='1')
+            original=dict(source);visible=startup_environment(source,show_window=True);hidden=startup_environment(source)
+            self.assertEqual(source,original)
+            for key in private:self.assertNotIn(key,visible);self.assertNotIn(key,hidden)
+            self.assertNotIn('MAKEPAD_HIDE_WINDOWS',visible)
+            self.assertEqual(hidden['MAKEPAD_HIDE_WINDOWS'],'1')
+            self.assertEqual(visible['MAKEPAD_FORCE_SOFTWARE_GPU'],'1')
+            self.assertEqual(hidden['PATH'],visible['PATH'])
+            self.assertNotIn('private-toolchain',visible['PATH'])
     def test_cached_official_host_mutation_stops_before_setup_and_is_preserved(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=pathlib.Path(tmp);host=root/'.deps/octosense';host.mkdir(parents=True)

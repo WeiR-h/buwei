@@ -42,8 +42,8 @@ def run(args):
         preview=suite.call(suite.o,'PreviewAutomation',settings)
         suite.call(suite.o,'ConfirmAutomation',{'id':preview['policy_consent_id'],'settings':settings})
         main=next(w for w in native.get('s')['w'] if w['sz'][0]>1000)
-        # Makepad's /close route destroys the window without WM_CLOSE on
-        # Windows. Post the native close event to this host's own window.
+        # The pinned Makepad /close route asks the app before closing. Exercise
+        # the real Windows WM_CLOSE path on this host's own window instead.
         suite.call(suite.o,'TestTrayAction','close_window');time.sleep(1)
         assert suite.call(suite.o,'Refresh')['tray_hidden'] and h.processes['organizer'].poll() is None
         suite.use(suite.p,suite.card(suite.p,'opportunity'))
