@@ -34,7 +34,8 @@ class ReadingSuite(IntentSuite):
             current=self.wait(self.owner,'time-limited candidate verified',lambda x:self.person(x).get('status')=='waiting' and self.person(x)['preferences']==partial)
             self.wait(self.participant,'time-limited candidate received',lambda x:self.person(x).get('status')=='waiting' and self.person(x)['preferences']==partial)
             sequence=self.person(current)['joined'];invitation_count=len(current['invitations'])
-            blocked=self.card(self.o,'no_candidate');assert '时间' in blocked['reason']
+            blocked=self.card(self.o,'no_candidate')
+            assert '不覆盖活动' in blocked['reason'] and display(partial['latest']) in blocked['reason']
             proposed=self.intent(self.p,'PrepareGoalCorrection',{'id':self.member_goal,'text':'这次能待到晚上九点半，还是我一个人。'})
             correction=next(c for c in proposed['intentions']['corrections'] if c['goal_id']==self.member_goal and not c['applied'])
             assert not correction['questions'] and correction['after']['latest']==a['end']
