@@ -22,6 +22,8 @@ pub(crate) struct GoalForm {
     pub recurrence_days: String,
     #[serde(default)]
     pub preparation_hours: String,
+    #[serde(default)]
+    pub availability: Option<AvailabilitySnapshot>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "command", content = "value", deny_unknown_fields)]
@@ -32,6 +34,14 @@ pub(crate) enum IntentCommand {
         kind: GoalKind,
     },
     SelectGoal(String),
+    SetGoalAvailability {
+        form: GoalForm,
+        weekly: bool,
+    },
+    FollowCard {
+        id: String,
+        fingerprint: String,
+    },
     SaveGoal {
         id: Option<String>,
         form: GoalForm,
@@ -93,6 +103,7 @@ impl GoalForm {
                 .map(|n| n.to_string())
                 .unwrap_or_default(),
             preparation_hours: g.input.preparation_hours.to_string(),
+            availability: g.input.availability.clone(),
         }
     }
     fn input(&self) -> Result<GoalInput> {
@@ -141,6 +152,7 @@ impl GoalForm {
                     .parse()
                     .map_err(|_| "筹备提前量请填写小时数")?
             },
+            availability: self.availability.clone(),
         })
     }
 }
@@ -366,6 +378,38 @@ impl Controller {
             self.retain_assistance_previews()?;
         }
         match command {
+            IntentCommand::SetGoalAvailability { mut form, weekly } => {
+                if form.kind != GoalKind::Participate {
+                    return Err("每周安排用于参与目标".into());
+                }
+                form.availability = if weekly {
+                    Some(AvailabilitySnapshot::from_preferences(
+                        &self.intent_store()?.load()?.preferences,
+                    )?)
+                } else {
+                    None
+                };
+                self.goal_form = Some(form);
+                Ok("已准备本次时间约束，请核对日期范围后确认保存。".into())
+            }
+            IntentCommand::FollowCard { id, fingerprint } => {
+                self.refresh_assistance()?;
+                let card = self
+                    .intent_store()?
+                    .visible_cards(now())?
+                    .into_iter()
+                    .find(|c| {
+                        c.id == id
+                            && c.fingerprint == fingerprint
+                            && c.action == SuggestedAction::Share
+                    })
+                    .ok_or("建议已变化，请核对最新卡片")?;
+                let task = self.intent_store()?.start_task(&id, &fingerprint, now())?;
+                self.select_activity(card.activity_id)?;
+                self.active_task = Some(task.id);
+                self.assistance_route = Some(1);
+                Ok("继续跟进当前候补，按已授权规则同步；如需扩大范围，可另行选择联系人并预览分享。".into())
+            }
             IntentCommand::PreviewAnalysis => {
                 self.g("model")?;
                 self.analysis_consent = Some(consent::Consent::prepare(self.actor(), now()));
@@ -460,16 +504,19 @@ impl Controller {
                     },
                     template: a
                         .as_ref()
+                        .filter(|_| kind == GoalKind::Organize)
                         .and_then(|a| a.metadata.as_ref())
                         .map(|m| m.template.clone())
                         .or(p.template)
                         .unwrap_or("any".into()),
                     earliest: a
                         .as_ref()
+                        .filter(|_| kind == GoalKind::Organize)
                         .map(|a| calendar::display(a.start))
                         .unwrap_or_default(),
                     latest: a
                         .as_ref()
+                        .filter(|_| kind == GoalKind::Organize)
                         .map(|a| calendar::display(a.end))
                         .unwrap_or_default(),
                     group: if kind == GoalKind::Organize {
@@ -495,6 +542,7 @@ impl Controller {
                     },
                     recurrence_days: String::new(),
                     preparation_hours: "24".into(),
+                    availability: None,
                 });
                 self.intention_result =
                     "核对本次目标。时间与人数为空时请补充；填入的长期偏好仍可修改。".into();

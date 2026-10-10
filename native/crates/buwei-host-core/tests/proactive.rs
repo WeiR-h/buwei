@@ -59,6 +59,7 @@ fn goal(a: &Activity, kind: GoalKind, clock: u64) -> GoalInput {
         },
         recurrence_days: None,
         preparation_hours: 24,
+        availability: None,
     }
 }
 #[test]
@@ -111,6 +112,90 @@ fn independent_organizer_fifty_cases() {
         }
     }
     assert_eq!(checked, 50);
+}
+#[test]
+fn weekly_constraints_filter_opportunities_and_legacy_goals_keep_their_meaning() {
+    let clock = calendar::parse("2026-10-09 12:00").unwrap();
+    for (begin, end, expected) in [
+        ("2026-10-10 19:30", "2026-10-10 21:30", true),
+        ("2026-10-11 19:00", "2026-10-11 22:00", true),
+        ("2026-10-10 09:00", "2026-10-10 11:00", false),
+        ("2026-10-12 19:00", "2026-10-12 21:00", false),
+        ("2026-10-11 21:00", "2026-10-11 22:01", false),
+    ] {
+        let mut a = activity(2, "reading");
+        a.start = calendar::parse(begin).unwrap();
+        a.end = calendar::parse(end).unwrap();
+        let dir = root();
+        let mut s = IntentStore::open(&dir, "@member:test").unwrap();
+        let mut input = goal(&a, GoalKind::Participate, clock);
+        input.earliest = calendar::parse("2026-10-10 00:00").unwrap();
+        input.latest = calendar::parse("2026-10-13 00:00").unwrap();
+        let old = s
+            .save_goal(None, input.clone(), &[a.clone()], clock)
+            .unwrap();
+        assert!(
+            s.refresh_cards(&[fact(a.clone(), clock)], clock)
+                .unwrap()
+                .iter()
+                .any(|c| c.kind == CardKind::Opportunity)
+        );
+        input.availability = Some(AvailabilitySnapshot {
+            weekdays: vec![5, 6],
+            earliest_minute: 19 * 60,
+            latest_minute: 22 * 60,
+            confirmed_at: clock,
+        });
+        s.save_goal(Some(&old.id), input, &[a.clone()], clock)
+            .unwrap();
+        assert_eq!(
+            s.refresh_cards(&[fact(a, clock)], clock)
+                .unwrap()
+                .iter()
+                .any(|c| c.kind == CardKind::Opportunity),
+            expected,
+            "{begin}"
+        );
+        drop(s);
+        assert!(dir.starts_with(std::env::temp_dir()));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+}
+#[test]
+fn reading_shortfall_explains_only_verified_registration_constraints() {
+    let mut a = activity(2, "reading");
+    let clock = a.start - 3600;
+    a.join_own(
+        "@member:test".into(),
+        "报名成员".into(),
+        Preferences {
+            earliest: a.start,
+            latest: a.end - 3600,
+            group: 1,
+        },
+    )
+    .unwrap();
+    let dir = root();
+    let mut store = IntentStore::open(&dir, "@owner:test").unwrap();
+    store
+        .save_goal(
+            None,
+            goal(&a, GoalKind::Organize, clock),
+            &[a.clone()],
+            clock,
+        )
+        .unwrap();
+    let cards = store.refresh_cards(&[fact(a, clock)], clock).unwrap();
+    let card = cards
+        .iter()
+        .find(|c| c.kind == CardKind::Shortfall)
+        .unwrap();
+    assert!(card.reason.contains("目标 2 人"));
+    assert!(card.reason.contains("不覆盖活动"));
+    assert!(!card.reason.contains("@member"));
+    drop(store);
+    assert!(dir.starts_with(std::env::temp_dir()));
+    std::fs::remove_dir_all(dir).unwrap();
 }
 #[test]
 fn independent_member_fifty_cases() {

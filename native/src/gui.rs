@@ -47,6 +47,7 @@ script_mod! {
                         assistance_1:=Action{width:Fill height:140 visible:false}
                         assistance_2:=Action{width:Fill height:140 visible:false}
                         View{width:Fill height:Fit flow:Right spacing:8
+                            assistance_follow:=Action{text:"继续跟进本页首条候补" visible:false}
                             assistance_prev:=Action{text:"上一条"} assistance_next:=Action{text:"下一条"}
                             assistance_snooze:=Action{text:"本页首条稍后提醒"} assistance_ignore:=Action{text:"忽略首条"} assistance_disable:=Action{text:"不再推荐这类"}
                         }
@@ -168,6 +169,10 @@ script_mod! {
                         goal_sources:=Small{}
                         goal_title:=Input{empty_text:"想完成什么"}
                         goal_template:=Input{empty_text:"羽毛球 / 桌游 / 读书会 / 不限类型"}
+                        goal_schedule:=View{width:Fill height:Fit flow:Right spacing:8
+                            goal_weekly:=Action{text:"使用我确认的每周安排"} goal_specific:=Action{text:"只按本次具体时段"}
+                        }
+                        goal_schedule_status:=Small{}
                         View{width:Fill height:Fit flow:Right spacing:8
                             goal_earliest:=Input{width:210 empty_text:"开始日期时间"} goal_latest:=Input{width:210 empty_text:"结束日期时间"}
                             Small{text:"同行人数" width:70} goal_group:=Input{width:65 empty_text:"1–8"}
@@ -436,6 +441,12 @@ impl BuWeiView {
                 }
             };
         }
+        self.view.button(cx, ids!(assistance_follow)).set_visible(
+            cx,
+            self.assistance_cards
+                .get(self.assistance_page * 3)
+                .is_some_and(|c| c.action == buwei_host_core::proactive::SuggestedAction::Share),
+        );
         assistance_button!(assistance_0, 0);
         assistance_button!(assistance_1, 1);
         assistance_button!(assistance_2, 2);
@@ -499,6 +510,16 @@ impl BuWeiView {
                 );
                 field!(goal_recurrence, &f.recurrence_days);
                 field!(goal_preparation, &f.preparation_hours);
+                self.view
+                    .view(cx, ids!(goal_schedule))
+                    .set_visible(cx, f.kind == GoalKind::Participate);
+                self.view.label(cx, ids!(goal_schedule_status)).set_text(
+                    cx,
+                    &f.availability
+                        .as_ref()
+                        .map(|s| format!("日期范围内采用：{}", s.description()))
+                        .unwrap_or("仅采用下面填写的具体时段".into()),
+                );
             }
             self.last_goal_form = Some(goal_stamp);
         }
@@ -1050,6 +1071,18 @@ impl Widget for BuWeiView {
                 }
                 return;
             }
+            if clicked!(assistance_follow) {
+                if let Some(c) = self.assistance_cards.get(self.assistance_page * 3) {
+                    self.send(
+                        cx,
+                        Command::Assistance(IntentCommand::FollowCard {
+                            id: c.id.clone(),
+                            fingerprint: c.fingerprint.clone(),
+                        }),
+                    );
+                }
+                return;
+            }
             if clicked!(assistance_snooze)
                 || clicked!(assistance_ignore)
                 || clicked!(assistance_disable)
@@ -1260,7 +1293,10 @@ impl Widget for BuWeiView {
                                 GoalKind::Participate
                             },
                         }))
-                    } else if clicked!(save_goal) {
+                    } else if clicked!(save_goal)
+                        || clicked!(goal_weekly)
+                        || clicked!(goal_specific)
+                    {
                         let mut f = self.goal_form.clone().ok_or("请先新建或选择目标")?;
                         f.title = text!(goal_title);
                         f.template = text!(goal_template);
@@ -1273,10 +1309,17 @@ impl Widget for BuWeiView {
                             f.recurrence_days = text!(goal_recurrence);
                             f.preparation_hours = text!(goal_preparation);
                         }
-                        Some(Command::Assistance(IntentCommand::SaveGoal {
-                            id: self.goal_id.clone(),
-                            form: f,
-                        }))
+                        if clicked!(goal_weekly) || clicked!(goal_specific) {
+                            Some(Command::Assistance(IntentCommand::SetGoalAvailability {
+                                form: f,
+                                weekly: clicked!(goal_weekly),
+                            }))
+                        } else {
+                            Some(Command::Assistance(IntentCommand::SaveGoal {
+                                id: self.goal_id.clone(),
+                                form: f,
+                            }))
+                        }
                     } else if clicked!(pause_goal) || clicked!(resume_goal) {
                         Some(Command::Assistance(IntentCommand::SetGoalStatus {
                             id: self.goal_id.clone().ok_or("请先选择目标")?,

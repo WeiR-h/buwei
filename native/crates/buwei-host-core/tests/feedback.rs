@@ -36,6 +36,7 @@ fn input(a: &Activity) -> GoalInput {
         check_at: None,
         recurrence_days: None,
         preparation_hours: 24,
+        availability: None,
     }
 }
 #[test]
