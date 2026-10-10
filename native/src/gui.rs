@@ -43,9 +43,9 @@ script_mod! {
                     activity_heading:=Heading{text:"我的活动"}
                     assistance_area:=View{width:Fill height:Fit flow:Down spacing:8 visible:false
                         Heading{text:"补位发现了这些变化"}
-                        assistance_0:=Action{width:Fill height:140 visible:false}
-                        assistance_1:=Action{width:Fill height:140 visible:false}
-                        assistance_2:=Action{width:Fill height:140 visible:false}
+                        assistance_0:=Action{width:Fill height:230 visible:false}
+                        assistance_1:=Action{width:Fill height:230 visible:false}
+                        assistance_2:=Action{width:Fill height:230 visible:false}
                         View{width:Fill height:Fit flow:Right spacing:8
                             assistance_follow:=Action{text:"继续跟进本页首条候补" visible:false}
                             assistance_prev:=Action{text:"上一条"} assistance_next:=Action{text:"下一条"}
@@ -189,6 +189,16 @@ script_mod! {
                         }
                         feedback_actions:=View{width:Fill height:Fit flow:Right spacing:8
                             feedback_once:=Action{text:"类型与人数：仅这次"} feedback_long:=Action{text:"类型与人数：以后也是"}
+                        }
+                        correction_editor:=View{width:Fill height:Fit flow:Down spacing:8 visible:false
+                            Heading{text:"更正这次安排"}
+                            correction_request:=Input{height:65 is_multiline:true empty_text:"例如：这次能待到晚上九点，还是我一个人。未提及的字段保持原值。"}
+                            correction_prepare:=Action{text:"AI 准备更正与差异"}
+                            correction_diff:=Text{}
+                            correction_confirmation:=View{width:Fill height:Fit flow:Right spacing:8 visible:false
+                                correction_once:=Action{text:"确认更正：仅本次"} correction_long:=Action{text:"确认更正：更新长期偏好"}
+                            }
+                            registration_update:=Action{text:"另行预览本场候补更新"}
                         }
                         Small{text:"来源：本人填写或已确认的偏好。缺失信息请补充，保存目标不会发送消息或替你报名。"}
                         View{width:Fill height:Fit flow:Right spacing:8
@@ -346,6 +356,8 @@ pub struct BuWeiView {
     #[rust]
     goal_form: Option<GoalForm>,
     #[rust]
+    correction_id: Option<String>,
+    #[rust]
     last_goal_form: Option<String>,
     #[rust]
     preferences: Option<PersonalPreferences>,
@@ -457,6 +469,26 @@ impl BuWeiView {
         self.goals = view.goals.clone();
         self.goal_id = view.goal_id.clone();
         self.goal_form = view.goal_form.clone();
+        self.correction_id = view.goal_correction.as_ref().map(|p| p.0.clone());
+        self.view.view(cx, ids!(correction_editor)).set_visible(
+            cx,
+            view.goal_id.is_some()
+                && view
+                    .goal_form
+                    .as_ref()
+                    .is_some_and(|f| f.kind == GoalKind::Participate),
+        );
+        self.view
+            .view(cx, ids!(correction_confirmation))
+            .set_visible(cx, view.goal_correction.as_ref().is_some_and(|p| p.2));
+        self.view.label(cx, ids!(correction_diff)).set_text(
+            cx,
+            &view
+                .goal_correction
+                .as_ref()
+                .map(|p| p.1.clone())
+                .unwrap_or_default(),
+        );
         self.goal_page = self.goal_page.min(self.goals.len().saturating_sub(1) / 3);
         macro_rules! goal_button {
             ($id:ident,$n:expr) => {
@@ -1293,6 +1325,26 @@ impl Widget for BuWeiView {
                                 GoalKind::Participate
                             },
                         }))
+                    } else if clicked!(correction_prepare) {
+                        Some(Command::Assistance(IntentCommand::PrepareGoalCorrection {
+                            id: self.goal_id.clone().ok_or("请先选择目标")?,
+                            text: text!(correction_request),
+                        }))
+                    } else if clicked!(correction_once) || clicked!(correction_long) {
+                        Some(Command::Assistance(IntentCommand::ConfirmGoalCorrection {
+                            id: self.correction_id.clone().ok_or("请先核对更正差异")?,
+                            scope: if clicked!(correction_once) {
+                                buwei_host_core::intent_feedback::FeedbackScope::ThisOccasion
+                            } else {
+                                buwei_host_core::intent_feedback::FeedbackScope::LongTerm
+                            },
+                        }))
+                    } else if clicked!(registration_update) {
+                        Some(Command::Assistance(
+                            IntentCommand::PrepareGoalRegistrationUpdate(
+                                self.goal_id.clone().ok_or("请先选择目标")?,
+                            ),
+                        ))
                     } else if clicked!(save_goal)
                         || clicked!(goal_weekly)
                         || clicked!(goal_specific)

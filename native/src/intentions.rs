@@ -34,6 +34,15 @@ pub(crate) enum IntentCommand {
         kind: GoalKind,
     },
     SelectGoal(String),
+    PrepareGoalCorrection {
+        id: String,
+        text: String,
+    },
+    ConfirmGoalCorrection {
+        id: String,
+        scope: FeedbackScope,
+    },
+    PrepareGoalRegistrationUpdate(String),
     SetGoalAvailability {
         form: GoalForm,
         weekly: bool,
@@ -374,10 +383,100 @@ impl Controller {
                 | IntentCommand::PauseTask(_)
                 | IntentCommand::Feedback { .. }
                 | IntentCommand::UndoFeedback(_)
+                | IntentCommand::ConfirmGoalCorrection { .. }
         ) {
             self.retain_assistance_previews()?;
         }
         match command {
+            IntentCommand::PrepareGoalCorrection { id, text } => {
+                let goal = self
+                    .intent_store()?
+                    .load()?
+                    .goals
+                    .into_iter()
+                    .find(|g| {
+                        g.id == id
+                            && g.status == GoalStatus::Active
+                            && g.input.kind == GoalKind::Participate
+                    })
+                    .ok_or("请先选择有效的参与目标")?;
+                let permit = self.automation_interlock.issue("_intent_ai");
+                let draft = crate::intent_model::correction(
+                    &self.model,
+                    &self.g("model")?,
+                    &text,
+                    &goal.input,
+                )?;
+                self.g("model")?;
+                if !permit.valid() || !self.host_session_current() {
+                    return Err("账号或授权已变化，请重新核对目标".into());
+                }
+                let current = self
+                    .intent_store()?
+                    .load()?
+                    .goals
+                    .into_iter()
+                    .find(|g| g.id == id && g.revision == goal.revision && g.input == goal.input)
+                    .ok_or("目标已有变化，请重新准备更正")?;
+                let proposal = self.intent_store()?.prepare_correction(
+                    &current.id,
+                    &text,
+                    draft.changes,
+                    draft.questions,
+                    &self.intent_activities()?,
+                    now(),
+                )?;
+                self.selected_goal = Some(current.id.clone());
+                self.goal_form = Some(GoalForm::from_goal(&current));
+                self.intention_result =
+                    buwei_host_core::goal_correction::correction_text(&proposal);
+                Ok(self.intention_result.clone())
+            }
+            IntentCommand::ConfirmGoalCorrection { id, scope } => {
+                let goal = self.intent_store()?.confirm_correction(
+                    &id,
+                    scope,
+                    &self.intent_activities()?,
+                    now(),
+                )?;
+                self.invalidate_assistance_previews()?;
+                self.selected_goal = Some(goal.id.clone());
+                self.goal_form = Some(GoalForm::from_goal(&goal));
+                self.goal_ai_draft = false;
+                Ok("更正已保存。候补报名尚未修改，请另行预览本场更新；长期偏好按本次所选范围处理。".into())
+            }
+            IntentCommand::PrepareGoalRegistrationUpdate(id) => {
+                self.g("participate")?;
+                let activity = self.activity()?;
+                let operations = self
+                    .journal
+                    .recent(&self.g("read")?, now())
+                    .map_err(|_| "原执行记录不可读取")?;
+                let task = self.intent_store()?.prepare_registration_update(
+                    &id,
+                    &activity,
+                    &operations,
+                    now(),
+                )?;
+                let goal = self
+                    .intent_store()?
+                    .load()?
+                    .goals
+                    .into_iter()
+                    .find(|g| g.id == id && g.revision == task.goal_revision)
+                    .ok_or("目标已变化")?;
+                self.active_task = Some(task.id.clone());
+                self.assistance_route = Some(1);
+                let result = self.apply(Command::Join(Preferences {
+                    earliest: goal.input.earliest,
+                    latest: goal.input.latest,
+                    group: goal.input.group,
+                }))?;
+                if let Some(op) = &self.participant_current {
+                    self.intent_store()?.link_operation(&task.id, op, now())?;
+                }
+                Ok(result)
+            }
             IntentCommand::SetGoalAvailability { mut form, weekly } => {
                 if form.kind != GoalKind::Participate {
                     return Err("每周安排用于参与目标".into());
@@ -754,6 +853,28 @@ impl Controller {
     pub(super) fn intention_view(&self, v: &mut View) {
         match self.intent_store().and_then(|s| s.load()) {
             Ok(state) => {
+                v.goal_correction = state
+                    .corrections
+                    .iter()
+                    .rev()
+                    .find(|p| {
+                        !p.applied
+                            && p.expires_at > now()
+                            && Some(&p.goal_id) == self.selected_goal.as_ref()
+                            && state.goals.iter().any(|g| {
+                                g.id == p.goal_id
+                                    && g.revision == p.base_revision
+                                    && g.input == p.before
+                                    && g.status == GoalStatus::Active
+                            })
+                    })
+                    .map(|p| {
+                        (
+                            p.id.clone(),
+                            buwei_host_core::goal_correction::correction_text(p),
+                            p.questions.is_empty(),
+                        )
+                    });
                 v.task_choices = state
                     .tasks
                     .iter()

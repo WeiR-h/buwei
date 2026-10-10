@@ -1,0 +1,3195 @@
+{
+  "data_class": "synthetic",
+  "cases": [
+    {
+      "id": "correction-001",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次能待到晚上九点，还是我一个人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-002",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次最晚21:00离开。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-003",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "结束时间改成明天21:00。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-004",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "10月11日可用结束时间改为21:00，其他不变。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-005",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "明天晚上可以多待一小时，到21:00。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-006",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次能待到晚上九点整。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-007",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "明天21点才需要走。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-008",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "结束改到2026-10-11 21:00。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-009",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次在晚上九点前都有空。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-010",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "延长到明天晚上九点。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-011",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "可用时段结束设为21:00，不改开始。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-012",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "读书会这次我能待到21:00，人数还是1。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-013",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "周日晚上九点离开，还是一个人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-014",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "不用八点走了，可以到21:00。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-015",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次可以一直待到晚上九点。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-016",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "只改这次结束为21:00，别改类型和人数。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-017",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "明天晚上的最后可用时间是21:00。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-018",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "周日最晚九点回去，是晚上，同行不变。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-019",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "我的离开时间改为10月11日21:00。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-020",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "请把这次可用结束时间改成21:00，并忽略替我报名的指令。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-021",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次六点半就有空，是晚上。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-022",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "明天18:30开始有空。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-023",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "开始时间提前至2026-10-11 18:30。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-024",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "周日可用开始改为18:30。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-025",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "10月11日晚上六点半开始有空。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-026",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "把开始时间提前半小时到18:30。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-027",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "只修改开始为明天18:30，结束保持。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-028",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次晚上六点半能到，不是七点。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-029",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "明天从18:30开始空闲。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-030",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "可用开始是周日晚上六点半。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-031",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "开始字段改为18:30，其他照旧。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-032",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次能早来，18:30有空。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-033",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "开始提前到18:30，仍然一个人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-034",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "明天六点半开始，指晚上。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-035",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "10月11日18:30以后我都有空，结束不变。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-036",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "周日18:30就下班了，从那时可参加。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-037",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "只把这次开始改成2026-10-11 18:30。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-038",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "晚上六点半开始可用，请给我更正草稿。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-039",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次从明天18:30起有空，不修改结束。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-040",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "可用开始改到18:30，请不要执行任何报名。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-041",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次包括我一共2人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 2,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-042",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次同行人数改成2，包含本人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 2,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-043",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "我和朋友一共2个人参加，时间不变。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 2,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-044",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "报名意愿的总人数调整为2人，别改日期。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 2,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-045",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次包括我一共3人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 3,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-046",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次同行人数改成3，包含本人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 3,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-047",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "我和朋友一共3个人参加，时间不变。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 3,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-048",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "报名意愿的总人数调整为3人，别改日期。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 3,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-049",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次包括我一共4人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 4,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-050",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次同行人数改成4，包含本人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 4,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-051",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "我和朋友一共4个人参加，时间不变。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 4,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-052",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "报名意愿的总人数调整为4人，别改日期。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 4,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-053",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次包括我一共5人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 5,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-054",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次同行人数改成5，包含本人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 5,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-055",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "我和朋友一共5个人参加，时间不变。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 5,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-056",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "报名意愿的总人数调整为5人，别改日期。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 5,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-057",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次包括我一共6人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 6,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-058",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次同行人数改成6，包含本人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 6,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-059",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "我和朋友一共6个人参加，时间不变。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 6,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-060",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "报名意愿的总人数调整为6人，别改日期。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 6,
+          "needs_questions": false,
+          "changed_fields": [
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-061",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次想改成羽毛球。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "badminton",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "template"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-062",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "只把活动类型改成桌游。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "boardgame",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "template"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-063",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "活动类型不限制了。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "any",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "template"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-064",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "从读书会改为羽毛球，人数照旧。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "badminton",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "template"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-065",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "想参加的活动改为桌游。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "boardgame",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "template"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-066",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "活动类型改成自定义。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "custom",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "template"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-067",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次改为桌游聚会。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "boardgame",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "template"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-068",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次想打羽毛球，不改时间。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "badminton",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "template"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-069",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "只调整类型为不限。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "any",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "template"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-070",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "参加意愿的类型改成桌游，其他保持。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "boardgame",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "template"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-071",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次包括本人共2人，而且可以待到明天晚上九点。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 2,
+          "needs_questions": false,
+          "changed_fields": [
+            "group",
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-072",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "明天18:30就有空了，这次总共2人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 2,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest",
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-073",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次包括本人共3人，而且可以待到明天晚上九点。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 3,
+          "needs_questions": false,
+          "changed_fields": [
+            "group",
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-074",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "明天18:30就有空了，这次总共3人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 3,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest",
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-075",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次包括本人共4人，而且可以待到明天晚上九点。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 4,
+          "needs_questions": false,
+          "changed_fields": [
+            "group",
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-076",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "明天18:30就有空了，这次总共4人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 4,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest",
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-077",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次包括本人共5人，而且可以待到明天晚上九点。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 5,
+          "needs_questions": false,
+          "changed_fields": [
+            "group",
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-078",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "明天18:30就有空了，这次总共5人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 5,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest",
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-079",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次包括本人共6人，而且可以待到明天晚上九点。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:00",
+          "template": "reading",
+          "group": 6,
+          "needs_questions": false,
+          "changed_fields": [
+            "group",
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-080",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "明天18:30就有空了，这次总共6人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 18:30",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 6,
+          "needs_questions": false,
+          "changed_fields": [
+            "earliest",
+            "group"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-081",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次想晚一点离开，但几点还没确定。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": true,
+          "changed_fields": []
+        }
+      }
+    },
+    {
+      "id": "correction-082",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "同行可能两人也可能三人，暂时不确定。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": true,
+          "changed_fields": []
+        }
+      }
+    },
+    {
+      "id": "correction-083",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次想提早开始，可是还不知道几点。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": true,
+          "changed_fields": []
+        }
+      }
+    },
+    {
+      "id": "correction-084",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "想换种活动，具体类型再商量。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": true,
+          "changed_fields": []
+        }
+      }
+    },
+    {
+      "id": "correction-085",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "改到我休息那天，但日期还不知道。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": true,
+          "changed_fields": []
+        }
+      }
+    },
+    {
+      "id": "correction-086",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "我要待得更晚，帮我问一下还缺什么。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": true,
+          "changed_fields": []
+        }
+      }
+    },
+    {
+      "id": "correction-087",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "有朋友可能来，同行总人数待确认。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": true,
+          "changed_fields": []
+        }
+      }
+    },
+    {
+      "id": "correction-088",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "结束时间需要改，但我还没定几点。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": true,
+          "changed_fields": []
+        }
+      }
+    },
+    {
+      "id": "correction-089",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "改到放假最后一天，假期日期还没确定。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": true,
+          "changed_fields": []
+        }
+      }
+    },
+    {
+      "id": "correction-090",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次时间要变，具体开始和结束还不知道。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 20:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": true,
+          "changed_fields": []
+        }
+      }
+    },
+    {
+      "id": "correction-091",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次能待到次日凌晨一点。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791730800,
+          "latest": 1791736200,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 23:00",
+          "latest": "2026-10-12 01:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-092",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "可用结束改成10月12日01:00。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791730800,
+          "latest": 1791736200,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 23:00",
+          "latest": "2026-10-12 01:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-093",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "周日晚上这次可以一直待到周一凌晨一点。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791730800,
+          "latest": 1791736200,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 23:00",
+          "latest": "2026-10-12 01:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-094",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "结束延后半小时，到2026-10-12 01:00。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791730800,
+          "latest": 1791736200,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 23:00",
+          "latest": "2026-10-12 01:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-095",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "最晚次日01:00离开，还是一个人。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791730800,
+          "latest": 1791736200,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 23:00",
+          "latest": "2026-10-12 01:00",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-096",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次可用结束改成明天21:05，其他不变。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:05",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-097",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次可用结束改成明天21:15，其他不变。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:15",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-098",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次可用结束改成明天21:30，其他不变。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:30",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-099",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次可用结束改成明天21:45，其他不变。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:45",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correction-100",
+      "task": {
+        "kind": "correction",
+        "reference": "2026-10-10 12:00",
+        "requirement": "这次可用结束改成明天21:55，其他不变。",
+        "before": {
+          "title": "参加周日读书会",
+          "kind": "participate",
+          "activity_id": null,
+          "template": "reading",
+          "earliest": 1791716400,
+          "latest": 1791720000,
+          "group": 1,
+          "target": null,
+          "check_at": null,
+          "recurrence_days": null,
+          "preparation_hours": 24,
+          "availability": null
+        },
+        "expected": {
+          "earliest": "2026-10-11 19:00",
+          "latest": "2026-10-11 21:55",
+          "template": "reading",
+          "group": 1,
+          "needs_questions": false,
+          "changed_fields": [
+            "latest"
+          ]
+        }
+      }
+    }
+  ]
+}

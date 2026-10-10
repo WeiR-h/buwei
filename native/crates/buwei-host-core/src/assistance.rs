@@ -98,6 +98,9 @@ impl AvailabilitySnapshot {
         })
     }
     pub fn description(&self) -> String {
+        if self.validate().is_err() {
+            return "每周安排需要重新确认".into();
+        }
         let days = if self.weekdays.is_empty() {
             "每天".into()
         } else {
@@ -240,7 +243,7 @@ impl GoalInput {
     pub fn validate(&self, actor: &str, activities: &[Activity], clock: u64) -> Result<()> {
         if let Some(schedule) = &self.availability {
             schedule.validate()?;
-            if self.kind != GoalKind::Participate {
+            if self.kind != GoalKind::Participate || schedule.confirmed_at > clock {
                 return Err("每周安排仅用于本人参与目标".into());
             }
         }
@@ -320,6 +323,8 @@ pub struct PrivateState {
     pub feedback: Vec<crate::intent_feedback::IntentFeedback>,
     #[serde(default)]
     pub analyses: std::collections::BTreeMap<String, Vec<String>>,
+    #[serde(default)]
+    pub corrections: Vec<crate::goal_correction::GoalCorrection>,
 }
 pub struct IntentStore {
     db: Connection,
@@ -366,6 +371,7 @@ impl IntentStore {
                 tasks: vec![],
                 feedback: vec![],
                 analyses: Default::default(),
+                corrections: vec![],
             });
         };
         if account != self.actor || raw.len() > 4 * 1024 * 1024 {
@@ -373,7 +379,11 @@ impl IntentStore {
         }
         let state: PrivateState =
             serde_json::from_str(&raw).map_err(|_| "个人资料损坏，请保留原目录并恢复备份")?;
-        if state.account != self.actor || state.schema != 1 || state.goals.len() > 100 {
+        if state.account != self.actor
+            || state.schema != 1
+            || state.goals.len() > 100
+            || state.corrections.len() > 100
+        {
             return Err("个人资料来源或版本不匹配，停止写入".into());
         }
         state.preferences.validate()?;

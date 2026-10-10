@@ -23,7 +23,7 @@ def request(control,name,value=None):
     if not r.get('success'):raise AssertionError(name+': '+r.get('message','No result'))
     return r
 
-def setup_activity(hosts):
+def setup_activity(hosts,template='badminton',capacity=2):
     accounts=[];controls=[]
     for role in ('organizer','participant'):
         profile=hosts.profiles[role];binding=json.loads((profile/'data'/('v'+hosts.version)/'rinx-binding-status.json').read_text('utf8'))
@@ -34,7 +34,7 @@ def setup_activity(hosts):
     tomorrow=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8)))+datetime.timedelta(days=1)
     start=int(tomorrow.replace(hour=19,minute=30,second=0,microsecond=0).timestamp())
     title='补位主动帮助验收 v'+hosts.version+' '+datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
-    form=dict(title=title,capacity=2,start=display(start),end=display(start+7200),template='badminton',location='私有测试场地',description='用于主动建议与真实回执闭环验收；不代表实际到场。')
+    form=dict(title=title,capacity=capacity,start=display(start),end=display(start+7200),template=template,location='私有测试场地',description='用于主动建议与真实回执闭环验收；不代表实际到场。')
     created=request(o,'CreateDated',form);a=created['activity'];identifier=a['metadata']['activity_id'];room=a['room']
     o=Control(hosts.profiles['organizer'],accounts[0],room)
     request(o,'LoadContacts');preview=request(o,'PrepareShare',accounts[1]);operation=preview['share']
