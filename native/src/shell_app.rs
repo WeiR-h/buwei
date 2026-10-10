@@ -65,8 +65,15 @@ impl AppMain for App {
         }
         if let Event::WindowCloseRequested(e) = event {
             if self.shell.ui.window(cx, ids!(main_window)).window_id() == Some(e.window_id) {
-                if super::host::background() && super::tray::hide() {
+                if super::host::background() {
                     e.accept_close.set(false);
+                    if !super::tray::hide() {
+                        super::host::set_background(false);
+                        super::host::pause_background();
+                        super::host::request(super::controller::Command::Revoke);
+                        super::tray::disable();
+                        log!("[buwei-tray] window kept open; background permission paused");
+                    }
                     return;
                 }
                 super::host::stop();

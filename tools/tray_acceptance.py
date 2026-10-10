@@ -9,6 +9,35 @@ from contextlib import closing
 from fault_acceptance import Hosts
 from intent_acceptance import IntentSuite
 
+def native_window_visible(pid):
+    """Read the unique native main window belonging to this exact host PID."""
+    import ctypes
+    from ctypes import wintypes
+    user=ctypes.WinDLL('user32',use_last_error=True)
+    user.GetWindow.restype=wintypes.HWND
+    user.GetWindow.argtypes=[wintypes.HWND,wintypes.UINT]
+    user.GetWindowLongPtrW.restype=ctypes.c_ssize_t
+    user.GetWindowLongPtrW.argtypes=[wintypes.HWND,ctypes.c_int]
+    user.GetWindowThreadProcessId.argtypes=[wintypes.HWND,ctypes.POINTER(wintypes.DWORD)]
+    user.IsWindowVisible.argtypes=[wintypes.HWND]
+    user.GetClassNameW.argtypes=[wintypes.HWND,wintypes.LPWSTR,ctypes.c_int]
+    callback=ctypes.WINFUNCTYPE(wintypes.BOOL,wintypes.HWND,wintypes.LPARAM)
+    windows=[]
+    @callback
+    def collect(hwnd,_):
+        owner=wintypes.DWORD()
+        user.GetWindowThreadProcessId(hwnd,ctypes.byref(owner))
+        if owner.value==pid:
+            name=ctypes.create_unicode_buffer(64)
+            user.GetClassNameW(hwnd,name,len(name))
+            if name.value=='MakepadWindow' and not user.GetWindow(hwnd,4) and user.GetWindowLongPtrW(hwnd,-20)&0x40000:
+                windows.append(bool(user.IsWindowVisible(hwnd)))
+        return True
+    user.EnumWindows.argtypes=[callback,wintypes.LPARAM]
+    if not user.EnumWindows(collect,0) or len(windows)!=1:
+        raise AssertionError('Own native main window absent or ambiguous')
+    return windows[0]
+
 class Native:
     def __init__(self,port):
         self.base='http://127.0.0.1:'+str(port)+'/'
@@ -46,6 +75,7 @@ def run(args):
         # the real Windows WM_CLOSE path on this host's own window instead.
         suite.call(suite.o,'TestTrayAction','close_window');time.sleep(1)
         assert suite.call(suite.o,'Refresh')['tray_hidden'] and h.processes['organizer'].poll() is None
+        assert not native_window_visible(h.processes['organizer'].pid)
         suite.use(suite.p,suite.card(suite.p,'opportunity'))
         join=suite.operation(suite.call(suite.p,'ConfirmParticipant',suite.preferences),'participant','confirmed')
         invite=suite.automatic_invitation();suite.use(suite.p,suite.card(suite.p,'invitation'));reply=suite.reply(True);cancel=suite.cancel()
@@ -64,6 +94,15 @@ def run(args):
         suite.call(suite.o,'ConfirmAutomation',{'id':preview['policy_consent_id'],'settings':settings})
         resumed=suite.automatic_invitation();suite.reply(False)
         resume_evidence=suite.evidence([queued,resumed])
+        # Remove only this opt-in host's own icon, then send real WM_CLOSE.
+        # An unavailable tray must retain the visible app and revoke authority.
+        suite.call(suite.o,'TestTrayAction','remove_own_icon')
+        suite.call(suite.o,'TestTrayAction','close_window');time.sleep(1)
+        unavailable=suite.call(suite.o,'Refresh')
+        assert not unavailable['tray_hidden'] and not unavailable['background']
+        assert unavailable['background_paused'] and not unavailable['authorized']
+        assert h.processes['organizer'].poll() is None
+        assert native_window_visible(h.processes['organizer'].pid)
         # Exit can terminate the worker before its result file is written.
         # Process termination is the evidence for this action; do not resend.
         try:suite.o.command('TestTrayAction','exit',timeout=5)
@@ -72,7 +111,7 @@ def run(args):
         assert h.processes['organizer'].returncode==0
         after_exit=invite_count(h.profiles['organizer'],h.version);time.sleep(12)
         assert invite_count(h.profiles['organizer'],h.version)==after_exit
-        report={'version':h.version,'passed':True,'hidden_native_sdk_flow':hidden,'pause_prevents_new_invites':True,'fresh_consent_required_to_resume':True,'resume_verifies_registration':resume_evidence,'exit_stops_process_and_new_invites':True,'control_method':'WM_CLOSE posted to this host native window; actual SDK effects while hidden; menu actions dispatched through opt-in endpoint using the same menu handler','account_switch_checked':False}
+        report={'version':h.version,'passed':True,'hidden_native_sdk_flow':hidden,'native_visibility_verified_by_os':True,'pause_prevents_new_invites':True,'fresh_consent_required_to_resume':True,'resume_verifies_registration':resume_evidence,'missing_own_tray_icon_keeps_window_and_revokes_authority':True,'exit_stops_process_and_new_invites':True,'control_method':'WM_CLOSE posted to this host native window; actual SDK effects while hidden; menu actions dispatched through opt-in endpoint using the same menu handler; own-icon removal is an explicit opt-in fault; HWND visibility checked by exact PID using IsWindowVisible','account_switch_checked':False}
         args.output.parent.mkdir(parents=True,exist_ok=True);args.output.write_text(json.dumps(report,indent=2),'utf8')
     finally:
         for role in ('organizer','participant'):

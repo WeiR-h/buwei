@@ -47,6 +47,16 @@ pub(crate) fn test_action(name: &str) -> Result<(), String> {
         #[cfg(not(windows))]
         return Err("此验收需要 Windows".into());
     }
+    if name == "remove_own_icon" {
+        #[cfg(windows)]
+        return if native::remove_own_icon() {
+            Ok(())
+        } else {
+            Err("本人的值守图标不可用于故障验收".into())
+        };
+        #[cfg(not(windows))]
+        return Err("此验收需要 Windows".into());
+    }
     dispatch(match name {
         "open" => TrayAction::Open,
         "todos" => TrayAction::Todos,
@@ -79,6 +89,10 @@ mod target {
         } else {
             None
         }
+    }
+    pub(super) fn can_hide(main_valid: bool, icon_registered: bool, rectangle_result: i32) -> bool {
+        // HRESULT uses its sign for success. S_FALSE (1) is not a failure.
+        main_valid && icon_registered && rectangle_result >= 0
     }
     #[cfg(test)]
     mod tests {
@@ -130,6 +144,14 @@ mod target {
             assert_eq!(unique(&[]), None);
             assert_eq!(unique(&[101]), Some(101));
             assert_eq!(unique(&[101, 202]), None);
+        }
+        #[test]
+        fn tray_accepts_success_hresult_but_never_missing_windows() {
+            assert!(can_hide(true, true, 0));
+            assert!(can_hide(true, true, 1));
+            assert!(!can_hide(true, true, 0x80004005u32 as i32));
+            assert!(!can_hide(false, true, 0));
+            assert!(!can_hide(true, false, 1));
         }
     }
 }
@@ -382,18 +404,30 @@ mod native {
             identifier.uID = 1;
             let mut rect: RECT = std::mem::zeroed();
             let result = Shell_NotifyIconGetRect(&identifier, &mut rect);
-            if result != 0 {
+            let mut notification = data(identifier.hWnd);
+            notification.uFlags = NIF_TIP;
+            copy(&mut notification.szTip, "补位 · 已开启值守（授权到期停止）");
+            let registered =
+                IsWindow(identifier.hWnd) != 0 && Shell_NotifyIconW(NIM_MODIFY, &notification) != 0;
+            if !target::can_hide(IsWindow(h) != 0, registered, result) {
                 makepad_widgets::log!(
-                    "[buwei-tray] icon rect failed hresult={} main_valid={} icon_valid={}",
+                    "[buwei-tray] icon unavailable hresult={} main_valid={} registered={}",
                     result,
                     IsWindow(h) != 0,
-                    IsWindow(identifier.hWnd) != 0
+                    registered
                 );
                 return false;
             }
+            #[cfg(feature = "acceptance")]
+            if result != 0 {
+                makepad_widgets::log!(
+                    "[buwei-tray] successful notification rectangle hresult={}",
+                    result
+                );
+            }
             ShowWindow(h, SW_HIDE);
+            return IsWindow(h) != 0 && IsWindowVisible(h) == 0;
         }
-        true
     }
     pub(super) fn show() {
         let h = MAIN.load(Ordering::SeqCst) as HWND;
@@ -410,6 +444,19 @@ mod native {
         enabled()
             && !h.is_null()
             && unsafe { IsWindow(h) != 0 && PostMessageW(h, WM_CLOSE, 0, 0) != 0 }
+    }
+    #[cfg(feature = "acceptance")]
+    pub(super) fn remove_own_icon() -> bool {
+        let h = ICON.load(Ordering::SeqCst) as HWND;
+        enabled()
+            && !h.is_null()
+            && unsafe {
+                let mut pid = 0;
+                GetWindowThreadProcessId(h, &mut pid);
+                pid == std::process::id()
+                    && IsWindow(h) != 0
+                    && Shell_NotifyIconW(NIM_DELETE, &data(h)) != 0
+            }
     }
     pub(super) fn hidden() -> bool {
         let h = MAIN.load(Ordering::SeqCst) as HWND;
