@@ -16,8 +16,10 @@ def selected(profile,version):
     actor=next((profile/'data'/('v'+version)/'native/rinx').glob('*/operations.db')).parent
     identifier=(actor/'selected-activity.txt').read_text('utf8').strip() if (actor/'selected-activity.txt').exists() else None
     path=actor/'activities'/identifier/'activity.db' if identifier else actor/'activity.db'
+    if not path.exists():return None
     with closing(sqlite3.connect('file:'+path.as_posix()+'?mode=ro',uri=True)) as db:
-        return json.loads(db.execute('select body from buwei_state').fetchone()[0])
+        row=db.execute('select body from buwei_state').fetchone()
+        return json.loads(row[0]) if row else None
 def request(control,name,value=None):
     r=control.command(name,value,timeout=180)
     if not r.get('success'):raise AssertionError(name+': '+r.get('message','No result'))
@@ -28,7 +30,7 @@ def setup_activity(hosts,template='badminton',capacity=2):
     for role in ('organizer','participant'):
         profile=hosts.profiles[role];binding=json.loads((profile/'data'/('v'+hosts.version)/'rinx-binding-status.json').read_text('utf8'))
         if not binding['server_identity_verified']:raise RuntimeError('SDK identity not verified')
-        accounts.append(binding['account']);controls.append(Control(profile,binding['account'],selected(profile,hosts.version)['room']))
+        accounts.append(binding['account']);controls.append(Control(profile,binding['account'],(selected(profile,hosts.version) or {}).get('room','')))
     if accounts[0]==accounts[1]:raise RuntimeError('Distinct SDK identities required')
     o,p=controls;o.authorize();p.authorize()
     tomorrow=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8)))+datetime.timedelta(days=1)

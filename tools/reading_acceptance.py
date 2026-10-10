@@ -70,16 +70,6 @@ def run(args):
     h=Hosts(args.executable,args.owner_profile,args.participant_profile,args.version,args.owner_port,args.participant_port)
     try:
         for role in ('organizer','participant'):h.start(role)
-        # Archive only named, old controlled activities in these independent fixtures.
-        profile=h.profiles['organizer'];binding=json.loads((profile/'data'/('v'+h.version)/'rinx-binding-status.json').read_text('utf8'))
-        control=Control(profile,binding['account'],selected(profile,h.version)['room']);control.authorize()
-        for _ in range(5):
-            snapshot=request(control,'Refresh');activities=snapshot.get('activities',[])
-            index=next((i for i,a in enumerate(activities) if not a['metadata']['archived'] and a['owner']==binding['account'] and '验收' in a['title']),None)
-            if index is None:break
-            chosen=request(control,'SelectActivity',index)
-            control=Control(profile,binding['account'],chosen['activity']['room'])
-            request(control,'ArchiveActivity')
         identifier,_,_=setup_activity(h,template='reading',capacity=1);h.activity_id=identifier
         suite=ReadingSuite(h,args.private_trace,identifier);report=suite.run_reading(args.rounds)
         args.output.parent.mkdir(parents=True,exist_ok=True);args.output.write_text(json.dumps(report,indent=2),'utf8')
