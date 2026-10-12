@@ -33,6 +33,7 @@ script_mod! {
                 message:=Text{text:"正式服务器 https://matrix.rinx.chat；浏览器认证由本人完成。"}
                 View{width:Fill height:40 flow:Right spacing:8
                     nav_activity:=Action{text:"我的活动"}
+                    nav_discover:=Action{text:"社群活动"}
                     nav_goals:=Action{text:"我的目标"}
                     nav_confirm:=Action{text:"当前确认" visible:false}
                     nav_history:=Action{text:"活动记录"}
@@ -78,6 +79,10 @@ script_mod! {
                     activity_details:=View{width:Fill height:Fit flow:Down spacing:12 visible:false
                     activity:=Text{text:"尚无活动"}
                     people:=Text{text:"尚无候补"}
+                    roster_export:=View{width:Fill height:Fit flow:Down spacing:8
+                        View{width:Fill height:Fit flow:Right spacing:8 roster_prepare:=Action{text:"导出报名名单…"} roster_confirm:=Action{text:"确认保存名单" visible:false}}
+                        roster_preview:=Text{}
+                    }
                     organizer_invite_entry:=View{width:Fill height:Fit flow:Right
                         prepare:=Action{text:"预览手动邀请"}
                     }
@@ -92,10 +97,16 @@ script_mod! {
                         description:=Input{height:70 is_multiline:true empty_text:"活动说明"}
                         View{width:Fill height:Fit flow:Right spacing:8
                             Small{text:"容量" width:40} capacity:=Input{text:"6" width:60}
-                            Small{text:"开始" width:40} start:=Input{width:190 empty_text:"2026-10-10 19:30"}
-                            Small{text:"结束" width:40} end:=Input{width:190 empty_text:"2026-10-10 21:30"}
-                            create:=Action{text:"创建活动"}
+                            Small{text:"开始" width:40} start:=Input{width:190 empty_text:"YYYY-MM-DD HH:mm"}
+                            Small{text:"结束" width:40} end:=Input{width:190 empty_text:"YYYY-MM-DD HH:mm"}
+                            create:=Action{text:"核对并保存基础信息"}
                         }
+                        plan_0:=Action{width:Fill visible:false} plan_1:=Action{width:Fill visible:false} plan_2:=Action{width:Fill visible:false}
+                        plan_summary:=Text{}
+                        View{width:Fill height:Fit flow:Right spacing:8
+                            plan_revise:=Action{text:"AI 合并本次补充"} plan_preview_create:=Action{text:"预览活动创建"} plan_confirm_create:=Action{text:"确认创建本场活动" visible:false}
+                        }
+                        plan_creation_preview:=Text{}
                         recover_setup:=Action{text:"恢复待核实的活动创建"}
                         cancel_setup:=Action{text:"收起活动草稿"}
                         }
@@ -127,7 +138,7 @@ script_mod! {
                             room:=Input{empty_text:"高级恢复：完整房间编号 !..."}
                             join_room:=Action{text:"本人加入活动房间"}
                         }
-                        Small{text:"先核对本人可用时段，再预览报名。填写完整日期与时间，例如 2026-10-10 19:30。"}
+                        Small{text:"先核对本场活动日期和本人可用时段，再预览报名。请输入 YYYY-MM-DD HH:mm 格式的完整日期与时间。"}
                         View{width:Fill height:Fit flow:Right spacing:8
                             earliest:=Input{width:200 empty_text:"最早可用日期和时间"}
                             latest:=Input{width:200 empty_text:"最晚可用日期和时间"}
@@ -139,7 +150,7 @@ script_mod! {
                     requirement:=Input{height:70 is_multiline:true empty_text:"描述活动安排或本人报名意愿"}
                     clarification:=Input{height:55 is_multiline:true empty_text:"补充或更正时间、人数与地点"}
                     View{width:Fill height:Fit flow:Right spacing:8
-                        create_with_ai:=Action{text:"一句话建活动"}
+                        create_with_ai:=Action{text:"一句话准备活动策划"}
                         suggest:=Action{text:"理解报名意愿"} clarify:=Action{text:"合并补充回答"} apply_advice:=Action{text:"核对建议并预览报名"}
                         explain:=Action{text:"解释候补结果"}
                     }
@@ -148,6 +159,34 @@ script_mod! {
                     question:=Input{empty_text:"问问这场活动，例如：几点开始、还有多少名额？"}
                     ask:=Action{text:"询问本场活动"}
                     }
+                }
+                page_discover:=ScrollYView{visible:false width:Fill height:Fill flow:Down spacing:12 padding:16 show_bg:true draw_bg.color:#xf2f6ef
+                    Heading{text:"社群活动 · 挑选想参加的下一场"}
+                    View{width:Fill height:Fit flow:Right spacing:8
+                        communities_load:=Action{text:"选择已加入的 Rinx 社群"} communities_refresh:=Action{text:"更新社群活动"}
+                    }
+                    community_0:=Action{width:Fill visible:false} community_1:=Action{width:Fill visible:false} community_2:=Action{width:Fill visible:false}
+                    community_pagination:=View{width:Fill height:Fit flow:Right spacing:8 visible:false community_prev:=Action{text:"上一页社群"} community_next:=Action{text:"下一页社群"}}
+                    community_selected:=Small{text:"请选择社群；仅读取你选择的社群活动卡片与加入申请。"}
+                    community_status:=Small{}
+                    View{width:Fill height:Fit flow:Right spacing:8
+                        filter_template:=Input{width:180 empty_text:"活动类型，留空显示全部"} filter_date:=Input{width:160 empty_text:"日期 YYYY-MM-DD"}
+                        filter_apply:=Action{text:"筛选"} filter_available:=Action{text:"只看发布时有空位"}
+                    }
+                    listing_0:=Action{width:Fill height:110 visible:false} listing_1:=Action{width:Fill height:110 visible:false} listing_2:=Action{width:Fill height:110 visible:false}
+                    listing_pagination:=View{width:Fill height:Fit flow:Right spacing:8 visible:false listing_prev:=Action{text:"上一页活动"} listing_next:=Action{text:"下一页活动"}}
+                    community_organizer_actions:=View{width:Fill height:Fit flow:Down spacing:8
+                        Heading{text:"发布当前活动到社群"}
+                        View{width:Fill height:Fit flow:Right spacing:8 community_publish:=Action{text:"预览社群活动卡片"} community_withdraw:=Action{text:"预览收起本场卡片"} community_confirm_publish:=Action{text:"确认社群发布" visible:false}}
+                        View{width:Fill height:Fit flow:Right spacing:8 access_prepare:=Action{text:"查看社群加入规则"} access_confirm:=Action{text:"确认启用加入规则" visible:false} access_pause:=Action{text:"暂停社群自动邀请"}}
+                        access_preview:=Text{} access_status:=Text{}
+                    }
+                    community_preview:=Text{}
+                    View{width:Fill height:Fit flow:Right spacing:8
+                        entry_confirm:=Action{text:"确认本人加入申请" visible:false} discovery_join:=Action{text:"确认加入活动并填写报名" visible:false} discovery_current:=Action{text:"查看当前活动并报名"} community_reconcile:=Action{text:"核实社群操作回执"}
+                    }
+                    entry_progress:=Text{}
+                    Small{text:"卡片显示发布时的活动信息；加入后核验本场的最新状态。加入申请不占位，报名与接受均由本人确认。"}
                 }
                 page_goals:=ScrollYView{visible:false width:Fill height:Fill flow:Down spacing:12 padding:16 show_bg:true draw_bg.color:#xf2f6ef
                     Heading{text:"我的目标 · 让补位持续帮你跟进"}
@@ -199,6 +238,7 @@ script_mod! {
                                 correction_once:=Action{text:"确认更正：仅本次"} correction_long:=Action{text:"确认更正：更新长期偏好"}
                             }
                             registration_update:=Action{text:"另行预览本场候补更新"}
+                            registration_progress:=Text{}
                         }
                         Small{text:"来源：本人填写或已确认的偏好。缺失信息请补充，保存目标不会发送消息或替你报名。"}
                         View{width:Fill height:Fit flow:Right spacing:8
@@ -283,13 +323,13 @@ script_mod! {
                     Heading{text:"开始使用"}
                     Text{text:"1. 在 Rinx 完成本人登录，查看权限并确认授权。\n2. 组织者新建活动，选择联系人分享活动卡片。\n3. 成员从卡片进入活动，核对时段和同行人数后报名。\n4. 组织者核对规则并启用自动补位，成员亲自回复邀请。\n5. 不明结果在活动记录中沿原编号恢复。同场仅使用一个组织者宿主。"}
                     Heading{text:"模型设置"}
-                    Small{text:"AI 建议会将填写的需求发送到 MiniMax；邀请和文章按完整预览单独确认。"}
+                    Small{text:"AI 建议会将填写的需求发送到 Kimi Code；邀请和文章按完整预览单独确认。"}
                     model_status:=Text{text:"模型配置由宿主管理"}
                     analysis_status:=Text{}
                     View{width:Fill height:Fit flow:Right spacing:8
-                        preview_analysis:=Action{text:"查看主动 AI 分析说明"} confirm_analysis:=Action{text:"确认开启主动分析"} revoke_analysis:=Action{text:"撤销主动分析"}
+                        preview_analysis:=Action{text:"查看主动 AI 分析说明" visible:false} confirm_analysis:=Action{text:"确认开启主动分析" visible:false} revoke_analysis:=Action{text:"撤销主动分析" visible:false}
                     }
-                    configure_model:=Action{text:"填写或更新本机 MiniMax 密钥"}
+                    configure_model:=Action{text:"填写或更新本机 Kimi Code 密钥"}
                     Small{text:"活动助手可以理解日期和报名意愿。必要信息会先显示为可编辑草稿，由本人核对确认。"}
                     fault:=Action{text:"高级诊断" visible:false}
                 }
@@ -342,6 +382,32 @@ pub struct BuWeiView {
     #[rust]
     pending_creation: bool,
     #[rust]
+    plan_id: Option<String>,
+    #[rust]
+    plan_revision: Option<u64>,
+    #[rust]
+    plan_creation_nonce: Option<String>,
+    #[rust]
+    plan_choices: Vec<(String, String)>,
+    #[rust]
+    roster_nonce: Option<String>,
+    #[rust]
+    communities: Vec<(String, String)>,
+    #[rust]
+    community_page: usize,
+    #[rust]
+    selected_community: Option<String>,
+    #[rust]
+    listing_keys: Vec<String>,
+    #[rust]
+    listing_page: usize,
+    #[rust]
+    community_operation: Option<(String, String)>,
+    #[rust]
+    access_nonce: Option<String>,
+    #[rust]
+    available_only: bool,
+    #[rust]
     pending_policy_pause: Option<String>,
     #[rust]
     pending_revoke: bool,
@@ -378,6 +444,140 @@ pub struct BuWeiView {
 }
 impl BuWeiView {
     fn display(&mut self, cx: &mut Cx, view: HostView) {
+        self.communities = view.communities.clone();
+        self.community_page = self
+            .community_page
+            .min(self.communities.len().saturating_sub(1) / 3);
+        macro_rules! community_button {
+            ($id:ident,$n:expr) => {
+                let item = self.communities.get(self.community_page * 3 + $n);
+                self.view
+                    .button(cx, ids!($id))
+                    .set_visible(cx, item.is_some());
+                if let Some((_, text)) = item {
+                    self.view.button(cx, ids!($id)).set_text(cx, text);
+                }
+            };
+        }
+        community_button!(community_0, 0);
+        community_button!(community_1, 1);
+        community_button!(community_2, 2);
+        self.view
+            .view(cx, ids!(community_pagination))
+            .set_visible(cx, self.communities.len() > 3);
+        self.listing_keys = view.community_listings.iter().map(|l| l.key()).collect();
+        self.listing_page = self
+            .listing_page
+            .min(self.listing_keys.len().saturating_sub(1) / 3);
+        macro_rules! listing_button {($id:ident,$n:expr)=>{let item=view.community_listings.get(self.listing_page*3+$n);self.view.button(cx,ids!($id)).set_visible(cx,item.is_some());if let Some(l)=item{self.view.button(cx,ids!($id)).set_text(cx,&format!("{}\n{} 至 {} · {}\n发布时剩余 {} 个名额 · 点击查看加入申请",l.announcement.title,buwei_host_core::calendar::display(l.announcement.start),buwei_host_core::calendar::display(l.announcement.end),l.announcement.location,l.announcement.free));}};}
+        listing_button!(listing_0, 0);
+        listing_button!(listing_1, 1);
+        listing_button!(listing_2, 2);
+        self.view
+            .view(cx, ids!(listing_pagination))
+            .set_visible(cx, self.listing_keys.len() > 3);
+        self.view
+            .view(cx, ids!(community_organizer_actions))
+            .set_visible(cx, view.organizer);
+        self.view
+            .label(cx, ids!(community_status))
+            .set_text(cx, &view.community_status);
+        self.view
+            .label(cx, ids!(community_preview))
+            .set_text(cx, &view.community_preview);
+        self.view
+            .label(cx, ids!(access_preview))
+            .set_text(cx, &view.access_preview);
+        self.view
+            .label(cx, ids!(access_status))
+            .set_text(cx, &view.access_status);
+        self.view
+            .label(cx, ids!(entry_progress))
+            .set_text(cx, &view.entry_progress);
+        let next_community_operation = view
+            .community_operation
+            .as_ref()
+            .map(|op| (op.id.clone(), op.action.permission.clone()));
+        if next_community_operation != self.community_operation
+            && view.community_operation.as_ref().is_some_and(|op| {
+                op.action.permission == "request_entry" && op.status == super::Status::Prepared
+            })
+        {
+            self.tab = 6;
+        }
+        self.community_operation = view
+            .community_operation
+            .as_ref()
+            .map(|op| (op.id.clone(), op.action.permission.clone()));
+        self.access_nonce = view.access_nonce.clone();
+        self.view
+            .button(cx, ids!(access_confirm))
+            .set_visible(cx, self.access_nonce.is_some());
+        self.view.button(cx, ids!(entry_confirm)).set_visible(
+            cx,
+            view.community_operation.as_ref().is_some_and(|op| {
+                op.action.permission == "request_entry" && op.status == super::Status::Prepared
+            }),
+        );
+        self.view
+            .button(cx, ids!(community_confirm_publish))
+            .set_visible(
+                cx,
+                view.community_operation.as_ref().is_some_and(|op| {
+                    op.action.permission == "publish_community"
+                        && op.status == super::Status::Prepared
+                }),
+            );
+        self.view
+            .button(cx, ids!(discovery_join))
+            .set_visible(cx, !view.card_status.is_empty());
+        self.roster_nonce = view.roster_export_nonce.clone();
+        self.view
+            .view(cx, ids!(roster_export))
+            .set_visible(cx, view.organizer);
+        self.view
+            .label(cx, ids!(roster_preview))
+            .set_text(cx, &view.roster_export_preview);
+        self.view
+            .button(cx, ids!(roster_confirm))
+            .set_visible(cx, self.roster_nonce.is_some());
+        let next_plan_id = view.plan.as_ref().map(|p| p.id.clone());
+        if next_plan_id != self.plan_id
+            && view
+                .plan
+                .as_ref()
+                .is_some_and(|p| p.status == buwei_host_core::planning::PlanStatus::Draft)
+        {
+            self.creating = true;
+            self.tab = 1;
+        }
+        self.plan_id = next_plan_id;
+        self.plan_revision = view.plan.as_ref().map(|p| p.revision);
+        self.plan_creation_nonce = view.plan_creation_nonce.clone();
+        self.plan_choices = view.plan_choices.clone();
+        self.view.label(cx, ids!(plan_summary)).set_text(
+            cx,
+            &view.plan.as_ref().map(|p| p.text()).unwrap_or_default(),
+        );
+        self.view
+            .label(cx, ids!(plan_creation_preview))
+            .set_text(cx, &view.plan_creation_preview);
+        self.view
+            .button(cx, ids!(plan_confirm_create))
+            .set_visible(cx, self.plan_creation_nonce.is_some());
+        macro_rules! plan_button {
+            ($id:ident,$n:expr) => {
+                self.view
+                    .button(cx, ids!($id))
+                    .set_visible(cx, self.plan_choices.get($n).is_some());
+                if let Some((_, text)) = self.plan_choices.get($n) {
+                    self.view.button(cx, ids!($id)).set_text(cx, text);
+                }
+            };
+        }
+        plan_button!(plan_0, 0);
+        plan_button!(plan_1, 1);
+        plan_button!(plan_2, 2);
         self.task_choices = view.task_choices.clone();
         self.task_page = self
             .task_page
@@ -489,6 +689,9 @@ impl BuWeiView {
                 .map(|p| p.1.clone())
                 .unwrap_or_default(),
         );
+        self.view
+            .label(cx, ids!(registration_progress))
+            .set_text(cx, &view.goal_registration_status);
         self.goal_page = self.goal_page.min(self.goals.len().saturating_sub(1) / 3);
         macro_rules! goal_button {
             ($id:ident,$n:expr) => {
@@ -834,7 +1037,7 @@ impl BuWeiView {
             .set_visible(cx, view.organizer);
         self.view
             .view(cx, ids!(organizer_setup))
-            .set_visible(cx, view.organizer);
+            .set_visible(cx, view.organizer || self.creating);
         self.view
             .view(cx, ids!(participant_actions))
             .set_visible(cx, !view.organizer);
@@ -914,6 +1117,9 @@ impl BuWeiView {
         self.view
             .view(cx, ids!(page_help))
             .set_visible(cx, self.tab == 4);
+        self.view
+            .view(cx, ids!(page_discover))
+            .set_visible(cx, self.tab == 6);
         self.view.redraw(cx);
     }
     fn flush_critical(&mut self) {
@@ -1027,6 +1233,8 @@ impl Widget for BuWeiView {
             }
             if let Some(tab) = if clicked!(nav_activity) || clicked!(back_to_activities) {
                 Some(0)
+            } else if clicked!(nav_discover) {
+                Some(6)
             } else if clicked!(nav_goals) {
                 Some(5)
             } else if clicked!(nav_confirm) || clicked!(open_current) || clicked!(join_card) {
@@ -1046,10 +1254,37 @@ impl Widget for BuWeiView {
                     return;
                 }
             }
+            if clicked!(discovery_join) || clicked!(discovery_current) {
+                self.tab = 1;
+                self.pages(cx);
+                if clicked!(discovery_join) {
+                    self.send(cx, Command::JoinCard);
+                }
+                return;
+            }
             macro_rules! text {
                 ($id:ident) => {
                     self.view.text_input(cx, ids!($id)).text()
                 };
+            }
+            if [
+                ids!(title),
+                ids!(start),
+                ids!(end),
+                ids!(capacity),
+                ids!(location),
+                ids!(description),
+            ]
+            .iter()
+            .any(|path| self.view.text_input(cx, *path).changed(actions).is_some())
+            {
+                self.plan_creation_nonce = None;
+                self.view
+                    .button(cx, ids!(plan_confirm_create))
+                    .set_visible(cx, false);
+                self.view
+                    .label(cx, ids!(plan_creation_preview))
+                    .set_text(cx, "基础信息已编辑，请先保存并重新预览创建。");
             }
             if clicked!(enable_background) {
                 if super::tray::enable() {
@@ -1195,6 +1430,12 @@ impl Widget for BuWeiView {
             }
             if clicked!(new_activity) {
                 self.creating = true;
+                self.plan_id = None;
+                self.plan_revision = None;
+                self.send(
+                    cx,
+                    Command::Planning(super::controller::planning::PlanningCommand::New),
+                );
                 self.tab = 1;
                 self.pages(cx);
                 self.view
@@ -1219,7 +1460,7 @@ impl Widget for BuWeiView {
                 self.tab = 1;
                 self.pages(cx);
             }
-            if clicked!(create) {
+            if clicked!(plan_confirm_create) {
                 self.pending_creation = true;
             }
             let parse = |value: String| {
@@ -1307,6 +1548,204 @@ impl Widget for BuWeiView {
                 })
             };
             let command: super::Result<Option<Command>> = (|| {
+                use super::controller::community_access::DiscoveryCommand as D;
+                if clicked!(communities_load) {
+                    return Ok(Some(Command::Discovery(D::LoadCommunities)));
+                }
+                if clicked!(communities_refresh) {
+                    return Ok(Some(Command::Discovery(D::Refresh)));
+                }
+                if clicked!(community_prev) || clicked!(community_next) {
+                    self.community_page = if clicked!(community_prev) {
+                        self.community_page.saturating_sub(1)
+                    } else {
+                        (self.community_page + 1).min(self.communities.len().saturating_sub(1) / 3)
+                    };
+                    return Ok(Some(Command::Refresh));
+                }
+                if clicked!(listing_prev) || clicked!(listing_next) {
+                    self.listing_page = if clicked!(listing_prev) {
+                        self.listing_page.saturating_sub(1)
+                    } else {
+                        (self.listing_page + 1).min(self.listing_keys.len().saturating_sub(1) / 3)
+                    };
+                    return Ok(Some(Command::Refresh));
+                }
+                if clicked!(community_0) || clicked!(community_1) || clicked!(community_2) {
+                    let n = if clicked!(community_0) {
+                        0
+                    } else if clicked!(community_1) {
+                        1
+                    } else {
+                        2
+                    };
+                    let (id, label) = self
+                        .communities
+                        .get(self.community_page * 3 + n)
+                        .ok_or("请刷新社群列表")?;
+                    self.selected_community = Some(id.clone());
+                    self.view
+                        .label(cx, ids!(community_selected))
+                        .set_text(cx, &format!("当前选择：{label}"));
+                    return Ok(Some(Command::Discovery(D::Watch(id.clone()))));
+                }
+                if clicked!(filter_apply) || clicked!(filter_available) {
+                    if clicked!(filter_available) {
+                        self.available_only = !self.available_only;
+                        self.view.button(cx, ids!(filter_available)).set_text(
+                            cx,
+                            if self.available_only {
+                                "已筛选：发布时有空位"
+                            } else {
+                                "只看发布时有空位"
+                            },
+                        );
+                    }
+                    return Ok(Some(Command::Discovery(D::Filter(
+                        buwei_host_core::discovery::Filter {
+                            template: if text!(filter_template).trim().is_empty() {
+                                String::new()
+                            } else {
+                                super::controller::intentions::parse_template(&text!(
+                                    filter_template
+                                ))?
+                            },
+                            date: text!(filter_date),
+                            available_only: self.available_only,
+                        },
+                    ))));
+                }
+                if clicked!(listing_0) || clicked!(listing_1) || clicked!(listing_2) {
+                    let n = if clicked!(listing_0) {
+                        0
+                    } else if clicked!(listing_1) {
+                        1
+                    } else {
+                        2
+                    };
+                    return Ok(Some(Command::Discovery(D::PreviewEntry(
+                        self.listing_keys
+                            .get(self.listing_page * 3 + n)
+                            .ok_or("请刷新社群活动")?
+                            .clone(),
+                    ))));
+                }
+                if clicked!(community_publish) || clicked!(community_withdraw) {
+                    return Ok(Some(Command::Discovery(D::PreviewPublish {
+                        community: self.selected_community.clone().ok_or("请先选择社群")?,
+                        withdrawn: clicked!(community_withdraw),
+                    })));
+                }
+                if clicked!(community_confirm_publish) || clicked!(entry_confirm) {
+                    let (id, permission) = self
+                        .community_operation
+                        .as_ref()
+                        .ok_or("请先预览本次社群操作")?;
+                    return Ok(Some(Command::Discovery(
+                        if permission == "publish_community" {
+                            D::ConfirmPublish(id.clone())
+                        } else {
+                            D::ConfirmEntry(id.clone())
+                        },
+                    )));
+                }
+                if clicked!(access_prepare) {
+                    return Ok(Some(Command::Discovery(D::PreviewAccess(format!(
+                        "{}|{}",
+                        self.selected_community.clone().ok_or("请先选择社群")?,
+                        self.current_activity
+                    )))));
+                }
+                if clicked!(access_confirm) {
+                    return Ok(Some(Command::Discovery(D::ConfirmAccess(
+                        self.access_nonce.clone().ok_or("请先查看加入规则")?,
+                    ))));
+                }
+                if clicked!(access_pause) {
+                    if let Some(scope) = self.scope {
+                        super::host::invalidate_community(scope);
+                    }
+                    return Ok(Some(Command::Discovery(D::PauseAccess)));
+                }
+                if clicked!(community_reconcile) {
+                    return Ok(Some(Command::Discovery(D::Reconcile)));
+                }
+                if clicked!(roster_prepare) {
+                    return Ok(super::controller::roster_export::choose_path()
+                        .map(Command::PreviewRosterExport));
+                }
+                if clicked!(roster_confirm) {
+                    return Ok(Some(Command::ConfirmRosterExport(
+                        self.roster_nonce.clone().ok_or("请先预览名单导出")?,
+                    )));
+                }
+                if clicked!(plan_0) || clicked!(plan_1) || clicked!(plan_2) {
+                    let n = if clicked!(plan_0) {
+                        0
+                    } else if clicked!(plan_1) {
+                        1
+                    } else {
+                        2
+                    };
+                    return Ok(Some(Command::Planning(
+                        super::controller::planning::PlanningCommand::Select(
+                            self.plan_choices.get(n).ok_or("请刷新策划列表")?.0.clone(),
+                        ),
+                    )));
+                }
+                if clicked!(plan_revise) {
+                    return Ok(Some(Command::Planning(
+                        super::controller::planning::PlanningCommand::Prepare {
+                            text: if text!(clarification).trim().is_empty() {
+                                text!(requirement)
+                            } else {
+                                text!(clarification)
+                            },
+                            id: self.plan_id.clone(),
+                            revision: self.plan_revision,
+                        },
+                    )));
+                }
+                if clicked!(plan_preview_create) {
+                    return Ok(Some(Command::Planning(
+                        super::controller::planning::PlanningCommand::PreviewCreate,
+                    )));
+                }
+                if clicked!(plan_confirm_create) {
+                    return Ok(Some(Command::Planning(
+                        super::controller::planning::PlanningCommand::ConfirmCreate {
+                            nonce: self
+                                .plan_creation_nonce
+                                .clone()
+                                .ok_or("请先保存并预览创建")?,
+                            basics: buwei_host_core::planning::ActivityBasics {
+                                title: text!(title),
+                                capacity: parse(text!(capacity))?,
+                                start: text!(start),
+                                end: text!(end),
+                                template: self.template.clone(),
+                                location: text!(location),
+                                description: text!(description),
+                            },
+                        },
+                    )));
+                }
+                if clicked!(correction_prepare)
+                    || clicked!(correction_once)
+                    || clicked!(correction_long)
+                    || clicked!(registration_update)
+                {
+                    let saved = self.goal_form.as_ref().ok_or("请先选择已保存的目标")?;
+                    if !saved.participation_fields_match(
+                        &text!(goal_title),
+                        &text!(goal_template),
+                        &text!(goal_earliest),
+                        &text!(goal_latest),
+                        &text!(goal_group),
+                    ) {
+                        return Err("目标有尚未保存的修改，请先点击“确认保存目标”，再准备更正或预览候补更新。".into());
+                    }
+                }
                 Ok(
                     if clicked!(new_organize_goal) || clicked!(new_participate_goal) {
                         Some(Command::Assistance(IntentCommand::PrepareGoal(
@@ -1487,19 +1926,23 @@ impl Widget for BuWeiView {
                     } else if clicked!(join_room) {
                         Some(Command::JoinRoom(text!(room)))
                     } else if clicked!(create) {
-                        Some(Command::CreateDated(
-                            super::controller::community::ActivityForm {
-                                title: text!(title),
-                                capacity: parse(text!(capacity))?,
-                                start: text!(start),
-                                end: text!(end),
-                                template: if self.template.is_empty() {
-                                    "custom".into()
-                                } else {
-                                    self.template.clone()
+                        Some(Command::Planning(
+                            super::controller::planning::PlanningCommand::Save {
+                                id: self.plan_id.clone(),
+                                revision: self.plan_revision,
+                                basics: buwei_host_core::planning::ActivityBasics {
+                                    title: text!(title),
+                                    capacity: parse(text!(capacity))?,
+                                    start: text!(start),
+                                    end: text!(end),
+                                    template: if self.template.is_empty() {
+                                        "custom".into()
+                                    } else {
+                                        self.template.clone()
+                                    },
+                                    location: text!(location),
+                                    description: text!(description),
                                 },
-                                location: text!(location),
-                                description: text!(description),
                             },
                         ))
                     } else if clicked!(template_badminton) {
@@ -1688,7 +2131,11 @@ impl AppModule for BuWeiModule {
         let closing_root = root.clone();
         InstanceParts {
             root,
-            executor: Box::new(BuWeiExecutor),
+            executor: Box::new(BuWeiExecutor {
+                scope,
+                replies: handles.replies,
+                pending: Default::default(),
+            }),
             shutdown: Box::new(move |vm| {
                 super::host::close(scope);
                 vm.with_cx_mut(|cx| {
@@ -1705,15 +2152,28 @@ impl AppModule for BuWeiModule {
         }
     }
 }
-struct BuWeiExecutor;
+struct BuWeiExecutor {
+    scope: makepad_app_module::InstanceScope,
+    replies: makepad_app_module::ReplySink,
+    pending: std::collections::HashMap<String, std::sync::Arc<std::sync::atomic::AtomicBool>>,
+}
 impl ServiceExecutor for BuWeiExecutor {
     fn manifest(&self) -> ServiceManifest {
-        ServiceManifest::new("buwei", "补位", "宿主授权与回执应用；发送需要本人确认。")
+        super::planning_service::manifest()
     }
     fn execute(&mut self, _cx: &mut Cx, call: &ServiceCall) -> ExecOutcome {
-        ExecOutcome::Done(ToolResult::unavailable(
-            &call.call_id,
-            "请在宿主界面预览并确认操作",
-        ))
+        let cancelled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        match super::host::plan_tool(self.scope, call, self.replies.clone(), cancelled.clone()) {
+            Ok(()) => {
+                self.pending.insert(call.call_id.clone(), cancelled);
+                ExecOutcome::Pending
+            }
+            Err(e) => ExecOutcome::Done(ToolResult::refused(&call.call_id, e)),
+        }
+    }
+    fn cancel(&mut self, _cx: &mut Cx, id: &str) {
+        if let Some(token) = self.pending.remove(id) {
+            token.store(true, std::sync::atomic::Ordering::SeqCst);
+        }
     }
 }

@@ -34,7 +34,12 @@ pub(crate) fn correction(
     }
     let result = host
         .complete("buwei", correction_request(text, before, now())?)
-        .map_err(|e| format!("更正理解暂不可用：{}；可手动编辑目标", e.code.as_str()))?;
+        .map_err(|e| {
+            format!(
+                "{}；可手动修改目标并确认保存，再另行预览候补更新",
+                model::failure_message(&e)
+            )
+        })?;
     let d: CorrectionDraft =
         serde_json::from_value(result.output).map_err(|_| "更正草稿格式不合法")?;
     buwei_host_core::goal_correction::corrected_input(before, text, &d.changes)?;
@@ -77,7 +82,7 @@ pub(crate) fn draft(
     }
     let result = host
         .complete("buwei", request(text, kind, now(), activity)?)
-        .map_err(|e| format!("目标理解暂不可用：{}；可以手动填写", e.code.as_str()))?;
+        .map_err(|e| format!("{}；可以手动填写目标", model::failure_message(&e)))?;
     checked_draft(parse(&result.output)?, kind, activity)
 }
 pub(crate) fn checked_draft(
@@ -194,7 +199,7 @@ pub(crate) fn analyze(
     let request=Request{class:Class::Strong,task:"根据本人的活动目标和已核验的去身份摘要，选择适合解释当前建议的事实字段。reason为确定规则的触发原因，evidence为已核验容量和活动时间，deadline为建议有效期。只选择已有 fact_ids；不编写新事实，不执行操作，不推断到场或长期偏好。".into(),input:json!({"card_kind":kind,"activity":{"template":a.metadata.as_ref().map(|m|m.template.clone()),"start":buwei_host_core::calendar::display(a.start),"end":buwei_host_core::calendar::display(a.end),"capacity":a.capacity,"confirmed":a.confirmed(),"held":a.held()},"goal":goal.map(|g|json!({"kind":g.input.kind,"template":g.input.template,"group":g.input.group,"target":g.input.target,"earliest":buwei_host_core::calendar::display(g.input.earliest),"latest":buwei_host_core::calendar::display(g.input.latest)}))}),schema:json!({"type":"object","additionalProperties":false,"required":["fact_ids"],"properties":{"fact_ids":{"type":"array","maxItems":3,"items":{"enum":["reason","evidence","deadline"]}}}}),allow_urls:false,system:None};
     let response = host
         .complete("buwei", request)
-        .map_err(|_| "主动分析暂不可用")?;
+        .map_err(|e| format!("{}；继续显示已核验的规则提示", model::failure_message(&e)))?;
     let ids: Vec<String> = serde_json::from_value(response.output["fact_ids"].clone())
         .map_err(|_| "主动分析格式不合法")?;
     if ids.len() > 3

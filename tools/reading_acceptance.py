@@ -37,6 +37,16 @@ class ReadingSuite(IntentSuite):
             sequence=self.person(current)['joined'];invitation_count=len(current['invitations'])
             blocked=self.card(self.o,'no_candidate')
             assert '不覆盖活动' in blocked['reason'] and display(partial['latest']) in blocked['reason']
+            if n==0:
+                # A prepared editor form is not the saved goal. Neither AI
+                # correction nor registration may silently use the old one.
+                draft=self.intent(self.p,'SetGoalAvailability',{'form':self.form('participate'),'weekly':False})
+                assert '未保存' in draft['goal_registration_status']
+                for command,value in [('PrepareGoalRegistrationUpdate',self.member_goal),('PrepareGoalCorrection',{'id':self.member_goal,'text':'这次能待到晚上九点半，还是我一个人。'})]:
+                    refused=self.call(self.p,'Assistance',{'command':command,'value':value})
+                    assert not refused['success'] and '尚未保存' in refused['message']
+                    assert self.person(self.state(self.owner))['preferences']==partial
+                self.intent(self.p,'SelectGoal',self.member_goal)
             rejected=0
             for attempt in range(3 if update_faults else 1):
                 proposed=self.call(self.p,'Assistance',{'command':'PrepareGoalCorrection','value':{'id':self.member_goal,'text':'这次能待到晚上九点半，还是我一个人。'}})
@@ -53,9 +63,11 @@ class ReadingSuite(IntentSuite):
             changed=self.intent(self.p,'ConfirmGoalCorrection',{'id':correction['id'],'scope':'this_occasion'})
             assert changed['intentions']['preferences']==before_prefs
             assert self.person(self.state(self.owner))['preferences']==partial
+            assert '另行预览本场候补更新' in changed['goal_registration_status']
             repeated=self.call(self.p,'Assistance',{'command':'ConfirmGoalCorrection','value':{'id':correction['id'],'scope':'this_occasion'}});assert not repeated['success']
             prepared=self.intent(self.p,'PrepareGoalRegistrationUpdate',self.member_goal)
             update=self.operation(prepared,'participant','prepared')
+            assert '尚未发送' in prepared['goal_registration_status']
             continued=next(t for t in prepared['intentions']['tasks'] if any(s.get('operation_id')==update['id'] for s in t['steps']))
             assert continued['id']==task['id'] and update['id']!=sent['id']
             fault=('lost_ack','crash_before_receipt')[n%2] if update_faults else None
@@ -67,7 +79,10 @@ class ReadingSuite(IntentSuite):
                         assert self.hosts.processes['participant'].poll() is not None
                     else:raise AssertionError('Expected crash before receipt')
                 else:
-                    uncertain=self.operation(self.call(self.p,'ConfirmParticipant',self.preferences),'participant','unknown')
+                    uncertain_result=self.call(self.p,'ConfirmParticipant',self.preferences)
+                    assert update['id'] in uncertain_result['goal_registration_status']
+                    assert '先恢复回执' in uncertain_result['goal_registration_status']
+                    uncertain=self.operation(uncertain_result,'participant','unknown')
                     assert uncertain['id']==update['id']
                 pending=FaultSuite.persisted_operation(self,'participant',update['id'])
                 assert pending['status']==('dispatching' if fault=='crash_before_receipt' else 'unknown')
@@ -88,6 +103,7 @@ class ReadingSuite(IntentSuite):
                 if finished['status']=='completed':break
                 if time.monotonic()>deadline:raise AssertionError('Original registration task did not finish')
                 time.sleep(1)
+            assert '报名已确认' in self.call(self.p,'Refresh')['goal_registration_status']
             cancel=self.cancel();proof=self.evidence([sent,updated,invite,reply,cancel])
             proof.update(queue_position_preserved=True,original_task_preserved=True,goal_and_registration_confirmed_separately=True,preferences_unchanged=True,stale_preview_rejected=True)
             if fault:proof.update(fault=fault,native_process_restarted=True,original_operation_recovered=True,blind_resends=0,refused_model_drafts=rejected)

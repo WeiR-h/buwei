@@ -13,7 +13,8 @@ pub(crate) struct Permit {
 }
 impl Interlock {
     pub(crate) fn issue(&self, activity: &str) -> Permit {
-        let state = self.0.lock().unwrap();
+        let mut state = self.0.lock().unwrap();
+        state.1.entry(activity.into()).or_default();
         Permit {
             host: self.clone(),
             activity: activity.into(),
@@ -25,6 +26,13 @@ impl Interlock {
     }
     pub(crate) fn invalidate_all(&self) {
         self.0.lock().unwrap().0 += 1;
+    }
+    pub(crate) fn invalidate_prefix(&self, prefix: &str) {
+        for (key, version) in &mut self.0.lock().unwrap().1 {
+            if key.starts_with(prefix) {
+                *version += 1;
+            }
+        }
     }
 }
 impl Permit {
@@ -45,6 +53,15 @@ impl Permit {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn pausing_community_access_preserves_waitlist_authorization() {
+        let h = Interlock::default();
+        let c = h.issue("community:activity");
+        let w = h.issue("activity");
+        h.invalidate_prefix("community:");
+        assert!(!c.valid());
+        assert!(w.valid());
+    }
     #[test]
     fn edits_during_a_network_read_cancel_only_that_activity() {
         let host = Interlock::default();

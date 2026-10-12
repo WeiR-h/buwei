@@ -36,6 +36,8 @@ pub(crate) fn after_server_event(kind: &str) -> Result<()> {
             | "org.buwei.reply"
             | "org.buwei.cancel"
             | "m.room.message"
+            | "m.room.member"
+            | "org.buwei.entry.request"
     ) {
         return Ok(());
     }

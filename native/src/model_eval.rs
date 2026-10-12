@@ -207,12 +207,14 @@ fn save_report(path: &Path, report: &Value) -> Result<()> {
     std::fs::rename(temporary, path).map_err(|_| "测试记录不可保存".into())
 }
 fn provider_budget(root: &Path) -> Result<Value> {
-    let path = root.join("data/model/development-budget.json");
+    let path = root.join("data/model/kimi-code-usage.json");
     if path.is_file() {
         serde_json::from_slice(&std::fs::read(path).map_err(|_| "开发预算不可读取")?)
             .map_err(|_| "开发预算不合法".into())
     } else {
-        Ok(json!({"attempts_reserved":0,"estimated_rmb":0.0,"input_tokens":0,"output_tokens":0}))
+        Ok(
+            json!({"attempts_reserved":0,"estimated_rmb":null,"billing_kind":"subscription","remaining_plan_quota_verified":false,"input_tokens":0,"output_tokens":0}),
+        )
     }
 }
 /// Replay real responses through the same guard used by the goal editor.
@@ -323,7 +325,7 @@ fn totals(report: &mut Value, root: &Path) -> Result<()> {
         "provider_attempts":after["attempts_reserved"].as_u64().unwrap_or(0).saturating_sub(report["budget_before"]["attempts_reserved"].as_u64().unwrap_or(0)),
         "provider_reported_input_tokens":after["input_tokens"].as_u64().unwrap_or(0).saturating_sub(report["budget_before"]["input_tokens"].as_u64().unwrap_or(0)),
         "provider_reported_output_tokens":after["output_tokens"].as_u64().unwrap_or(0).saturating_sub(report["budget_before"]["output_tokens"].as_u64().unwrap_or(0)),
-        "estimated_rmb":after["estimated_rmb"].as_f64().unwrap_or(0.0)-report["budget_before"]["estimated_rmb"].as_f64().unwrap_or(0.0),"billing_verified":false,"matrix_events_sent":0});
+        "estimated_rmb":null,"billing_kind":"subscription","remaining_plan_quota_verified":false,"billing_verified":false,"matrix_events_sent":0});
     report["updated_at_local_collection_unix_seconds"] = json!(now());
     Ok(())
 }
@@ -334,6 +336,11 @@ pub(crate) fn run(root: &Path, suite_path: &Path, report_path: &Path) -> Result<
         return Err("测试文件超出范围".into());
     }
     let suite: Suite = serde_json::from_slice(&bytes).map_err(|_| "合成测试格式不合法")?;
+    if model::interactive_only()
+        && (suite.cases.len() != 1 || std::env::args().any(|a| a == "--community-evaluation"))
+    {
+        return Err("Kimi Code 仅用于本人发起的单项验证；自动批量模型评测未启用。".into());
+    }
     if !matches!(suite.data_class.as_str(), "synthetic" | "public_source")
         || suite.cases.is_empty()
         || suite.cases.len() > 400
@@ -375,7 +382,7 @@ pub(crate) fn run(root: &Path, suite_path: &Path, report_path: &Path) -> Result<
         }
         value
     } else {
-        json!({"version":env!("CARGO_PKG_VERSION"),"model":"MiniMax-M3","official_model_host":true,"data_class":suite.data_class,"suite_sha256":hash,"limits":{"shared_spending_ceiling":true,"counts_preserved":true},"budget_before":provider_budget(root)?,"started_at_local_collection_unix_seconds":now(),"results":[]})
+        json!({"version":env!("CARGO_PKG_VERSION"),"model":model::MODEL_ID,"official_model_host":true,"data_class":suite.data_class,"suite_sha256":hash,"limits":{"shared_subscription_usage_ceiling":true,"counts_preserved":true},"budget_before":provider_budget(root)?,"started_at_local_collection_unix_seconds":now(),"results":[]})
     };
     let host = model::evaluation_host(root)?;
     let mut previous_start: Option<Instant> = None;

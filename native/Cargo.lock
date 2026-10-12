@@ -943,7 +943,7 @@ dependencies = [
 
 [[package]]
 name = "buwei-rinx-dual-host"
-version = "0.2.5"
+version = "0.2.9"
 dependencies = [
  "action-receipts",
  "buwei-host-core",

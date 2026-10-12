@@ -17,6 +17,32 @@ pub(crate) struct ActivityForm {
     pub location: String,
     pub description: String,
 }
+impl From<buwei_host_core::planning::ActivityBasics> for ActivityForm {
+    fn from(b: buwei_host_core::planning::ActivityBasics) -> Self {
+        Self {
+            title: b.title,
+            capacity: b.capacity,
+            start: b.start,
+            end: b.end,
+            template: b.template,
+            location: b.location,
+            description: b.description,
+        }
+    }
+}
+impl From<ActivityForm> for buwei_host_core::planning::ActivityBasics {
+    fn from(b: ActivityForm) -> Self {
+        Self {
+            title: b.title,
+            capacity: b.capacity,
+            start: b.start,
+            end: b.end,
+            template: b.template,
+            location: b.location,
+            description: b.description,
+        }
+    }
+}
 impl ActivityForm {
     fn activity(&self, owner: String, room: String, id: String) -> Result<Activity> {
         let start = calendar::parse(&self.start)?;
@@ -115,6 +141,7 @@ impl Controller {
             self.g("read")?;
         }
         self.selected_activity = Some(id.clone());
+        self.roster_preview = None;
         self.current = None;
         self.participant_current = None;
         self.article_current = None;
@@ -177,12 +204,15 @@ impl Controller {
                 if candidate.start <= now() {
                     return Err("请选择未来的活动开始时间".into());
                 }
-                let record = json!({"owner":self.actor(),"form":form,"id":id,"assistance_task_id":self.active_task});
+                let record = json!({"owner":self.actor(),"form":form,"id":id,"assistance_task_id":self.active_task,"plan_id":self.creating_plan});
                 std::fs::write(
                     self.data.join("pending-setup.json"),
                     serde_json::to_vec(&record).unwrap(),
                 )
                 .map_err(|_| "创建记录不可保存")?;
+                if let Some(plan) = &self.creating_plan {
+                    self.link_plan_setup(plan, &id)?;
+                }
                 let mut r = create_room::v3::Request::new();
                 r.name = Some(candidate.title.clone());
                 r.initial_state.push(matrix_sdk::ruma::serde::Raw::from_json(serde_json::value::to_raw_value(&json!({"type":"org.buwei.setup","state_key":"","content":{"activity_id":id,"owner":self.actor()}})).map_err(|_|"活动创建信息不合法")?));
@@ -202,13 +232,16 @@ impl Controller {
                     .room_id;
                 let a = form.activity(self.actor(), room.to_string(), id)?;
                 self.attach_activity(a, true)?;
-                std::fs::remove_file(self.data.join("pending-setup.json"))
-                    .map_err(|_| "活动已创建，请核实创建记录")?;
                 self.create_form = None;
                 #[cfg(feature = "full-host")]
                 if rinx_bridge::official_mode() {
                     self.sync_activity()?;
                 }
+                if let Some(plan) = &self.creating_plan {
+                    self.finish_plan_setup(plan, record["id"].as_str().ok_or("创建编号缺失")?)?;
+                }
+                std::fs::remove_file(self.data.join("pending-setup.json"))
+                    .map_err(|_| "活动已创建，请核实创建记录")?;
                 if let (Some(task), Ok(a)) = (&self.active_task, self.activity()) {
                     let _ = self.intent_store()?.record_next_activity(task, &a, now());
                 }
@@ -248,11 +281,14 @@ impl Controller {
                     form.activity(self.actor(), found[0].to_string(), id.into())?,
                     true,
                 )?;
-                std::fs::remove_file(path).map_err(|_| "创建恢复后记录不可清理")?;
                 #[cfg(feature = "full-host")]
                 if rinx_bridge::official_mode() {
                     self.sync_activity()?;
                 }
+                if let Some(plan) = record["plan_id"].as_str() {
+                    self.finish_plan_setup(plan, id)?;
+                }
+                std::fs::remove_file(path).map_err(|_| "创建恢复后记录不可清理")?;
                 if let (Some(task), Ok(a)) =
                     (record["assistance_task_id"].as_str(), self.activity())
                 {
@@ -377,9 +413,21 @@ impl Controller {
                 self.g("participate")?;
                 let (room, id) = self.incoming_card.clone().ok_or("请先打开活动卡片")?;
                 let room = OwnedRoomId::try_from(room.as_str()).map_err(|_| "活动房间不合法")?;
-                self.rt
+                if self
+                    .rt
                     .block_on(self.active().join_room_by_id(&room))
-                    .map_err(|_| "请先在 Rinx 查看并接受活动房间邀请")?;
+                    .is_err()
+                {
+                    if let Some(l) = self.discovery_store()?.list()?.into_iter().find(|l| {
+                        l.announcement.activity_room == room.as_str()
+                            && l.announcement.activity_id == id
+                    }) {
+                        return self.apply_discovery(
+                            super::community_access::DiscoveryCommand::PreviewEntry(l.key()),
+                        );
+                    }
+                    return Err("活动房间邀请尚未核验；可在社群活动中选择本场并申请加入".into());
+                }
                 #[cfg(feature = "full-host")]
                 let a = official_sync::fetch(&self.rt, self.active(), &room)?;
                 #[cfg(not(feature = "full-host"))]
@@ -389,18 +437,25 @@ impl Controller {
                     if a.metadata.as_ref().is_none_or(|m| m.activity_id != id) {
                         return Err("活动卡片与组织者当前活动不一致".into());
                     }
+                    if self
+                        .expected_card_owner
+                        .as_ref()
+                        .is_some_and(|owner| owner != &a.owner)
+                    {
+                        return Err("社群卡片发送者与活动真实组织者不一致".into());
+                    }
                     self.attach_activity(a, false)?;
                     self.incoming_card = None;
+                    self.expected_card_owner = None;
                     Ok("已核验活动来源，可以填写本人报名。".into())
                 }
             }
             Command::CreateWithAi(requirement) => {
-                let g = self.g("model")?;
-                let (form, questions) =
-                    super::super::model::create_activity(&self.model, &g, &requirement)?;
-                self.create_form = form;
-                self.ai_result = questions;
-                Ok("活动草稿已生成，请核对并填写缺失信息后创建。".into())
+                self.apply_planning(super::planning::PlanningCommand::Prepare {
+                    text: requirement,
+                    id: None,
+                    revision: None,
+                })
             }
             Command::ApplyActivityDraft => {
                 let form = self.create_form.clone().ok_or("请先生成活动草稿")?;
@@ -590,36 +645,7 @@ impl Controller {
                     v.activity.push_str(&format!("\n本场同步：{status}"));
                 }
             }
-            v.people = a
-                .ordered_people()
-                .iter()
-                .enumerate()
-                .map(|(n, p)| {
-                    format!(
-                        "第 {} 位 · {} · {} 人 · {}\n{} 至 {}",
-                        n + 1,
-                        p.name,
-                        p.preferences.group,
-                        if a.invitations.iter().any(|i| i.recipient == p.account
-                            && i.reply == buwei_host_core::Reply::Pending
-                            && i.delivery != buwei_host_core::Delivery::Rejected)
-                        {
-                            "名额为你保留"
-                        } else {
-                            match p.status {
-                                buwei_host_core::PersonStatus::Waiting => "候补中",
-                                buwei_host_core::PersonStatus::Confirmed => "报名已确认",
-                                buwei_host_core::PersonStatus::Declined => "已拒绝",
-                                buwei_host_core::PersonStatus::Cancelled => "已取消",
-                                buwei_host_core::PersonStatus::Expired => "邀请已过期",
-                            }
-                        },
-                        calendar::display(p.preferences.earliest),
-                        calendar::display(p.preferences.latest)
-                    )
-                })
-                .collect::<Vec<_>>()
-                .join("\n\n");
+            v.people = buwei_host_core::roster::visible(&a, &self.actor());
             fn preview(op: &Operation, title: &str) -> String {
                 format!(
                     "账号：{}\n活动：{}\n操作：{}\n{}",
@@ -653,6 +679,18 @@ impl Controller {
                     p.group,
                 ));
             }
+            if !v.organizer && v.dated_inputs.is_none() && a.metadata.is_some() {
+                if let Some(p) = a.people.iter().find(|p| p.account == self.actor()) {
+                    v.dated_inputs = Some((
+                        calendar::display(p.preferences.earliest),
+                        calendar::display(p.preferences.latest),
+                        p.preferences.group,
+                    ));
+                } else {
+                    v.dated_inputs =
+                        Some((calendar::display(a.start), calendar::display(a.end), 1));
+                }
+            }
         }
     }
     pub(crate) fn sync_interval(&self) -> Duration {
@@ -669,6 +707,7 @@ impl Controller {
     }
     #[cfg(feature = "full-host")]
     pub(super) fn community_tick(&mut self) -> Option<View> {
+        self.discovery_tick();
         let list: Vec<_> = match Catalog::open(&self.data).and_then(|c| c.list()) {
             Ok(list) => list
                 .into_iter()
@@ -681,7 +720,7 @@ impl Controller {
         };
         if list.is_empty() {
             if self.activity().is_err() {
-                return None;
+                return Some(self.view());
             }
             let v = self.handle(Command::SyncActivity);
             self.last_sync_status = v.message;

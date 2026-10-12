@@ -51,6 +51,8 @@ mod model_eval;
 #[cfg(feature = "full-host")]
 mod official_sync;
 mod participant;
+#[cfg(feature = "desktop")]
+mod planning_service;
 #[cfg(feature = "full-host")]
 mod rinx_bridge;
 #[cfg(feature = "desktop")]

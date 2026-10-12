@@ -20,6 +20,12 @@ from formal_control import Control
 from capture_native import redaction_targets
 
 class ReleaseTools(unittest.TestCase):
+    def test_v030_cannot_replace_system_chat_and_cross_machine_evidence_with_local_checks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);evidence=root/'local.json';path=root/'acceptance.json'
+            evidence.write_text(json.dumps({'version':'0.3.0','passed':True,'actual_system_chat_call':False,'account_scope_verified':True,'unauthorized_actions':0,'distinct_identities':2,'windows_machines':1,'actual_user_confirmation':False}),'utf8')
+            path.write_text(json.dumps({'version':'0.3.0','scoped_agent_planning':{'passed':True,'evidence':evidence.name},'cross_machine_community_trial':{'passed':True,'evidence':evidence.name}}),'utf8')
+            result=check(path);self.assertIn('scoped_agent_planning',result['missing_or_failed']);self.assertIn('cross_machine_community_trial',result['missing_or_failed'])
     def test_public_download_uses_visible_fresh_startup_and_requires_actual_native_frame(self):
         package=pathlib.Path('downloaded/windows');evidence=pathlib.Path('downloaded/runtime-evidence')
         valid={'passed':True,'version':'0.2.3','actual_native_render':True}

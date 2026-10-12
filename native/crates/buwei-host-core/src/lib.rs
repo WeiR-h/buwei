@@ -15,11 +15,17 @@ pub mod calendar;
 pub mod catalog;
 pub mod facts;
 pub mod goal_correction;
+pub mod goal_progress;
 pub mod intent_feedback;
 pub mod model_budget;
+pub mod model_failure;
 pub mod participation;
 pub mod preference_draft;
 pub mod proactive;
+pub mod planning;
+pub mod roster;
+pub mod discovery;
+pub mod subscription_budget;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Preferences {

@@ -16,7 +16,9 @@ Participants use their own Rinx identities. Verified server receipts distinguish
 
 [Download for Windows](https://github.com/WeiR-h/buwei/releases/latest) · [Chinese guide](docs/FIRST-RUN.md) · [Privacy](docs/PRIVACY.md) · [Support](https://github.com/WeiR-h/buwei/issues)
 
-This branch is validating **v0.2.5**: confirmed weekly availability filters recommendations, and temporary corrections retain the original task and queue position. Runtime downloads and walkthroughs use the corresponding fixed Release.
+This branch is validating the **v0.2.9 preview**: persistent activity plans, organizer CSV exports, and activity selection within a Rinx community. Runtime downloads and walkthroughs use the corresponding fixed Release.
+
+Organizers can describe an activity, edit its plan, confirm creation, and separately confirm community publication. Members select a published activity, request room access, and confirm their own registration. CSV exports use a verified organizer snapshot and protect text from spreadsheet formula interpretation. See the [community guide](docs/COMMUNITY.md).
 
 BuWei uses pinned official OctoSense and Rinx 1.1.0 sources and ships as a native Windows host extension with organizer and participant entry points. Participants sign up and reply with their own Rinx identities; the organizer verifies results before displaying a confirmed place.
 
