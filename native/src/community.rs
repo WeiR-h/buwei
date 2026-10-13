@@ -554,8 +554,9 @@ impl Controller {
             .iter()
             .map(|a| {
                 format!(
-                    "{} · {}\n{} · 已确认 {}/{}",
+                    "{} · {} · {}\n{} · 已确认 {}/{}",
                     a.title,
+                    if a.owner==self.actor(){"我组织"}else{"我参加"},
                     if a.metadata.as_ref().is_some_and(|m| m.archived) || now() >= a.end {
                         "已结束"
                     } else if now() >= a.start {

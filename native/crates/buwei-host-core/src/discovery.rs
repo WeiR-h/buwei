@@ -5,10 +5,16 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::BTreeSet, path::Path};
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Audience { #[default] Community, Public }
+impl Audience { pub fn is_community(&self) -> bool { *self == Self::Community } }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Announcement {
     pub protocol: u8,
+    #[serde(default, skip_serializing_if = "Audience::is_community")]
+    pub audience: Audience,
     pub activity_id: String,
     pub activity_room: String,
     pub organizer: String,
@@ -28,6 +34,7 @@ impl Announcement {
         let m = a.metadata.as_ref().ok_or("历史活动没有社群定位信息")?;
         Ok(Self {
             protocol: 1,
+            audience: Audience::Community,
             activity_id: m.activity_id.clone(),
             activity_room: a.room.clone(),
             organizer: a.owner.clone(),
@@ -43,7 +50,7 @@ impl Announcement {
         })
     }
     pub fn validate(&self) -> Result<()> {
-        if self.protocol != 1
+        if !(self.protocol == 1 && self.audience == Audience::Community || self.protocol == 2)
             || self.activity_id.len() != 32
             || !self.activity_id.bytes().all(|b| b.is_ascii_hexdigit())
             || !account_valid(&self.organizer)

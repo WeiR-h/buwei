@@ -99,12 +99,12 @@ script_mod! {
                             Small{text:"容量" width:40} capacity:=Input{text:"6" width:60}
                             Small{text:"开始" width:40} start:=Input{width:190 empty_text:"YYYY-MM-DD HH:mm"}
                             Small{text:"结束" width:40} end:=Input{width:190 empty_text:"YYYY-MM-DD HH:mm"}
-                            create:=Action{text:"核对并保存基础信息"}
+                            create:=Action{text:"核对并预览创建"}
                         }
                         plan_0:=Action{width:Fill visible:false} plan_1:=Action{width:Fill visible:false} plan_2:=Action{width:Fill visible:false}
                         plan_summary:=Text{}
                         View{width:Fill height:Fit flow:Right spacing:8
-                            plan_revise:=Action{text:"AI 合并本次补充"} plan_preview_create:=Action{text:"预览活动创建"} plan_confirm_create:=Action{text:"确认创建本场活动" visible:false}
+                            plan_revise:=Action{text:"AI 合并本次补充"} plan_preview_create:=Action{text:"重新预览已保存策划"} plan_confirm_create:=Action{text:"确认创建本场活动" visible:false}
                         }
                         plan_creation_preview:=Text{}
                         recover_setup:=Action{text:"恢复待核实的活动创建"}
@@ -133,6 +133,7 @@ script_mod! {
                         policy_preview:=Text{}
                     }
                     participant_setup:=View{width:Fill height:Fit flow:Down spacing:8
+                        quick_join:=Action{text:"参加整场 · 准备报名"}
                         Small{text:"从 Rinx 聊天打开活动卡片，即可用本人账号报名。"}
                         legacy_room_setup:=View{visible:false width:Fill height:Fit flow:Down
                             room:=Input{empty_text:"高级恢复：完整房间编号 !..."}
@@ -161,7 +162,9 @@ script_mod! {
                     }
                 }
                 page_discover:=ScrollYView{visible:false width:Fill height:Fill flow:Down spacing:12 padding:16 show_bg:true draw_bg.color:#xf2f6ef
-                    Heading{text:"社群活动 · 挑选想参加的下一场"}
+                    Heading{text:"发现活动 · 公开与我的社群"}
+                    View{width:Fill height:Fit flow:Right spacing:8 public_open:=Action{text:"公开活动大厅"} community_mode:=Action{text:"我的社群"} public_confirm:=Action{text:"确认进入公开大厅" visible:false}}
+                    public_preview:=Text{}
                     View{width:Fill height:Fit flow:Right spacing:8
                         communities_load:=Action{text:"选择已加入的 Rinx 社群"} communities_refresh:=Action{text:"更新社群活动"}
                     }
@@ -183,7 +186,7 @@ script_mod! {
                     }
                     community_preview:=Text{}
                     View{width:Fill height:Fit flow:Right spacing:8
-                        entry_confirm:=Action{text:"确认本人加入申请" visible:false} discovery_join:=Action{text:"确认加入活动并填写报名" visible:false} discovery_current:=Action{text:"查看当前活动并报名"} community_reconcile:=Action{text:"核实社群操作回执"}
+                        entry_confirm:=Action{text:"确认本人加入申请" visible:false} discovery_join:=Action{text:"加入并准备报名" visible:false} discovery_current:=Action{text:"打开本场并准备报名"} community_reconcile:=Action{text:"核实社群操作回执"}
                     }
                     entry_progress:=Text{}
                     Small{text:"卡片显示发布时的活动信息；加入后核验本场的最新状态。加入申请不占位，报名与接受均由本人确认。"}
@@ -398,6 +401,12 @@ pub struct BuWeiView {
     #[rust]
     selected_community: Option<String>,
     #[rust]
+    public_mode: bool,
+    #[rust]
+    public_nonce: Option<String>,
+    #[rust]
+    current_organizer: bool,
+    #[rust]
     listing_keys: Vec<String>,
     #[rust]
     listing_page: usize,
@@ -444,6 +453,13 @@ pub struct BuWeiView {
 }
 impl BuWeiView {
     fn display(&mut self, cx: &mut Cx, view: HostView) {
+        self.public_mode=view.public_mode;
+        self.current_organizer=view.organizer;
+        self.public_nonce=view.public_directory_nonce.clone();
+        self.view.button(cx,ids!(public_confirm)).set_visible(cx,self.public_nonce.is_some());
+        self.view.label(cx,ids!(public_preview)).set_text(cx,&view.public_directory_preview);
+        if view.public_mode {self.selected_community=view.public_room.clone();self.view.label(cx,ids!(community_selected)).set_text(cx,"当前范围：公开活动大厅 · 所有补位用户可进入查看与申请");}
+        self.view.button(cx,ids!(community_publish)).set_text(cx,if view.public_mode{"预览发布为公开活动"}else{"预览发布到指定社群"});
         self.communities = view.communities.clone();
         self.community_page = self
             .community_page
@@ -880,7 +896,9 @@ impl BuWeiView {
             .set_visible(cx, self.creating || view.activity_list.is_empty());
         self.view
             .view(cx, ids!(organizer_new_actions))
-            .set_visible(cx, view.organizer);
+            .set_visible(cx, view.can_create);
+        self.view.button(cx,ids!(copy_activity)).set_visible(cx,view.organizer);
+        self.view.button(cx,ids!(archive_activity)).set_visible(cx,view.organizer);
         self.view
             .view(cx, ids!(organizer_invite_entry))
             .set_visible(cx, view.organizer);
@@ -964,10 +982,10 @@ impl BuWeiView {
             .set_text(cx, &view.ai_result);
         self.view.label(cx, ids!(profile)).set_text(
             cx,
-            if std::env::var("BUWEI_PROFILE").as_deref() == Ok("participant") {
-                "参与者窗口 · 请登录本人 Rinx 账号"
+            if !view.organizer {
+                "本场参与者 · 也可以新建自己的活动"
             } else {
-                "组织者窗口 · 登录身份由 Rinx 核验"
+                "本场组织者 · 也可以参加其他人的活动"
             },
         );
         self.view.label(cx, ids!(account)).set_text(
@@ -1021,7 +1039,7 @@ impl BuWeiView {
         );
         self.view
             .button(cx, ids!(create_with_ai))
-            .set_visible(cx, view.organizer);
+            .set_visible(cx, view.can_create);
         self.view
             .button(cx, ids!(suggest))
             .set_visible(cx, !view.organizer);
@@ -1258,7 +1276,9 @@ impl Widget for BuWeiView {
                 self.tab = 1;
                 self.pages(cx);
                 if clicked!(discovery_join) {
-                    self.send(cx, Command::JoinCard);
+                    self.send(cx, Command::JoinCardAndPrepare);
+                } else if !self.current_organizer {
+                    self.send(cx,Command::QuickJoin);
                 }
                 return;
             }
@@ -1549,6 +1569,10 @@ impl Widget for BuWeiView {
             };
             let command: super::Result<Option<Command>> = (|| {
                 use super::controller::community_access::DiscoveryCommand as D;
+                if clicked!(public_open) {return Ok(Some(Command::Discovery(D::PreviewPublicDirectory)));}
+                if clicked!(public_confirm) {return Ok(Some(Command::Discovery(D::ConfirmPublicDirectory(self.public_nonce.clone().ok_or("请先核对公开大厅范围")?))));}
+                if clicked!(community_mode) {self.selected_community=None;return Ok(Some(Command::Discovery(D::CommunityMode)));}
+                if clicked!(quick_join) {return Ok(Some(Command::QuickJoin));}
                 if clicked!(communities_load) {
                     return Ok(Some(Command::Discovery(D::LoadCommunities)));
                 }
@@ -1631,6 +1655,7 @@ impl Widget for BuWeiView {
                     ))));
                 }
                 if clicked!(community_publish) || clicked!(community_withdraw) {
+                    if self.public_mode {return Ok(Some(Command::Discovery(D::PreviewPublicPublish {withdrawn:clicked!(community_withdraw)})));}
                     return Ok(Some(Command::Discovery(D::PreviewPublish {
                         community: self.selected_community.clone().ok_or("请先选择社群")?,
                         withdrawn: clicked!(community_withdraw),
@@ -1927,7 +1952,7 @@ impl Widget for BuWeiView {
                         Some(Command::JoinRoom(text!(room)))
                     } else if clicked!(create) {
                         Some(Command::Planning(
-                            super::controller::planning::PlanningCommand::Save {
+                            super::controller::planning::PlanningCommand::SaveAndPreview {
                                 id: self.plan_id.clone(),
                                 revision: self.plan_revision,
                                 basics: buwei_host_core::planning::ActivityBasics {

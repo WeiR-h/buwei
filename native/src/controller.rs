@@ -13,6 +13,8 @@ use buwei_host_core::{
 )]
 pub(crate) enum Command {
     Planning(planning::PlanningCommand),
+    QuickJoin,
+    JoinCardAndPrepare,
     Discovery(community_access::DiscoveryCommand),
     PreviewRosterExport(String),
     ConfirmRosterExport(String),
@@ -186,6 +188,11 @@ pub(crate) struct View {
     pub message: String,
     pub sync_status: String,
     pub organizer: bool,
+    pub can_create: bool,
+    pub public_directory_nonce: Option<String>,
+    pub public_directory_preview: String,
+    pub public_mode: bool,
+    pub public_room: Option<String>,
     pub authorized: bool,
     pub consent_id: Option<String>,
     pub consent: String,
@@ -193,6 +200,8 @@ pub(crate) struct View {
     pub fault: bool,
 }
 pub(crate) struct Controller {
+    public_directory_preview: Option<public_directory::DirectoryPreview>,
+    public_mode: bool,
     community_grant: Option<Grant>,
     communities: Vec<(String, String)>,
     watched_communities: Vec<String>,
@@ -293,6 +302,8 @@ impl Controller {
         let journal = Journal::open(data.join("operations.db")).map_err(|_| "回执数据库不可用")?;
         let selected_activity = community::last_selected(&data);
         Ok(Self {
+            public_directory_preview: None,
+            public_mode: false,
             community_grant: None,
             communities: vec![],
             watched_communities: std::fs::read(data.join("watched-communities.json"))
@@ -380,6 +391,8 @@ impl Controller {
         rinx_bridge::record_status(root, Some(&actor), true, false)?;
         let selected_activity = community::last_selected(&data);
         Ok(Self {
+            public_directory_preview: None,
+            public_mode: false,
             community_grant: None,
             communities: vec![],
             watched_communities: std::fs::read(data.join("watched-communities.json"))
@@ -557,6 +570,19 @@ impl Controller {
         view
     }
     fn apply(&mut self, command: Command) -> Result<String> {
+        if matches!(command, Command::QuickJoin | Command::JoinCardAndPrepare) {
+            if matches!(command, Command::JoinCardAndPrepare) {
+                self.apply_community(Command::JoinCard)?;
+            }
+            self.g("participate")?;
+            #[cfg(feature = "full-host")]
+            self.sync_activity()?;
+            let a = self.activity()?;
+            let preferences = self.intent_store().and_then(|s| s.load()).ok().map(|s| s.preferences);
+            let (p, source) = buwei_host_core::interaction::whole_activity(&a, &self.actor(), preferences.as_ref())?;
+            self.apply(Command::Join(p))?;
+            return Ok(format!("已准备参加本场完整时段；{source}。尚未发送，请在当前页面核对并确认。"));
+        }
         #[cfg(feature = "acceptance")]
         if let Command::TestTrayAction(name) = &command {
             crate::tray::test_action(name)?;
@@ -802,6 +828,7 @@ impl Controller {
                 Ok("请核对下面的账号、权限范围和有效期，再确认授权。".into())
             }
             Command::ConfirmAuthorization(id) => {
+                self.public_directory_preview=None;
                 self.access_policies.clear();
                 self.access_permits.clear();
                 self.access_preview = None;
@@ -889,6 +916,8 @@ impl Controller {
                 Ok("已授权当前真实账号。旧的未执行确认不会自动恢复，请重新预览。".into())
             }
             Command::Switch => {
+                self.public_directory_preview=None;
+                self.public_mode=false;
                 self.policies.clear();
                 self.policy_preview = None;
                 self.dated_suggestion = None;
@@ -1612,6 +1641,8 @@ impl Controller {
         let view = self.view();
         let mut report = json!({"version":env!("CARGO_PKG_VERSION"),"collected_at_unix":now(),"account":self.actor(),"authorized":self.is_authorized(),"consent_id":self.consent.as_ref().map(|c|&c.id),"message":self.message,"sync_status":self.last_sync_status,"automation_status":view.automation_status,"reply_status":view.reply,"activity":self.activity().ok(),"invitation":self.current,"participant":self.participant_current,"article":self.article_current,"generated_note":self.note.as_ref().map(|(_,_,n)|json!({"title":n.title,"markdown":n.markdown})),"explanation":self.explanation,"policy_consent_id":view.policy_consent_id,"share":self.share_current,"contacts":self.contacts,"ai_result":self.ai_result,"activities":buwei_host_core::catalog::Catalog::open(&self.data).and_then(|c|c.list()).ok(),"intentions":self.intent_store().and_then(|s|s.load()).ok(),"assistance_cards":view.assistance_cards,"create_form":self.create_form,"goal_form":view.goal_form,"goal_registration_status":view.goal_registration_status,"model_status":view.model_status,"goal_id":view.goal_id,"background":crate::host::background(),"background_paused":crate::host::paused(),"tray_hidden":crate::tray::hidden(),"analysis_consent_id":self.analysis_consent.as_ref().map(|c|&c.id)});
         report["planning"] = json!({"draft":view.plan,"choices":view.plan_choices,"creation_nonce":view.plan_creation_nonce,"creation_preview":view.plan_creation_preview});
+        report["roles"] = json!({"organizer":view.organizer,"can_create":view.can_create});
+        report["public_directory"] = json!({"mode":view.public_mode,"room":view.public_room,"nonce":view.public_directory_nonce,"preview":view.public_directory_preview});
         report["roster_export"] =
             json!({"nonce":view.roster_export_nonce,"preview":view.roster_export_preview});
         report["community"] = json!({"rooms":view.communities,"listings":view.community_listings,"operation":view.community_operation,"access_nonce":view.access_nonce,"access_status":view.access_status,"status":view.community_status,"entry_progress":view.entry_progress,"pending_requests":self.discovery_store().and_then(|s|s.requests()).ok()});
@@ -1626,7 +1657,8 @@ impl Controller {
                 .as_ref()
                 .is_some_and(|g| g.check("read", now()).is_ok()),
             fault: self.fault,
-            organizer: std::env::var("BUWEI_PROFILE").as_deref() != Ok("participant"),
+            organizer: self.activity().is_ok_and(|a| buwei_host_core::interaction::is_organizer(&a, &self.actor())),
+            can_create: self.host_session_current(),
             sync_status: if self.is_authorized() {
                 self.last_sync_status.clone()
             } else {
@@ -1858,3 +1890,5 @@ pub(crate) mod intentions;
 pub(crate) mod planning;
 #[path = "roster_export.rs"]
 pub(crate) mod roster_export;
+#[path = "public_directory.rs"]
+pub(crate) mod public_directory;

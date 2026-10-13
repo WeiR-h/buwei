@@ -52,6 +52,7 @@ def stage(binary,destination,metadata=None):
     if (ROOT/'assets').is_dir():shutil.copytree(ROOT/'assets',destination/'assets')
     for role,label in [('organizer','启动组织者'),('participant','启动参与者')]:
         (destination/(label+'.cmd')).write_bytes(('@echo off\r\npowershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\\Start-BuWei.ps1" -Role '+role+' -Executable "%~dp0native\\buwei-rinx-dual-host.exe"\r\n').encode('utf8'))
+    shutil.copy2(destination/'启动组织者.cmd',destination/'启动补位.cmd')
     hashes={p.relative_to(destination).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in destination.rglob('*') if p.is_file()}
     report={'version':version,'variant':'full-host; acceptance control excluded','native_binary_sha256':hashes['native/buwei-rinx-dual-host.exe'],'dependency_lock_sha256':hashes['dependencies.lock.json'],'private_configuration_copied':False,'sha256':hashes}
     report['build_proof']=proof

@@ -25,6 +25,11 @@ pub(crate) enum PlanningCommand {
         revision: Option<u64>,
         basics: ActivityBasics,
     },
+    SaveAndPreview {
+        id: Option<String>,
+        revision: Option<u64>,
+        basics: ActivityBasics,
+    },
     PreviewCreate,
     ConfirmCreate {
         nonce: String,
@@ -77,6 +82,10 @@ impl Controller {
     pub(super) fn apply_planning(&mut self, command: PlanningCommand) -> Result<String> {
         self.g("create")?;
         match command {
+            PlanningCommand::SaveAndPreview { id, revision, basics } => {
+                self.apply_planning(PlanningCommand::Save { id, revision, basics })?;
+                self.apply_planning(PlanningCommand::PreviewCreate)
+            }
             PlanningCommand::New => {
                 self.selected_plan = None;
                 self.create_form = Some(

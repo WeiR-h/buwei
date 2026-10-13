@@ -7,6 +7,10 @@ use serde::Deserialize;
 #[derive(Clone, Deserialize)]
 #[serde(tag = "command", content = "value", deny_unknown_fields)]
 pub(crate) enum DiscoveryCommand {
+    PreviewPublicDirectory,
+    ConfirmPublicDirectory(String),
+    CommunityMode,
+    PreviewPublicPublish { withdrawn: bool },
     LoadCommunities,
     Watch(String),
     Refresh,
@@ -40,7 +44,7 @@ impl Controller {
         }
         Ok(g.clone())
     }
-    fn watch(&mut self, room: &str) -> Result<()> {
+    pub(super) fn watch(&mut self, room: &str) -> Result<()> {
         self.g("read")?;
         #[cfg(feature = "full-host")]
         community_states(&self.rt, self.active(), room, &self.actor())?;
@@ -58,6 +62,10 @@ impl Controller {
         Ok(())
     }
     pub(super) fn discovery_view(&self, v: &mut View) {
+        v.public_mode = self.public_mode;
+        v.public_room=std::fs::read(self.data.join("public-directory.json")).ok().and_then(|b|serde_json::from_slice::<Value>(&b).ok()).and_then(|v|v["room"].as_str().map(str::to_owned));
+        v.public_directory_nonce = self.public_directory_preview.as_ref().filter(|p| p.account == self.actor() && p.expires > now() && p.grant.check("read",now()).is_ok()).map(|p| p.nonce.clone());
+        v.public_directory_preview = self.public_directory_preview.as_ref().map(|p| p.summary.clone()).unwrap_or_default();
         v.communities = self.communities.clone();
         v.community_listings = self
             .discovery_store()
@@ -67,6 +75,7 @@ impl Controller {
             .filter(|l| {
                 self.watched_communities.contains(&l.community)
                     && self.discovery_filter.matches(l, now())
+                    && (l.announcement.audience == buwei_host_core::discovery::Audience::Public) == self.public_mode
             })
             .collect();
         v.community_status = self.community_status.clone();
@@ -162,6 +171,13 @@ impl Controller {
     pub(super) fn apply_discovery(&mut self, cmd: DiscoveryCommand) -> Result<String> {
         self.g("read")?;
         match cmd {
+            DiscoveryCommand::PreviewPublicDirectory => self.preview_public_directory(),
+            DiscoveryCommand::ConfirmPublicDirectory(id) => self.confirm_public_directory(&id),
+            DiscoveryCommand::CommunityMode => { self.public_mode=false; self.community_current=None; Ok("已切换到本人选择的社群活动。".into()) },
+            DiscoveryCommand::PreviewPublicPublish { withdrawn } => {
+                let community = self.public_directory_room()?;
+                self.preview_listing(community, withdrawn, buwei_host_core::discovery::Audience::Public)
+            }
             DiscoveryCommand::LoadCommunities => {
                 self.communities = self
                     .active()
@@ -178,6 +194,7 @@ impl Controller {
                 Ok("请选择本人已加入的社群。只有所选社群会读取活动卡片与加入申请。".into())
             }
             DiscoveryCommand::Watch(room) => {
+                self.public_mode = false;
                 self.community_current = None;
                 self.access_preview = None;
                 self.watch(&room)?;
@@ -200,37 +217,7 @@ impl Controller {
             DiscoveryCommand::PreviewPublish {
                 community,
                 withdrawn,
-            } => {
-                let g = self.cg("publish_community")?;
-                self.watch(&community)?;
-                self.sync_activity()?;
-                let a = self.activity()?;
-                if a.owner != self.actor() {
-                    return Err("只有本场组织者可以发布社群活动".into());
-                }
-                let announcement = Announcement::from_activity(&a, withdrawn)?;
-                let card = super::super::activity_card::Card::from_activity(&a)?;
-                let body = if withdrawn {
-                    format!("[补位活动已收起] {}\n不再接受新的加入申请。", a.title)
-                } else {
-                    format!(
-                        "{}\n本卡片对所选社群成员可见；点击后先申请活动房间访问，再由本人确认报名。",
-                        card.body()
-                    )
-                };
-                let action = Action {
-                    permission: "publish_community".into(),
-                    target: community,
-                    summary: format!(
-                        "{}社群活动：{}",
-                        if withdrawn { "收起" } else { "发布" },
-                        a.title
-                    ),
-                    payload: json!({"announcement":announcement,"card":card,"body":body}),
-                };
-                self.prepare_community_action(&g, action, a.revision)?;
-                Ok("核对活动、社群和可见范围后确认发布。".into())
-            }
+            } => self.preview_listing(community, withdrawn, buwei_host_core::discovery::Audience::Community),
             DiscoveryCommand::ConfirmPublish(id) => {
                 let op = self.execute_community_message(&id, "publish_community")?;
                 if op.status == Status::Confirmed {
@@ -295,7 +282,8 @@ impl Controller {
             DiscoveryCommand::PreviewEntry(key) => {
                 let g = self.cg("request_entry")?;
                 let l = self.discovery_store()?.get(&key)?;
-                community_states(&self.rt, self.active(), &l.community, &self.actor())?;
+                let states=community_states(&self.rt, self.active(), &l.community, &self.actor())?;
+                check_publication_scope(l.announcement.audience,&states)?;
                 if !l.can_request(now()) {
                     return Err("本场已开始或已收起，请另选活动".into());
                 }
@@ -346,7 +334,26 @@ impl Controller {
             }
         }
     }
+    fn preview_listing(&mut self, community: String, withdrawn: bool, audience: buwei_host_core::discovery::Audience) -> Result<String> {
+        let g=self.cg("publish_community")?;
+        self.watch(&community)?;
+        let states=community_states(&self.rt,self.active(),&community,&self.actor())?;
+        check_publication_scope(audience,&states)?;
+        self.sync_activity()?;
+        let a=self.activity()?;
+        if a.owner!=self.actor(){return Err("只有本场组织者可以发布活动".into());}
+        let mut announcement=Announcement::from_activity(&a,withdrawn)?;
+        if audience==buwei_host_core::discovery::Audience::Public {announcement.protocol=2;announcement.audience=audience;}
+        let card=super::super::activity_card::Card::from_activity(&a)?;
+        let scope=if audience==buwei_host_core::discovery::Audience::Public {"所有补位用户可进入公开大厅查看与申请"}else{"仅所选社群当前成员可见与申请"};
+        let body=format!("{}\n可见范围：{}。{}",card.body(),scope,if withdrawn{"活动已收起，不接受新申请"}else{"申请只用于加入活动房间，报名与接受均由本人确认"});
+        let action=Action{permission:"publish_community".into(),target:community,summary:format!("{}{}：{}",if withdrawn{"收起"}else{"发布"},if audience==buwei_host_core::discovery::Audience::Public{"公开活动"}else{"社群活动"},a.title),payload:json!({"announcement":announcement,"card":card,"body":body})};
+        self.prepare_community_action(&g,action,a.revision)?;
+        Ok("核对本场活动和公开 / 社群范围后确认发布。".into())
+    }
     fn check_owned_listing(&self, l: &Listing) -> Result<()> {
+        let states=community_states(&self.rt,self.active(),&l.community,&self.actor())?;
+        check_publication_scope(l.announcement.audience,&states)?;
         let a = buwei_host_core::catalog::Catalog::open(&self.data)?
             .list()?
             .into_iter()
@@ -422,7 +429,7 @@ impl Controller {
         self.community_current = Some(op.clone());
         Ok(op)
     }
-    fn read_community(&mut self, room: &str) -> Result<()> {
+    pub(super) fn read_community(&mut self, room: &str) -> Result<()> {
         self.g("read")?;
         community_states(&self.rt, self.active(), room, &self.actor())?;
         let mut s = self.discovery_store()?;
@@ -695,7 +702,7 @@ impl Controller {
 }
 
 #[cfg(feature = "full-host")]
-fn community_states(rt: &Runtime, c: &Client, room: &str, actor: &str) -> Result<Vec<Value>> {
+pub(super) fn community_states(rt: &Runtime, c: &Client, room: &str, actor: &str) -> Result<Vec<Value>> {
     rinx_bridge::ensure_current(c)?;
     let room: OwnedRoomId = room.parse().map_err(|_| "社群房间不合法")?;
     let response = rt
@@ -727,6 +734,15 @@ fn community_states(rt: &Runtime, c: &Client, room: &str, actor: &str) -> Result
         );
     }
     Ok(values)
+}
+#[cfg(feature = "full-host")]
+fn check_publication_scope(audience: buwei_host_core::discovery::Audience, states: &[Value]) -> Result<()> {
+    if audience==buwei_host_core::discovery::Audience::Public {
+        buwei_host_core::public_directory::verify(states)?;
+    } else if states.iter().any(|s|s["type"]=="m.room.join_rules" && s["content"]["join_rule"]=="public") {
+        return Err("所选房间可公开加入，不能标成仅社群可见；请使用公开活动大厅。".into());
+    }
+    Ok(())
 }
 #[cfg(feature = "full-host")]
 fn activity_member_state(
@@ -774,6 +790,8 @@ impl Adapter for CommunityMessageAdapter {
                 let announcement: Announcement =
                     serde_json::from_value(a.payload["announcement"].clone())
                         .map_err(|_| Error::Integrity)?;
+                let states=community_states(&self.runtime,&self.client,&a.target,&account(&self.client)).map_err(|_| Error::Integrity)?;
+                check_publication_scope(announcement.audience,&states).map_err(|_| Error::Authorization)?;
                 let current = buwei_host_core::catalog::Catalog::open(&self.data)
                     .and_then(|s| s.list())
                     .map_err(|_| Error::Integrity)?
@@ -782,7 +800,7 @@ impl Adapter for CommunityMessageAdapter {
                     .ok_or(Error::Integrity)?;
                 if current.owner != account(&self.client)
                     || current.revision != revision
-                    || Announcement::from_activity(&current, announcement.withdrawn)
+                    || Announcement::from_activity(&current, announcement.withdrawn).map(|mut value| {if announcement.audience==buwei_host_core::discovery::Audience::Public {value.protocol=2;value.audience=announcement.audience;}value})
                         .map_err(|_| Error::Integrity)?
                         != announcement
                 {
@@ -792,6 +810,8 @@ impl Adapter for CommunityMessageAdapter {
             "request_entry" => {
                 let l: Listing = serde_json::from_value(a.payload["listing"].clone())
                     .map_err(|_| Error::Integrity)?;
+                let states=community_states(&self.runtime,&self.client,&a.target,&account(&self.client)).map_err(|_| Error::Integrity)?;
+                check_publication_scope(l.announcement.audience,&states).map_err(|_| Error::Authorization)?;
                 let current = DiscoveryStore::open(
                     self.data.join("community-discovery.db"),
                     &account(&self.client),
@@ -901,6 +921,7 @@ impl Adapter for AdmissionAdapter {
             &account(&self.client),
         )
         .map_err(|_| Error::Integrity)?;
+        check_publication_scope(l.announcement.audience,&states).map_err(|_| Error::Authorization)?;
         let member = states.iter().any(|v| {
             v["type"] == "m.room.member"
                 && v["state_key"] == r.actor
