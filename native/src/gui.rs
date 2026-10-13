@@ -28,13 +28,13 @@ script_mod! {
     let Text=Label{width:Fill height:Fit padding:0 draw_text.color:#x193c32 draw_text.wrap:Words draw_text.text_style:BodyStyle}
     let Small=Text{draw_text.color:#x526a60 draw_text.text_style.font_size:11}
     let Heading=Text{draw_text.text_style:StrongStyle{font_size:18}}
-    let Action=Button{height:42 padding:Inset{left:16 right:16 top:8 bottom:8}
+    let Action=ButtonFlat{height:42 padding:Inset{left:16 right:16 top:8 bottom:8}
         draw_text.text_style:BodyStyle draw_text.color:#x244239 draw_text.color_hover:#x173d30 draw_text.color_focus:#x173d30
-        draw_bg +: {color:#xffffff color_hover:#xf0f6f1 color_down:#xe3eee6 color_focus:#xe8f1eb color_2:vec4(0.0,0.0,0.0,-1.0) color_2_hover:vec4(0.0,0.0,0.0,-1.0) color_2_down:vec4(0.0,0.0,0.0,-1.0) color_2_focus:vec4(0.0,0.0,0.0,-1.0)
-            border_size:1.0 border_radius:9.0 color_dither:0.0 border_color:#xd6e1d8 border_color_2:#xd6e1d8 border_color_hover:#x91b49e border_color_focus:#x257254}
+        draw_bg +: {color:#xffffff color_hover:#xf0f6f1 color_down:#xe3eee6 color_focus:#xe8f1eb color_2:vec4(-1.0,-1.0,-1.0,-1.0) color_2_hover:vec4(-1.0,-1.0,-1.0,-1.0) color_2_down:vec4(-1.0,-1.0,-1.0,-1.0) color_2_focus:vec4(-1.0,-1.0,-1.0,-1.0)
+            border_size:1.0 border_radius:9.0 color_dither:0.0 border_color:#xd6e1d8 border_color_2:vec4(-1.0,-1.0,-1.0,-1.0) border_color_hover:#x91b49e border_color_focus:#x257254}
     }
     let Primary=Action{draw_text.color:#xffffff draw_text.color_hover:#xffffff draw_text.color_down:#xffffff draw_text.color_focus:#xffffff
-        draw_bg +: {color:#x1c654b color_hover:#x257855 color_down:#x154f3a color_focus:#x1c654b border_color:#x1c654b border_color_2:#x1c654b border_color_hover:#x257855 border_color_focus:#x123d2d}}
+        draw_bg +: {color:#x1c654b color_hover:#x257855 color_down:#x154f3a color_focus:#x1c654b border_color:#x1c654b border_color_2:vec4(-1.0,-1.0,-1.0,-1.0) border_color_hover:#x257855 border_color_focus:#x123d2d}}
     let Nav=Action{width:Fill height:44 align:Align{x:0.0 y:0.5} draw_bg +: {color:#x0000 color_hover:#xebf3ed color_down:#xdcece0 color_focus:#xebf3ed border_size:0.0}}
     let NavRow=View{width:Fill height:44 show_bg:true draw_bg +: {nav_tint:uniform(#x0000) pixel:fn(){return self.nav_tint;}}}
     let CardAction=Action{width:Fill height:104 align:Align{x:0.0 y:0.5} padding:18 draw_text.text_style:BodyStyle{font_size:14} draw_bg.border_radius:12.0}
@@ -222,13 +222,13 @@ script_mod! {
                     }
                     community_0:=Action{width:Fill visible:false} community_1:=Action{width:Fill visible:false} community_2:=Action{width:Fill visible:false}
                     community_pagination:=View{width:Fill height:Fit flow:Right spacing:8 visible:false community_prev:=Action{text:"上一页社群"} community_next:=Action{text:"下一页社群"}}
-                    community_selected:=Small{text:"请选择社群；仅读取你选择的社群活动卡片与加入申请。"}
+                    community_selected:=Small{text:"范围由你选择；仅读取选定社群的活动卡片与加入申请。"}
                     community_status:=Small{}
                     View{width:Fill height:Fit flow:Right spacing:8
-                        filter_template:=Input{width:180 empty_text:"活动类型，留空显示全部"} filter_date:=Input{width:160 empty_text:"日期 YYYY-MM-DD"}
+                        filter_template:=Input{width:180 empty_text:"类型（可留空）"} filter_date:=Input{width:160 empty_text:"日期（可留空）"}
                         filter_apply:=Action{text:"筛选"} filter_available:=Action{text:"只看发布时有空位"}
                     }
-                    listing_0:=Action{width:Fill height:110 visible:false} listing_1:=Action{width:Fill height:110 visible:false} listing_2:=Action{width:Fill height:110 visible:false}
+                    listing_0:=CardAction{height:110 visible:false} listing_1:=CardAction{height:110 visible:false} listing_2:=CardAction{height:110 visible:false}
                     listing_pagination:=View{width:Fill height:Fit flow:Right spacing:8 visible:false listing_prev:=Action{text:"上一页活动"} listing_next:=Action{text:"下一页活动"}}
                     community_organizer_actions:=View{width:Fill height:Fit flow:Down spacing:8
                         Heading{text:"发布当前活动到社群"}
@@ -1061,7 +1061,7 @@ impl BuWeiView {
             cx,
             if !self.signed_in {
                 "登录后创建或发现活动"
-            } else if self.creating {
+            } else if self.creating && self.tab==1 {
                 "策划草稿 · 确认后才创建"
             } else if !view.organizer {
                 "本场以成员身份参加"
@@ -1157,7 +1157,7 @@ impl BuWeiView {
         self.view.label(cx, ids!(assistant_heading)).set_text(cx, if self.creating {"先说说你的想法"} else {"活动助手"});
         self.view.view(cx, ids!(requirement_field)).set_visible(cx, self.creating || (!view.organizer && self.participant_controls.register));
         self.view.label(cx, ids!(requirement_caption)).set_visible(cx, self.creating || (!view.organizer && self.participant_controls.register));
-        self.view.view(cx, ids!(clarification_field)).set_visible(cx, self.plan_id.is_some() || !view.advice.is_empty());
+        self.view.view(cx, ids!(clarification_field)).set_visible(cx, self.plan_id.is_some() || view.dated_inputs.is_some());
         self.view.view(cx, ids!(question_field)).set_visible(cx, self.has_activity && !self.creating);
         self.view.button(cx, ids!(ask)).set_visible(cx, self.has_activity && !self.creating);
         self.view.button(cx, ids!(explain)).set_visible(cx, self.has_activity && !self.creating);
@@ -1171,6 +1171,7 @@ impl BuWeiView {
         optional_label!(entry_progress,view.entry_progress);
         optional_label!(roster_preview,view.roster_export_preview);
         optional_label!(advice,view.advice);
+        self.view.label(cx,ids!(advice)).set_visible(cx,!self.creating && view.dated_inputs.is_some());
         optional_label!(ai_result,view.ai_result);
         optional_label!(share_preview,view.share_preview);
         optional_label!(policy_preview,view.policy_preview);

@@ -38,6 +38,7 @@ jobs:
           key: windows-msvc-v6-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-${{ hashFiles('native/Cargo.lock') }}
           restore-keys: |
             windows-msvc-v6-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-
+            windows-msvc-v6-
             windows-msvc-v5-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-
             windows-msvc-v5-
       - name: Verify or download pinned official dependencies
