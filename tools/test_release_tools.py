@@ -9,7 +9,7 @@ from package_scan import content_findings,BINARY_PUBLIC_LITERALS
 from pe_stack import normalize
 from fault_acceptance import FaultSuite
 from dual_acceptance import Suite
-from verify_public_download import formal_checksums,check_release_metadata,downloaded_runtime_startup
+from verify_public_download import formal_checksums,check_release_metadata,downloaded_runtime_startup,asset_format
 from unittest.mock import patch
 from intent_acceptance import IntentSuite
 import stage_release
@@ -287,6 +287,16 @@ class ReleaseTools(unittest.TestCase):
         current=lines.replace('0.2.0','0.2.3')
         with self.assertRaises(ValueError):formal_checksums(current,'0.2.3')
         self.assertEqual(len(formal_checksums(current+'c'*64+'  PRIVACY.md\n','0.2.3')),3)
+
+    def test_new_release_keeps_exact_three_assets_and_bundled_privacy(self):
+        runtime,demo,sums,attachment=asset_format('0.2.11')
+        self.assertFalse(attachment)
+        lines='a'*64+'  '+runtime+'\n'+'b'*64+'  '+demo+'\n'
+        self.assertEqual(set(formal_checksums(lines,'0.2.11')),{runtime,demo})
+        release={'draft':False,'prerelease':False,'assets':[{'name':x} for x in (runtime,demo,sums)]}
+        check_release_metadata(release,{runtime,demo,sums})
+        for invalid in (lines+'c'*64+'  PRIVACY.md\n',lines.replace('Demo','demo'),lines.splitlines()[0]+'\n'):
+            with self.assertRaises(ValueError):formal_checksums(invalid,'0.2.11')
     def test_startup_capture_selects_visible_app_and_rejects_hidden_labels(self):
         windows={'w':[{'i':0,'sz':[1024,720]},{'i':1,'sz':[1400,900]}]}
         labels=[{'w':1,'ty':'Label','r':[30,100+n*25,400,20],'t':t} for n,t in enumerate(['补位','v0.2.0','未授权'])]

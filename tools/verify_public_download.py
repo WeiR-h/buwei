@@ -5,17 +5,23 @@ from package_scan import scan
 from build_proof import source_fingerprint
 import build_proof
 
+def asset_format(version):
+    if tuple(int(p) for p in version.split('.')) >= (0,2,11):
+        return (f'BuWei-v{version}-Windows-x64.zip',f'BuWei-v{version}-Demo.mp4',f'SHA256SUMS-v{version}.txt',False)
+    return (f'BuWei-v{version}-windows-x64.zip',f'BuWei-v{version}-demo.mp4','SHA256SUMS.txt',tuple(int(p) for p in version.split('.')) >= (0,2,3))
+
 def formal_checksums(text,version):
     hashes={}
     for line in text.splitlines():
         expected,name=line.split('  ',1)
         if not re.fullmatch('[0-9a-f]{64}',expected) or name in hashes:raise ValueError('Invalid or duplicate checksum')
         hashes[name]=expected
-    wanted={f'BuWei-v{version}-windows-x64.zip',f'BuWei-v{version}-demo.mp4'}
-    if tuple(int(p) for p in version.split('.'))>=(0,2,3):wanted.add('PRIVACY.md')
+    runtime_name,demo_name,_,privacy_attachment=asset_format(version)
+    wanted={runtime_name,demo_name}
+    if privacy_attachment:wanted.add('PRIVACY.md')
     # Frozen older releases retain their original attachments. A newly staged
     # privacy notice is also valid when reusing the older package format.
-    if 'PRIVACY.md' in hashes:wanted.add('PRIVACY.md')
+    if 'PRIVACY.md' in hashes and tuple(int(p) for p in version.split('.'))<(0,2,11):wanted.add('PRIVACY.md')
     if set(hashes)!=wanted:raise ValueError('Formal release attachment checksums differ')
     return hashes
 
@@ -65,13 +71,14 @@ def verify(a):
                 out.write(chunk)
                 if out.tell()>512*1024*1024:raise ValueError('Unexpected public asset size')
         return target
-    sums=download('SHA256SUMS.txt');hashes={}
+    runtime_name,_,checksum_name,_=asset_format(version)
+    sums=download(checksum_name);hashes={}
     for name,expected in formal_checksums(sums.read_text('utf8'),version).items():
         file=download(name);actual=hashlib.sha256(file.read_bytes()).hexdigest()
         if actual!=expected:raise ValueError('Public asset checksum differs: '+name)
         hashes[name]=actual
         print('Verified public asset: '+name,flush=True)
-    package=a.destination/'windows';extract(a.destination/('BuWei-v'+version+'-windows-x64.zip'),package)
+    package=a.destination/'windows';extract(a.destination/runtime_name,package)
     release=json.loads((package/'release.json').read_text('utf8'));proof=release['build_proof']
     if 'PRIVACY.md' in hashes and (a.destination/'PRIVACY.md').read_bytes()!=(package/'docs/PRIVACY.md').read_bytes():
         raise ValueError('Public privacy attachment differs from the runtime notice')
@@ -83,6 +90,9 @@ def verify(a):
     source=a.destination/'source';extract(source_zip,source)
     roots=list(source.iterdir())
     if len(roots)!=1 or not roots[0].is_dir():raise ValueError('Unexpected fixed-tag source archive')
+    if tuple(int(p) for p in version.split('.')) >= (0,2,11):
+        if (package/'docs/PRIVACY.md').read_bytes() != (roots[0]/'docs/PRIVACY.md').read_bytes():
+            raise ValueError('Bundled privacy notice differs from the fixed-tag source')
     if 'PRIVACY.md' in hashes and (a.destination/'PRIVACY.md').read_bytes()!=(roots[0]/'docs/PRIVACY.md').read_bytes():
         raise ValueError('Public privacy attachment differs from the fixed-tag source')
     build_proof.ROOT=roots[0]
@@ -101,8 +111,8 @@ def verify(a):
         ref=public_api('git/tags/'+ref['sha'])['object']
     if ref['type']!='commit' or ref['sha']!=proof['source_commit']:raise ValueError('Public tag differs from the archived source commit')
     published=public_api('releases/tags/'+tag)
-    check_release_metadata(published,set(hashes)|{'SHA256SUMS.txt'},getattr(a,'allow_preview',False))
-    hashes['SHA256SUMS.txt']=hashlib.sha256(sums.read_bytes()).hexdigest()
+    check_release_metadata(published,set(hashes)|{checksum_name},getattr(a,'allow_preview',False))
+    hashes[checksum_name]=hashlib.sha256(sums.read_bytes()).hexdigest()
     for asset in published['assets']:
         if asset.get('digest') and asset['digest']!='sha256:'+hashes[asset['name']]:raise ValueError('Public asset differs from GitHub upload digest')
     report={'version':version,'passed':True,'public_base_url':a.base_url,'http_credentials_used':False,'assets_sha256':hashes,'source_commit':proof['source_commit'],'binary_build_source_commit':proof['source_commit'],'native_source_sha256':proof['native_source_sha256'],'fixed_tag_source_archive_sha256':hashlib.sha256(source_zip.read_bytes()).hexdigest(),'package_privacy':privacy,'actual_downloaded_native_startup':runtime,'environment':'existing Windows machine, fresh profile and system-only PATH; separate clean Windows runner evidence remains required'}
