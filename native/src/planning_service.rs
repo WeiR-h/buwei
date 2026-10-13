@@ -126,4 +126,15 @@ mod tests {
         let forged=[("buwei","terminal.run"),("other","other.read"),("buwei","buwei.nested.run")];
         assert!(octosense_shell::ext::system_tools_given(&forged,&["buwei"]).is_empty());
     }
+    #[test]
+    fn system_catalog_resolves_the_linked_module_without_namespace_poisoning() {
+        fn linked() -> Vec<&'static dyn makepad_app_module::AppModule> { vec![&crate::gui::MODULE] }
+        octosense_shell::ext::install(octosense_shell::ext::Ext {linked_modules:linked,trusted_module:|_|false});
+        let mut catalog=octosense_shell::host_tools::relay::Catalog::default();
+        catalog.declare("org.example.fake",system_declarations());
+        assert_eq!(catalog.owner_of("buwei.get_activity_plan"),Some("buwei".into()));
+        assert!(catalog.entry("buwei","buwei.get_activity_plan").is_none());
+        catalog.declare("buwei",system_declarations());
+        assert_eq!(catalog.entry("buwei","buwei.get_activity_plan").unwrap()["risk"],"read");
+    }
 }

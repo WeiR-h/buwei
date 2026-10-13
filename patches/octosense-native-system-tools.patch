@@ -59,7 +59,7 @@ index 2ed48e8..e5d1f68 100644
      {
          return Ok(());
 diff --git a/crates/shell/src/host_tools/relay.rs b/crates/shell/src/host_tools/relay.rs
-index b50d01c..eeee88d 100644
+index b50d01c..fed1774 100644
 --- a/crates/shell/src/host_tools/relay.rs
 +++ b/crates/shell/src/host_tools/relay.rs
 @@ -64,6 +64,8 @@ pub const TERMINAL_APP: &str = "terminal";
@@ -71,6 +71,15 @@ index b50d01c..eeee88d 100644
  }
  /// Developer mode's command tool (§13), run by the shell ([`super::dev_run`]).
  pub const DEV_RUN: &str = "dev.run";
+@@ -341,7 +343,7 @@ impl Catalog {
+         if ns == TOOLBOX || ns == "workflow" {
+             return Some(TOOLBOX.to_string());
+         }
+-        if crate::native_apps::find(ns).is_some() {
++        if crate::native_apps::find(ns).is_some() || crate::ext::is_package_module(ns) {
+             return Some(ns.to_string());
+         }
+         Some(format!("os.{ns}"))
 diff --git a/crates/shell/src/system_chat/grants.rs b/crates/shell/src/system_chat/grants.rs
 index 0c03163..e24bb25 100644
 --- a/crates/shell/src/system_chat/grants.rs

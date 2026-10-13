@@ -37,7 +37,7 @@
   "octosense_product_patches": [
     {
       "path": "patches/octosense-native-system-tools.patch",
-      "sha256": "6280c158fe2abbe4f3998708e2fc9589b18392ca6a5bed8f9e455af29e171fc0",
+      "sha256": "04172093f2f0f6cc8ddbdf62e2d69b2cb90da49d4ec86025b071adfa4b96d93b",
       "changed_files": [
         "crates/shell/src/ext.rs",
         "crates/shell/src/host_tools/admission.rs",
