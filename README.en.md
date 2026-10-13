@@ -16,7 +16,7 @@ Participants use their own Rinx identities. Verified server receipts distinguish
 
 [Download for Windows](https://github.com/WeiR-h/buwei/releases/latest) · [Chinese guide](docs/FIRST-RUN.md) · [Privacy](docs/PRIVACY.md) · [Support](https://github.com/WeiR-h/buwei/issues)
 
-This branch is validating **v0.2.11**, with the official desktop RC6 host, a clearer activity workspace, focused planning and contextual registration controls. Each account can organize its own activities and join other people's activities. Runtime downloads and walkthroughs use the corresponding fixed Release.
+**v0.2.11** uses the official desktop RC6 host, a clearer activity workspace, focused planning and contextual registration controls. Each account can organize its own activities and join other people's activities.
 
 Organizers can describe an activity, edit its plan, confirm creation, and separately confirm community publication. Members select a published activity, request room access, and confirm their own registration. CSV exports use a verified organizer snapshot and protect text from spreadsheet formula interpretation. See the [community guide](docs/COMMUNITY.md).
 
@@ -24,7 +24,7 @@ BuWei uses pinned official OctoSense desktop RC6 and Rinx 1.1.0 sources and ship
 
 Optional Windows tray duty continues synchronization while the computer and application run with valid authorization. Explicit feedback updates only the chosen scope. Recurring activity drafts require fresh confirmation of their date, location and capacity. [Goals and assistance](docs/INTENTIONS.md) · [Submission and historical versions](docs/SUBMISSION.md).
 
-Each Release includes a three-minute walkthrough made from reviewed captures of the actual native interface. Runtime requirements: Windows 10/11 x64 and the Microsoft Visual C++ v14 x64 runtime.
+[Watch the 110-second walkthrough](https://github.com/WeiR-h/buwei/releases/download/v0.2.11/BuWei-v0.2.11-Demo.mp4): two actual Rinx identities complete planning, publication, activity selection, registration, automatic invitation, acceptance, roster export and cancellation. Runtime requirements: Windows 10/11 x64 and the Microsoft Visual C++ v14 x64 runtime.
 
 ## Three steps to start
 

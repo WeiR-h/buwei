@@ -259,7 +259,12 @@ impl Controller {
             .map(|p| {
                 (
                     p.id.clone(),
-                    format!("{} · {:?}\n{}", p.basics.title, p.status, p.goal),
+                    format!("{} · {}", p.basics.title, match p.status {
+                        buwei_host_core::planning::PlanStatus::Draft => "草稿",
+                        buwei_host_core::planning::PlanStatus::Creating => "创建待核实",
+                        buwei_host_core::planning::PlanStatus::Created => "已创建",
+                        buwei_host_core::planning::PlanStatus::Published => "已发布",
+                    }),
                 )
             })
             .collect();
