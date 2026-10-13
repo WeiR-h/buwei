@@ -1,6 +1,6 @@
 [package]
 name = "buwei-rinx-dual-host"
-version = "0.2.10"
+version = "0.2.11"
 edition = "2024"
 license = "Apache-2.0"
 publish = false
@@ -74,6 +74,17 @@ makepad-studio-protocol = { path = "../.deps/octosense/.sources/makepad/platform
 makepad-network = { path = "../.deps/octosense/.sources/makepad/platform/network" }
 makepad-wm-api = { path = "../.deps/octosense/.sources/makepad/libs/wm_api" }
 makepad-ai-services = { path = "../.deps/octosense/.sources/makepad/libs/ai/services" }
+makepad-audio-decode = { path = "../.deps/octosense/.sources/makepad/libs/audio_decode" }
+makepad-script-compute = { path = "../.deps/octosense/.sources/makepad/platform/script/compute" }
+makepad-ai = { path = "../.deps/octosense/.sources/makepad/libs/makepad_ai" }
+makepad-aichat = { path = "../.deps/octosense/.sources/makepad/apps/aichat" }
+makepad-terminal = { path = "../.deps/octosense/.sources/makepad/apps/terminal" }
+makepad-calculator = { path = "../.deps/octosense/.sources/makepad/apps/calculator" }
+makepad-clock = { path = "../.deps/octosense/.sources/makepad/apps/clock" }
+makepad-notes = { path = "../.deps/octosense/.sources/makepad/apps/notes" }
+makepad-reminders = { path = "../.deps/octosense/.sources/makepad/apps/reminders" }
+makepad-weather = { path = "../.deps/octosense/.sources/makepad/apps/weather" }
+makepad-task = { path = "../.deps/octosense/.sources/makepad/apps/task" }
 makepad-strict-json = { path = "../.deps/octosense/.sources/makepad/libs/strict_json" }
 makepad-app-module = { path = "../.deps/octosense/.sources/makepad/libs/app_module" }
 makepad-wm-theme = { path = "../.deps/octosense/.sources/makepad/libs/wm_theme" }
@@ -91,10 +102,13 @@ makepad-code-editor = { path = "../.deps/octosense/.sources/makepad/code_editor"
 [patch."https://github.com/OctoSense-org/Octoscript.git"]
 octoscript-ui-l0 = { path = "../.deps/octosense/.sources/octoscript/crates/octoscript-ui-l0" }
 octoscript-core = { path = "../.deps/octosense/.sources/octoscript/crates/octoscript-core" }
+octoscript-capabilities = { path = "../.deps/octosense/.sources/octoscript/crates/octoscript-capabilities" }
+octoscript-schema = { path = "../.deps/octosense/.sources/octoscript/crates/octoscript-schema" }
 
 
 
 [patch."https://github.com/OctoSense-org/Octoscript-Makepad.git"]
+makepad-d3 = { path = "../.deps/octosense/.sources/octoscript-makepad/crates/makepad-d3" }
 octoscript-makepad = { path = "../.deps/octosense/.sources/octoscript-makepad/crates/octoscript-makepad" }
 octoscript-widgets = { path = "../.deps/octosense/.sources/octoscript-makepad/crates/octoscript-widgets" }
 octoscript-node = { path = "../.deps/octosense/.sources/octoscript-makepad/crates/octoscript-node" }

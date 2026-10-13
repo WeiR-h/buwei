@@ -29,6 +29,8 @@ def stage(binary,destination,metadata=None):
     (native/'upstream').mkdir();shutil.copy2(ROOT/'.deps/octosense/desktop/upstream/makepad.json',native/'upstream/makepad.json')
     (native/'config').mkdir();(native/'config/apps.json').write_text('[]\n','utf8')
     licenses=destination/'licenses';licenses.mkdir();inventory=[]
+    for notice in (ROOT/'licenses').glob('*'):
+        if notice.is_file():shutil.copy2(notice,licenses/notice.name)
     for package in metadata['packages']:
         directory=pathlib.Path(package['manifest_path']).parent;name=package['name'];resource=directory/'resources'
         if resource.is_dir():shutil.copytree(resource,native/name.replace('-','_')/'resources')

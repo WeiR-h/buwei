@@ -50,10 +50,10 @@ Rinx 管理登录会话。补位从 Rinx 当前客户端取得账号，并向 `h
 
 | 组件 | 官方源码 | 固定提交 |
 |---|---|---|
-| OctoSense 宿主 | [OctoSense](https://github.com/OctoSense-org/OctoSense) | `dba1933051cf3974d79bc1788071091b213dcd40` |
+| OctoSense 宿主 RC6 | [OctoSense](https://github.com/OctoSense-org/OctoSense/releases/tag/desktop-v0.1.0-rc.6) | `f9f6fea90b52182790cb2641fd0145c425af4d84` |
 | Rinx 身份与消息 | [Rinx](https://github.com/hagency-org/Rinx) | `4b89097d8791a7190d01de1c576979c93df0013d` |
 | Octos Agent 内核 | [octos](https://github.com/octos-org/octos) | `b0759a57719fd35b3a2da1c5d969bc67538ed516` |
-| App Hub | [OctoSense-App-Hub](https://github.com/OctoSense-org/OctoSense-App-Hub) | `2e5768964f15916cdb66cc6824f7671dafc6445a` |
+| App Hub | [OctoSense-App-Hub](https://github.com/OctoSense-org/OctoSense-App-Hub) | `386359153ed6377b5f047bd9ed2767a6a2ac2bc7` |
 
 以下为 [v0.2.2 已发布预览包](https://github.com/WeiR-h/buwei/releases/tag/v0.2.2) 中已核对的 SHA-256；后续版本采用各自 Release 的清单，不复用旧版二进制摘要。
 

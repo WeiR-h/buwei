@@ -26,6 +26,29 @@ fn states() -> Vec<Value> {
     ]
 }
 #[test]
+fn participant_controls_follow_verified_person_state_and_never_grant_organizer_actions() {
+    let mut a=activity("@a:test","!a:test");
+    assert_eq!(interaction::participant_controls(&a,"@a:test",1),interaction::ParticipantControls::default());
+    assert_eq!(interaction::participant_controls(&a,"not-an-account",1),interaction::ParticipantControls::default());
+    assert_eq!(interaction::participant_controls(&a,"@b:test",1),interaction::ParticipantControls{register:true,reply:false,cancel:false});
+    a.people.push(Person{account:"@b:test".into(),name:"成员".into(),joined:1,preferences:Preferences{earliest:a.start,latest:a.end,group:1},preferences_confirmed:true,status:PersonStatus::Waiting});
+    assert_eq!(interaction::participant_controls(&a,"@b:test",1),interaction::ParticipantControls{register:true,reply:false,cancel:true});
+    a.people[0].status=PersonStatus::Confirmed;
+    assert_eq!(interaction::participant_controls(&a,"@b:test",1),interaction::ParticipantControls{register:false,reply:false,cancel:true});
+    a.people[0].status=PersonStatus::Cancelled;
+    assert_eq!(interaction::participant_controls(&a,"@b:test",1),interaction::ParticipantControls{register:true,reply:false,cancel:false});
+    a.people[0].status=PersonStatus::Waiting;
+    a.invitations.push(Invitation{operation_id:action_receipts::new_id(),recipient:"@b:test".into(),room:a.room.clone(),digest:"a".repeat(64),until:100,delivery:Delivery::Unknown,server_event:None,reply:Reply::Pending});
+    assert_eq!(interaction::participant_controls(&a,"@b:test",1),interaction::ParticipantControls{register:false,reply:false,cancel:true});
+    a.invitations[0].delivery=Delivery::Delivered;
+    assert_eq!(interaction::participant_controls(&a,"@b:test",1),interaction::ParticipantControls{register:false,reply:true,cancel:true});
+    assert!(!interaction::participant_controls(&a,"@b:test",100).reply);
+    a.invitations.clear();
+    assert!(!interaction::participant_controls(&a,"@b:test",a.start).register);
+    a.metadata.as_mut().unwrap().archived=true;
+    assert!(!interaction::participant_controls(&a,"@b:test",1).register);
+}
+#[test]
 fn roles_follow_each_activity_and_members_can_organize_their_own() {
     let a = activity("@a:test", "!a:test");
     let b = activity("@b:test", "!b:test");

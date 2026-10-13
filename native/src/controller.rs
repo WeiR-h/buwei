@@ -189,6 +189,8 @@ pub(crate) struct View {
     pub sync_status: String,
     pub organizer: bool,
     pub can_create: bool,
+    pub participant_controls: buwei_host_core::interaction::ParticipantControls,
+    pub seat_counts: [usize; 4],
     pub public_directory_nonce: Option<String>,
     pub public_directory_preview: String,
     pub public_mode: bool,
@@ -1696,6 +1698,8 @@ impl Controller {
         match self.activity() {
             Ok(a) => {
                 v.organizer = a.owner == self.actor();
+                v.participant_controls = buwei_host_core::interaction::participant_controls(&a, &self.actor(), now());
+                v.seat_counts = [a.capacity as usize, a.confirmed(), a.held(), a.free()];
                 v.reply = match a.invitations.iter().rev().find(|i| {
                     i.recipient == self.actor()
                         && i.reply == buwei_host_core::Reply::Pending

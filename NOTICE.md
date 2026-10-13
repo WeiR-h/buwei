@@ -3,16 +3,21 @@
 BuWei original application and action-receipts code Copyright 2026 WeiR-h,
 Apache-2.0. Team: 生生不息. Support: repository Issues.
 
+BuWei's Chinese interface uses unmodified Source Han Sans SC Regular and Bold,
+Copyright Adobe, under the SIL Open Font License 1.1. The license is in
+licenses/SourceHanSans-LICENSE.txt; original URLs and SHA-256 values are in
+native/resources/fonts/sources.json.
+
 Official components retain their authors' copyright and licenses. All Rust
 sources are pinned in native/Cargo.lock. Frameworks are pinned in
  dependencies.lock.json. Bootstrap preserves upstream license files.
 
-- OctoSense: dba1933051cf3974d79bc1788071091b213dcd40
-- Makepad: 32d6415fb7476345ad36ee4f98d6f844d1f07fd2
+- OctoSense desktop RC6: f9f6fea90b52182790cb2641fd0145c425af4d84
+- Makepad: d653bc4493619ab979ccff165cf48c0c63b77d19
 - OctoScript: 2e37d9e657a246f16718d9a475e167ccd2d5b5fa
-- OctoScript Makepad: 33dea2f1f3ad3f1346a219aa8cf6e91b31361e23
+- OctoScript Makepad: 6cf2d90aa33ff4ae603f49c7557f3ecf986207f0
 - Rinx: 4b89097d8791a7190d01de1c576979c93df0013d
-- App Hub: 2e5768964f15916cdb66cc6824f7671dafc6445a
+- App Hub: 386359153ed6377b5f047bd9ed2767a6a2ac2bc7
 - octos: b0759a57719fd35b3a2da1c5d969bc67538ed516
 - Matrix SDK: 6892cb217ae4a886571e928c8efcccfbec5490a6
 

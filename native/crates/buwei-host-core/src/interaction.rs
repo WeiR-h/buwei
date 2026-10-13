@@ -5,6 +5,29 @@ pub fn is_organizer(activity: &Activity, actor: &str) -> bool {
     activity.owner == actor
 }
 
+/// Presentation hints only. The host still validates each prepared action.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ParticipantControls {
+    pub register: bool,
+    pub reply: bool,
+    pub cancel: bool,
+}
+pub fn participant_controls(activity: &Activity, actor: &str, now: u64) -> ParticipantControls {
+    if is_organizer(activity, actor) || !crate::account_valid(actor) {
+        return ParticipantControls::default();
+    }
+    let person = activity.people.iter().find(|p| p.account == actor);
+    let reply = activity.pending_invitation_for(actor, now).is_ok();
+    let reserved = activity.invitations.iter().any(|i| i.recipient == actor
+        && i.reply == crate::Reply::Pending && i.delivery != crate::Delivery::Rejected);
+    let open = now < activity.start && !activity.metadata.as_ref().is_some_and(|m| m.archived);
+    ParticipantControls {
+        register: open && !reserved && person.is_none_or(|p| p.status != crate::PersonStatus::Confirmed),
+        reply,
+        cancel: person.is_some_and(|p| matches!(p.status, crate::PersonStatus::Waiting | crate::PersonStatus::Confirmed)),
+    }
+}
+
 /// Only complete, explicit whole-event phrases bypass a model request. Added
 /// constraints or ambiguous amounts fall back to the existing dialogue.
 pub fn explicit_whole(text: &str, activity: &Activity, actor: &str, preferences: Option<&PersonalPreferences>) -> Result<Option<(Preferences, &'static str)>> {

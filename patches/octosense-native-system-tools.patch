@@ -5,7 +5,7 @@ index dfbc709..bc1fc29 100644
 @@ -28,6 +28,43 @@ pub fn linked_modules() -> Vec<&'static dyn AppModule> {
      EXT.get().map(|ext| (ext.linked_modules)()).unwrap_or_default()
  }
-
+ 
 +// A package may expose only named tools belonging to its linked native modules.
 +// Install before shell startup; no card or model argument can modify the grants.
 +static SYSTEM_TOOLS: OnceLock<&'static [(&'static str, &'static str)]> = OnceLock::new();
@@ -47,11 +47,11 @@ index dfbc709..bc1fc29 100644
      EXT.get().is_some_and(|ext| (ext.trusted_module)(module))
  }
 diff --git a/crates/shell/src/host_tools/admission.rs b/crates/shell/src/host_tools/admission.rs
-index 2ed48e8..e5d1f68 100644
+index 2f14cba..d606d2a 100644
 --- a/crates/shell/src/host_tools/admission.rs
 +++ b/crates/shell/src/host_tools/admission.rs
 @@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
-
+ 
  pub(crate) fn check(app: &str) -> Result<(), String> {
      if crate::native_apps::find(app).is_some()
 +        || crate::ext::is_package_module(app)
@@ -81,10 +81,10 @@ index b50d01c..fed1774 100644
          }
          Some(format!("os.{ns}"))
 diff --git a/crates/shell/src/system_chat/grants.rs b/crates/shell/src/system_chat/grants.rs
-index 0c03163..e24bb25 100644
+index b4851cc..1dfff7f 100644
 --- a/crates/shell/src/system_chat/grants.rs
 +++ b/crates/shell/src/system_chat/grants.rs
-@@ -193,7 +193,10 @@ pub(crate) const CALENDAR_TOOLS: &[&str] = &["calendar.events", "calendar.add_ev
+@@ -247,7 +247,10 @@ pub const MAX_SESSION_TOOLS: usize = 64;
  /// not running.
  pub fn native_system_tools() -> std::collections::BTreeSet<String> {
      let processes = crate::host::processes_available();
@@ -94,5 +94,5 @@ index 0c03163..e24bb25 100644
 +    tools.extend(crate::ext::system_tools());
 +    tools
  }
-
+ 
  /// [`native_system_tools`] for the apps `runs_here` says this device has.

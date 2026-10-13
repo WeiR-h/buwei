@@ -1,17 +1,18 @@
 {
   "schema_version": 1,
-  "octosense_commit": "dba1933051cf3974d79bc1788071091b213dcd40",
+  "octosense_commit": "f9f6fea90b52182790cb2641fd0145c425af4d84",
+  "octosense_release": "desktop-v0.1.0-rc.6",
   "frameworks": {
-    "makepad": "32d6415fb7476345ad36ee4f98d6f844d1f07fd2",
+    "makepad": "d653bc4493619ab979ccff165cf48c0c63b77d19",
     "octoscript": "2e37d9e657a246f16718d9a475e167ccd2d5b5fa",
-    "octoscript-makepad": "33dea2f1f3ad3f1346a219aa8cf6e91b31361e23"
+    "octoscript-makepad": "6cf2d90aa33ff4ae603f49c7557f3ecf986207f0"
   },
   "official_overlay_lock": "runtime-patches.lock.json",
   "product_patch_sha256": "8df6c2a8d442154f17aca229553ee69f45317962d7b732ae91fae2fda1adf55e",
   "additional_product_patches": [
     {
       "path": "patches/makepad-windows-warp.patch",
-      "sha256": "7e991970009b506744127023e153073ba7dc0a4f1e849ec1b7505b4dd1d47331",
+      "sha256": "d8d2b88d353eecafae10bc0711aa9c692a86a8541e104412373fc7e3578fbe87",
       "changed_files": [
         "platform/src/os/windows/d3d11.rs"
       ]
@@ -24,7 +25,7 @@
   },
   "runtime_sources": {
     "app-hub": {
-      "commit": "2e5768964f15916cdb66cc6824f7671dafc6445a",
+      "commit": "386359153ed6377b5f047bd9ed2767a6a2ac2bc7",
       "directory": ".sources/app-hub",
       "url": "https://github.com/OctoSense-org/OctoSense-App-Hub.git"
     },
@@ -37,7 +38,7 @@
   "octosense_product_patches": [
     {
       "path": "patches/octosense-native-system-tools.patch",
-      "sha256": "04172093f2f0f6cc8ddbdf62e2d69b2cb90da49d4ec86025b071adfa4b96d93b",
+      "sha256": "f88e40c03e9834263326130fd922e88187535e636fb9efe9c833ff7c4d844181",
       "changed_files": [
         "crates/shell/src/ext.rs",
         "crates/shell/src/host_tools/admission.rs",

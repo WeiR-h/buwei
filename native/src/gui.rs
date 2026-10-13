@@ -3,6 +3,7 @@ use super::controller::intentions::{GoalForm, IntentCommand};
 use super::controller::{Command, View as HostView};
 use buwei_host_core::assistance::{GoalKind, GoalStatus, PersonalPreferences};
 use buwei_host_core::proactive::AssistanceCard;
+use buwei_host_core::interaction::ParticipantControls;
 use makepad_app_module::{
     AppModule, ExecOutcome, InstanceHandles, InstanceParts, OpenSchema, ServiceExecutor,
     ValidatedOpen,
@@ -15,38 +16,76 @@ use std::sync::mpsc::{Receiver, SyncSender};
 script_mod! {
     use mod.prelude.widgets.*
     use mod.widgets.*
-    let Text=Label{width: Fill height:Fit padding:0 draw_text.color:#x244139 draw_text.wrap:Words draw_text.text_style:theme.font_regular{font_size:13}}
-    let Small=Text{draw_text.color:#x6a7b70 draw_text.text_style.font_size:11}
-    let Heading=Text{draw_text.text_style:theme.font_bold{font_size:18}}
-    let Action=Button{height:42 draw_text.text_style:theme.font_regular{font_size:13}}
-    let Input=TextInput{width:Fill height:38 draw_text.text_style:theme.font_regular{font_size:13}}
+    use mod.text.*
+    let BodyStyle=TextStyle{font_size:13 line_spacing:1.35 font_family:FontFamily{
+        latin:=FontMember{res:crate_resource("makepad_widgets:resources/Inter.ttf") asc:0.0 desc:0.0 weight:400.0}
+        chinese:=FontMember{res:crate_resource("self:resources/fonts/SourceHanSansSC-Regular.otf") asc:0.0 desc:0.0 weight:400.0}
+    }}
+    let StrongStyle=BodyStyle{font_family:FontFamily{
+        latin:=FontMember{res:crate_resource("makepad_widgets:resources/Roboto-Bold.ttf") asc:0.0 desc:0.0 weight:700.0}
+        chinese:=FontMember{res:crate_resource("self:resources/fonts/SourceHanSansSC-Bold.otf") asc:0.0 desc:0.0 weight:700.0}
+    }}
+    let Text=Label{width:Fill height:Fit padding:0 draw_text.color:#x193c32 draw_text.wrap:Words draw_text.text_style:BodyStyle}
+    let Small=Text{draw_text.color:#x526a60 draw_text.text_style.font_size:11}
+    let Heading=Text{draw_text.text_style:StrongStyle{font_size:18}}
+    let Action=Button{height:42 padding:Inset{left:16 right:16 top:8 bottom:8}
+        draw_text.text_style:BodyStyle draw_text.color:#x244239 draw_text.color_hover:#x173d30 draw_text.color_focus:#x173d30
+        draw_bg +: {color:#xffffff color_hover:#xf0f6f1 color_down:#xe3eee6 color_focus:#xe8f1eb color_2:vec4(0.0,0.0,0.0,-1.0) color_2_hover:vec4(0.0,0.0,0.0,-1.0) color_2_down:vec4(0.0,0.0,0.0,-1.0) color_2_focus:vec4(0.0,0.0,0.0,-1.0)
+            border_size:1.0 border_radius:9.0 color_dither:0.0 border_color:#xd6e1d8 border_color_2:#xd6e1d8 border_color_hover:#x91b49e border_color_focus:#x257254}
+    }
+    let Primary=Action{draw_text.color:#xffffff draw_text.color_hover:#xffffff draw_text.color_down:#xffffff draw_text.color_focus:#xffffff
+        draw_bg +: {color:#x1c654b color_hover:#x257855 color_down:#x154f3a color_focus:#x1c654b border_color:#x1c654b border_color_2:#x1c654b border_color_hover:#x257855 border_color_focus:#x123d2d}}
+    let Nav=Action{width:Fill height:44 align:Align{x:0.0 y:0.5} draw_bg +: {color:#x0000 color_hover:#xebf3ed color_down:#xdcece0 color_focus:#xebf3ed border_size:0.0}}
+    let NavRow=View{width:Fill height:44 show_bg:true draw_bg +: {nav_tint:uniform(#x0000) pixel:fn(){return self.nav_tint;}}}
+    let CardAction=Action{width:Fill height:104 align:Align{x:0.0 y:0.5} padding:18 draw_text.text_style:BodyStyle{font_size:14} draw_bg.border_radius:12.0}
+    let Panel=RoundedView{width:Fill height:Fit flow:Down spacing:14 padding:24 show_bg:true draw_bg +: {color:#xffffff border_color:#xe0e8e1 border_size:1.0 border_radius:14.0}}
+    let Input=TextInput{width:Fill height:44 draw_text.text_style:BodyStyle draw_text.color:#x193c32 draw_bg.color:#xffffff}
     mod.widgets.BuWeiView = set_type_default() do #(BuWeiView::register_widget(vm)) {
         ..mod.widgets.RectView
-        width:Fill height:Fill flow:Down padding:Inset{top:12 left:16 right:16 bottom:20} spacing:8
-                Heading{text:"补位 · 让想来的人，刚好有位"}
-                View{width:Fill height:Fit flow:Right spacing:16
-                    Small{width:200 text:#(concat!("v",env!("CARGO_PKG_VERSION")," · 社群活动助手"))}
-                    profile:=Small{text:"本人登录身份由 Rinx 核验"}
+        width:Fill height:Fill flow:Right padding:0 spacing:0 show_bg:true draw_bg.color:#xf6f8f5
+        View{width:188 height:Fill flow:Down padding:18 spacing:8 show_bg:true draw_bg.color:#xffffff
+            View{width:Fill height:Fit flow:Right spacing:10 align:Align{x:0.0 y:0.5}
+                brand_mark:=Image{width:38 height:38}
+                Heading{width:Fit text:"补位" draw_text.text_style.font_size:24}
+            }
+            Small{text:"让想来的人，刚好有位" margin:Inset{bottom:20 top:6}}
+            nav_row_activity:=NavRow{draw_bg.nav_tint:#xe7f1e9 nav_activity:=Nav{text:"我的活动"}}
+            nav_row_discover:=NavRow{nav_discover:=Nav{text:"发现活动"}}
+            nav_row_goals:=NavRow{nav_goals:=Nav{text:"我的意图"}}
+            nav_confirm:=Nav{text:"待确认操作" visible:false}
+            nav_row_history:=NavRow{nav_history:=Nav{text:"活动记录"}}
+            nav_row_article:=NavRow{nav_article:=Nav{text:"活动小记"}}
+            View{width:Fill height:Fill}
+            nav_row_help:=NavRow{nav_help:=Nav{text:"账号与设置"}}
+            Small{text:#(concat!("v",env!("CARGO_PKG_VERSION")," · Windows"))}
+        }
+        workspace:=View{width:Fill height:Fill flow:Down padding:Inset{left:24 right:24 top:22 bottom:16} spacing:12
+            View{width:Fill height:Fit flow:Right spacing:18 align:Align{x:0.0 y:0.5}
+                View{width:Fill height:Fit flow:Down spacing:6
+                    workspace_title:=Heading{text:"我的活动" draw_text.text_style.font_size:26}
+                    workspace_subtitle:=Small{text:"组织下一场相聚，也找到适合自己的活动。"}
                 }
-                account:=Text{text:"请先在 Rinx 完成正式账号登录…"}
-                expires:=Small{text:"请在账号与设置中查看权限并确认授权。"}
-                message:=Text{text:"正式服务器 https://matrix.rinx.chat；浏览器认证由本人完成。"}
-                View{width:Fill height:40 flow:Right spacing:8
-                    nav_activity:=Action{text:"我的活动"}
-                    nav_discover:=Action{text:"社群活动"}
-                    nav_goals:=Action{text:"我的目标"}
-                    nav_confirm:=Action{text:"当前确认" visible:false}
-                    nav_history:=Action{text:"活动记录"}
-                    nav_article:=Action{text:"活动小记"}
-                    nav_help:=Action{text:"账号与设置"}
-                }
+                new_activity:=Primary{text:"新建活动" visible:false}
+            }
+            View{width:Fill height:Fit flow:Right spacing:12
+                account:=Small{width:Fill text:"本人登录身份由 Rinx 核验"}
+                profile:=Small{width:300 text:""}
+            }
+            expires:=Small{visible:false}
+            message:=Small{text:"请先完成本人登录，开启活动工作台。"}
                 page_activity:=ScrollYView{width:Fill height:Fill flow:Down spacing:12 padding:16 show_bg:true draw_bg.color:#xf2f6ef
-                    activity_heading:=Heading{text:"我的活动"}
+                    activity_heading:=Heading{text:"我的活动" visible:false}
+                    welcome:=Panel{visible:false
+                        welcome_title:=Heading{text:"欢迎来到补位" draw_text.text_style.font_size:22}
+                        welcome_copy:=Text{text:"先在 Rinx 完成本人登录，再创建或挑选活动。"}
+                        welcome_settings:=Primary{text:"查看登录与授权"}
+                        welcome_discover:=Action{text:"发现可以参加的活动" visible:false}
+                    }
                     assistance_area:=View{width:Fill height:Fit flow:Down spacing:8 visible:false
                         Heading{text:"补位发现了这些变化"}
-                        assistance_0:=Action{width:Fill height:230 visible:false}
-                        assistance_1:=Action{width:Fill height:230 visible:false}
-                        assistance_2:=Action{width:Fill height:230 visible:false}
+                        assistance_0:=CardAction{height:136 visible:false}
+                        assistance_1:=CardAction{height:136 visible:false}
+                        assistance_2:=CardAction{height:136 visible:false}
                         View{width:Fill height:Fit flow:Right spacing:8
                             assistance_follow:=Action{text:"继续跟进本页首条候补" visible:false}
                             assistance_prev:=Action{text:"上一条"} assistance_next:=Action{text:"下一条"}
@@ -66,19 +105,40 @@ script_mod! {
                         back_to_activities:=Action{text:"返回活动列表" visible:false}
                     }
                     organizer_new_actions:=View{width:Fill height:Fit flow:Right spacing:8
-                        new_activity:=Action{text:"新建活动"} copy_activity:=Action{text:"复制下一场"} archive_activity:=Action{text:"归档本场"}
+                        copy_activity:=Action{text:"复制下一场"} archive_activity:=Action{text:"归档本场"}
                     }
                     activity_cards:=View{width:Fill height:Fit flow:Down spacing:12
-                    activity_0:=Action{width:Fill height:64 visible:false}
-                    activity_1:=Action{width:Fill height:64 visible:false}
-                    activity_2:=Action{width:Fill height:64 visible:false}
-                    activity_3:=Action{width:Fill height:64 visible:false}
-                    activity_4:=Action{width:Fill height:64 visible:false}
+                    activity_0:=CardAction{visible:false}
+                    activity_1:=CardAction{visible:false}
+                    activity_2:=CardAction{visible:false}
+                    activity_3:=CardAction{visible:false}
+                    activity_4:=CardAction{visible:false}
                     activity_pagination:=View{width:Fill height:Fit flow:Right spacing:8 activity_prev:=Action{text:"上一页"} activity_next:=Action{text:"下一页"}}
                     }
+                    assistant_area:=Panel{visible:false
+                        assistant_heading:=Heading{text:"先说说你的想法"}
+                        requirement_caption:=Small{text:"描述活动需求或本次安排，AI 会准备可编辑的建议。"}
+                        requirement:=Input{height:70 is_multiline:true empty_text:"例如：下周六晚上七点，办一场六人的读书会"}
+                        clarification:=Input{height:55 is_multiline:true visible:false empty_text:"只补充本次变化，未提及的信息保持原值"}
+                        View{width:Fill height:Fit flow:Right spacing:8
+                            create_with_ai:=Primary{text:"准备可编辑策划稿"}
+                            suggest:=Primary{text:"理解这次安排"} clarify:=Action{text:"合并补充"} apply_advice:=Primary{text:"核对并预览报名"}
+                            explain:=Action{text:"为什么这样候补？"}
+                        }
+                        advice:=Text{}
+                        ai_result:=Text{}
+                        question:=Input{empty_text:"问问这场活动：几点开始、还有多少名额？"}
+                        ask:=Action{text:"询问本场活动"}
+                    }
                     activity_details:=View{width:Fill height:Fit flow:Down spacing:12 visible:false
+                    seat_overview:=View{width:Fill height:Fit flow:Right spacing:12
+                        Panel{width:Fill padding:18 Small{text:"已确认"} confirmed_seats:=Heading{text:"0" draw_text.text_style.font_size:24}}
+                        Panel{width:Fill padding:18 Small{text:"为候补保留"} reserved_seats:=Heading{text:"0" draw_text.text_style.font_size:24 draw_text.color:#x8a5f20}}
+                        Panel{width:Fill padding:18 Small{text:"剩余名额"} free_seats:=Heading{text:"0" draw_text.text_style.font_size:24 draw_text.color:#x1c654b}}
+                    }
                     activity:=Text{text:"尚无活动"}
                     people:=Text{text:"尚无候补"}
+                    assistant_toggle:=Action{text:"用自然语言调整或询问本场活动"}
                     roster_export:=View{width:Fill height:Fit flow:Down spacing:8
                         View{width:Fill height:Fit flow:Right spacing:8 roster_prepare:=Action{text:"导出报名名单…"} roster_confirm:=Action{text:"确认保存名单" visible:false}}
                         roster_preview:=Text{}
@@ -88,28 +148,29 @@ script_mod! {
                     }
                     organizer_setup:=View{width:Fill height:Fit flow:Down spacing:8
                         creation_form:=View{width:Fill height:Fit flow:Down spacing:8
-                        Heading{text:"创建或复制下一场"}
+                        Heading{text:"活动策划草稿"}
                         View{width:Fill height:Fit flow:Right spacing:8
                             template_badminton:=Action{text:"羽毛球"} template_boardgame:=Action{text:"桌游"} template_reading:=Action{text:"读书会"}
                         }
-                        title:=Input{text:"社群活动" empty_text:"活动名称"}
-                        location:=Input{empty_text:"活动地点"}
-                        description:=Input{height:70 is_multiline:true empty_text:"活动说明"}
+                        Small{text:"活动名称"} title:=Input{text:"社群活动" empty_text:"给这场活动起一个名字"}
+                        Small{text:"地点"} location:=Input{empty_text:"地点未定时，先在策划稿中说明"}
+                        Small{text:"活动说明"} description:=Input{height:70 is_multiline:true empty_text:"活动目标、内容与参加须知"}
                         View{width:Fill height:Fit flow:Right spacing:8
-                            Small{text:"容量" width:40} capacity:=Input{text:"6" width:60}
-                            Small{text:"开始" width:40} start:=Input{width:190 empty_text:"YYYY-MM-DD HH:mm"}
-                            Small{text:"结束" width:40} end:=Input{width:190 empty_text:"YYYY-MM-DD HH:mm"}
-                            create:=Action{text:"核对并预览创建"}
+                            Small{text:"名额" width:40} capacity:=Input{text:"6" width:60}
+                            Small{text:"开始" width:40} start:=Input{width:Fill empty_text:"YYYY-MM-DD HH:mm"}
+                            Small{text:"结束" width:40} end:=Input{width:Fill empty_text:"YYYY-MM-DD HH:mm"}
                         }
+                        create:=Primary{text:"核对并预览创建"}
                         plan_0:=Action{width:Fill visible:false} plan_1:=Action{width:Fill visible:false} plan_2:=Action{width:Fill visible:false}
                         plan_summary:=Text{}
                         View{width:Fill height:Fit flow:Right spacing:8
-                            plan_revise:=Action{text:"AI 合并本次补充"} plan_preview_create:=Action{text:"重新预览已保存策划"} plan_confirm_create:=Action{text:"确认创建本场活动" visible:false}
+                            plan_revise:=Action{text:"合并本次补充"} plan_preview_create:=Action{text:"重新预览策划"} plan_confirm_create:=Primary{text:"确认创建本场活动" visible:false}
                         }
                         plan_creation_preview:=Text{}
                         recover_setup:=Action{text:"恢复待核实的活动创建"}
                         cancel_setup:=Action{text:"收起活动草稿"}
                         }
+                        sharing_setup:=View{width:Fill height:Fit flow:Down spacing:10
                         Heading{text:"分享本场活动"}
                         load_contacts:=Action{text:"选择 Rinx 联系人"}
                         contact_0:=Action{visible:false} contact_1:=Action{visible:false} contact_2:=Action{visible:false} contact_3:=Action{visible:false} contact_4:=Action{visible:false}
@@ -120,6 +181,8 @@ script_mod! {
                         }
                         share_preview:=Text{}
                         invite_member:=Action{text:"邀请加入房间" visible:false}
+                        }
+                        automation_setup:=View{width:Fill height:Fit flow:Down spacing:10
                         Heading{text:"自动补位"}
                         automation_status:=Text{}
                         View{width:Fill height:Fit flow:Right spacing:8
@@ -131,9 +194,10 @@ script_mod! {
                             preview_automation:=Action{text:"查看自动补位规则"} confirm_automation:=Action{text:"确认启用"} pause_automation:=Action{text:"暂停自动补位"}
                         }
                         policy_preview:=Text{}
+                        }
                     }
                     participant_setup:=View{width:Fill height:Fit flow:Down spacing:8
-                        quick_join:=Action{text:"参加整场 · 准备报名"}
+                        quick_join:=Primary{text:"参加整场 · 准备报名"}
                         Small{text:"从 Rinx 聊天打开活动卡片，即可用本人账号报名。"}
                         legacy_room_setup:=View{visible:false width:Fill height:Fit flow:Down
                             room:=Input{empty_text:"高级恢复：完整房间编号 !..."}
@@ -141,24 +205,12 @@ script_mod! {
                         }
                         Small{text:"先核对本场活动日期和本人可用时段，再预览报名。请输入 YYYY-MM-DD HH:mm 格式的完整日期与时间。"}
                         View{width:Fill height:Fit flow:Right spacing:8
-                            earliest:=Input{width:200 empty_text:"最早可用日期和时间"}
-                            latest:=Input{width:200 empty_text:"最晚可用日期和时间"}
+                            earliest:=Input{width:Fill empty_text:"最早可用日期和时间"}
+                            latest:=Input{width:Fill empty_text:"最晚可用日期和时间"}
                             group:=Input{text:"1" width:90 empty_text:"同行人数"}
-                            join:=Action{text:"预览本人报名"}
+                            join:=Primary{text:"预览本人报名"}
                         }
                     }
-                    Heading{text:"活动助手"}
-                    requirement:=Input{height:70 is_multiline:true empty_text:"描述活动安排或本人报名意愿"}
-                    clarification:=Input{height:55 is_multiline:true empty_text:"补充或更正时间、人数与地点"}
-                    View{width:Fill height:Fit flow:Right spacing:8
-                        create_with_ai:=Action{text:"一句话准备活动策划"}
-                        suggest:=Action{text:"理解报名意愿"} clarify:=Action{text:"合并补充回答"} apply_advice:=Action{text:"核对建议并预览报名"}
-                        explain:=Action{text:"解释候补结果"}
-                    }
-                    advice:=Text{}
-                    ai_result:=Text{}
-                    question:=Input{empty_text:"问问这场活动，例如：几点开始、还有多少名额？"}
-                    ask:=Action{text:"询问本场活动"}
                     }
                 }
                 page_discover:=ScrollYView{visible:false width:Fill height:Fill flow:Down spacing:12 padding:16 show_bg:true draw_bg.color:#xf2f6ef
@@ -336,6 +388,7 @@ script_mod! {
                     Small{text:"活动助手可以理解日期和报名意愿。必要信息会先显示为可编辑草稿，由本人核对确认。"}
                     fault:=Action{text:"高级诊断" visible:false}
                 }
+        }
     }
 }
 #[derive(Script, ScriptHook, Widget)]
@@ -384,6 +437,18 @@ pub struct BuWeiView {
     creating: bool,
     #[rust]
     pending_creation: bool,
+    #[rust]
+    signed_in: bool,
+    #[rust]
+    authorized: bool,
+    #[rust]
+    has_activity: bool,
+    #[rust]
+    participant_controls: ParticipantControls,
+    #[rust]
+    brand_loaded: bool,
+    #[rust]
+    assistant_expanded: bool,
     #[rust]
     plan_id: Option<String>,
     #[rust]
@@ -453,6 +518,17 @@ pub struct BuWeiView {
 }
 impl BuWeiView {
     fn display(&mut self, cx: &mut Cx, view: HostView) {
+        self.signed_in = view.can_create;
+        self.authorized = view.authorized;
+        self.has_activity = !view.activity_identity.is_empty();
+        self.participant_controls = view.participant_controls;
+        if !self.brand_loaded {
+            self.brand_loaded = self.view.image(cx, ids!(brand_mark))
+                .load_png_from_data(cx, include_bytes!("../../assets/icon.png")).is_ok();
+        }
+        self.view.label(cx, ids!(confirmed_seats)).set_text(cx, &format!("{} / {}",view.seat_counts[1],view.seat_counts[0]));
+        self.view.label(cx, ids!(reserved_seats)).set_text(cx, &view.seat_counts[2].to_string());
+        self.view.label(cx, ids!(free_seats)).set_text(cx, &view.seat_counts[3].to_string());
         self.public_mode=view.public_mode;
         self.current_organizer=view.organizer;
         self.public_nonce=view.public_directory_nonce.clone();
@@ -893,15 +969,16 @@ impl BuWeiView {
         }
         self.view
             .view(cx, ids!(creation_form))
-            .set_visible(cx, self.creating || view.activity_list.is_empty());
+            .set_visible(cx, self.creating && self.authorized);
         self.view
             .view(cx, ids!(organizer_new_actions))
-            .set_visible(cx, view.can_create);
-        self.view.button(cx,ids!(copy_activity)).set_visible(cx,view.organizer);
-        self.view.button(cx,ids!(archive_activity)).set_visible(cx,view.organizer);
+            .set_visible(cx, view.organizer && !self.creating && self.tab==1);
+        self.view.button(cx, ids!(new_activity)).set_visible(cx, self.signed_in && self.authorized && !self.creating);
+        self.view.button(cx,ids!(copy_activity)).set_visible(cx,view.organizer && !self.creating);
+        self.view.button(cx,ids!(archive_activity)).set_visible(cx,view.organizer && !self.creating);
         self.view
             .view(cx, ids!(organizer_invite_entry))
-            .set_visible(cx, view.organizer);
+            .set_visible(cx, view.organizer && !self.creating && self.authorized);
         self.activity_count = view.activity_list.len();
         self.view
             .view(cx, ids!(activity_pagination))
@@ -912,13 +989,13 @@ impl BuWeiView {
         );
         self.view
             .label(cx, ids!(home_status))
-            .set_visible(cx, view.organizer);
+            .set_visible(cx, false);
         self.view
             .label(cx, ids!(home_status))
             .set_text(cx, &view.automation_status);
         self.view
             .label(cx, ids!(reply_status))
-            .set_visible(cx, !view.organizer);
+            .set_visible(cx, self.authorized && self.participant_controls.reply);
         self.activity_page = self
             .activity_page
             .min(self.activity_count.saturating_sub(1) / 3);
@@ -982,16 +1059,20 @@ impl BuWeiView {
             .set_text(cx, &view.ai_result);
         self.view.label(cx, ids!(profile)).set_text(
             cx,
-            if !view.organizer {
-                "本场参与者 · 也可以新建自己的活动"
+            if !self.signed_in {
+                "登录后创建或发现活动"
+            } else if self.creating {
+                "策划草稿 · 确认后才创建"
+            } else if !view.organizer {
+                "本场以成员身份参加"
             } else {
-                "本场组织者 · 也可以参加其他人的活动"
+                "本场由你组织"
             },
         );
         self.view.label(cx, ids!(account)).set_text(
             cx,
             &format!(
-                "当前真实账号：{} · {}",
+                "当前账号：{} · {}",
                 view.account,
                 if view.authorized {
                     "已授权"
@@ -1039,29 +1120,60 @@ impl BuWeiView {
         );
         self.view
             .button(cx, ids!(create_with_ai))
-            .set_visible(cx, view.can_create);
+            .set_visible(cx, self.creating && self.authorized && self.signed_in);
         self.view
             .button(cx, ids!(suggest))
-            .set_visible(cx, !view.organizer);
+            .set_visible(cx, !view.organizer && self.participant_controls.register && !self.creating);
         self.view
             .button(cx, ids!(clarify))
-            .set_visible(cx, !view.organizer);
+            .set_visible(cx, !view.organizer && !view.advice.is_empty() && !self.creating);
         self.view
             .button(cx, ids!(apply_advice))
-            .set_visible(cx, !view.organizer);
+            .set_visible(cx, !view.organizer && !view.advice.is_empty() && !self.creating);
         self.pages(cx);
         self.view
             .view(cx, ids!(organizer_actions))
             .set_visible(cx, view.organizer);
         self.view
             .view(cx, ids!(organizer_setup))
-            .set_visible(cx, view.organizer || self.creating);
+            .set_visible(cx, (view.organizer || self.creating) && self.authorized);
+        self.view.view(cx, ids!(sharing_setup)).set_visible(cx, view.organizer && !self.creating);
+        self.view.view(cx, ids!(automation_setup)).set_visible(cx, view.organizer && !self.creating);
+        self.view.label(cx, ids!(activity)).set_visible(cx, self.has_activity && !self.creating);
+        self.view.label(cx, ids!(people)).set_visible(cx, self.has_activity && !self.creating);
+        self.view.view(cx, ids!(seat_overview)).set_visible(cx, self.has_activity && !self.creating);
+        self.view.view(cx, ids!(roster_export)).set_visible(cx, view.organizer && !self.creating);
+        self.view.button(cx, ids!(accept)).set_visible(cx, self.authorized && self.participant_controls.reply);
+        self.view.button(cx, ids!(decline)).set_visible(cx, self.authorized && self.participant_controls.reply);
+        self.view.button(cx, ids!(cancel)).set_visible(cx, self.authorized && self.participant_controls.cancel && self.tab==1);
         self.view
             .view(cx, ids!(participant_actions))
-            .set_visible(cx, !view.organizer);
+            .set_visible(cx, self.authorized && (self.participant_controls.reply || (self.tab==1 && self.participant_controls.cancel)));
         self.view
             .view(cx, ids!(participant_setup))
-            .set_visible(cx, !view.organizer);
+            .set_visible(cx, self.authorized && !self.creating && !view.organizer && self.participant_controls.register);
+        self.view.view(cx, ids!(assistant_area)).set_visible(cx, self.authorized && (self.creating || (self.assistant_expanded && self.tab==1 && self.has_activity)));
+        self.view.button(cx, ids!(assistant_toggle)).set_visible(cx, self.authorized && self.has_activity && !self.creating);
+        self.view.label(cx, ids!(assistant_heading)).set_text(cx, if self.creating {"先说说你的想法"} else {"活动助手"});
+        self.view.text_input(cx, ids!(requirement)).set_visible(cx, self.creating || (!view.organizer && self.participant_controls.register));
+        self.view.label(cx, ids!(requirement_caption)).set_visible(cx, self.creating || (!view.organizer && self.participant_controls.register));
+        self.view.text_input(cx, ids!(clarification)).set_visible(cx, self.plan_id.is_some() || !view.advice.is_empty());
+        self.view.text_input(cx, ids!(question)).set_visible(cx, self.has_activity && !self.creating);
+        self.view.button(cx, ids!(ask)).set_visible(cx, self.has_activity && !self.creating);
+        self.view.button(cx, ids!(explain)).set_visible(cx, self.has_activity && !self.creating);
+        self.view.label(cx, ids!(home_current)).set_visible(cx, false);
+        macro_rules! optional_label {($id:ident,$value:expr)=>{self.view.label(cx,ids!($id)).set_visible(cx,!$value.is_empty());};}
+        optional_label!(public_preview,view.public_directory_preview);
+        optional_label!(community_preview,view.community_preview);
+        optional_label!(community_status,view.community_status);
+        optional_label!(access_preview,view.access_preview);
+        optional_label!(access_status,view.access_status);
+        optional_label!(entry_progress,view.entry_progress);
+        optional_label!(roster_preview,view.roster_export_preview);
+        optional_label!(advice,view.advice);
+        optional_label!(ai_result,view.ai_result);
+        optional_label!(share_preview,view.share_preview);
+        optional_label!(policy_preview,view.policy_preview);
         self.view
             .label(cx, ids!(participant_preview))
             .set_text(cx, &view.participant_preview);
@@ -1092,6 +1204,39 @@ impl BuWeiView {
         self.view.redraw(cx);
     }
     fn pages(&mut self, cx: &mut Cx) {
+        self.view.label(cx, ids!(expires)).set_visible(cx,self.tab==4 && self.signed_in);
+        let overview=self.tab==0 && !self.creating;
+        self.view.view(cx, ids!(welcome)).set_visible(cx, overview && (!self.signed_in || !self.authorized || self.activity_count==0));
+        let (title,copy)=if !self.signed_in {
+            ("欢迎来到补位","从底部打开 Rinx，登录本人账号后回到这里。你可以组织活动，也可以发现适合自己的活动。")
+        } else if !self.authorized {
+            ("账号已连接，下一步确认权限","在账号与设置中核对身份和授权范围。确认后开始策划、报名和跟进；已有记录会继续保留。")
+        } else {
+            ("下一场相聚，从这里开始","点击右上方的新建活动，说说你的想法；也可以去发现活动，选择想参加的那一场。")
+        };
+        self.view.label(cx, ids!(welcome_title)).set_text(cx,title);
+        self.view.label(cx, ids!(welcome_copy)).set_text(cx,copy);
+        self.view.button(cx, ids!(welcome_settings)).set_visible(cx,!self.authorized);
+        self.view.button(cx, ids!(welcome_discover)).set_visible(cx,self.authorized && self.signed_in);
+        let (page,subtitle)=match self.tab {
+            1 if self.creating => ("新建活动","先准备策划草稿，核对后再创建和发布。"),
+            1 => ("活动详情","报名、名额与后续行动，都跟随这场活动。"),
+            2 => ("活动记录","查看实际结果，沿原操作编号恢复待核实事项。"),
+            3 => ("活动小记","根据核验记录准备草稿，由本人编辑并确认发布。"),
+            4 => ("账号与设置","身份、权限、偏好和本机 AI，都由你管理。"),
+            5 => ("我的意图","说清想做什么，让下一步与你的安排相符。"),
+            6 => ("发现活动","从公开大厅或自己的社群，找到下一场相聚。"),
+            _ => ("我的活动","组织下一场相聚，也找到适合自己的活动。"),
+        };
+        self.view.label(cx, ids!(workspace_title)).set_text(cx,page);
+        self.view.label(cx, ids!(workspace_subtitle)).set_text(cx,subtitle);
+        for (path,tab) in [(ids!(nav_row_activity),0),(ids!(nav_row_discover),6),(ids!(nav_row_goals),5),(ids!(nav_row_history),2),(ids!(nav_row_article),3),(ids!(nav_row_help),4)] {
+            let color=if self.tab==tab || (tab==0 && self.tab==1) {[0.906,0.945,0.914,1.0]} else {[0.0,0.0,0.0,0.0]};
+            self.view.view(cx,path).set_uniform(cx,id!(nav_tint),&color);
+        }
+        self.view.view(cx, ids!(assistant_area)).set_visible(cx,self.authorized && (self.creating || (self.assistant_expanded && self.tab==1 && self.has_activity)));
+        self.view.button(cx, ids!(cancel)).set_visible(cx,self.authorized && self.participant_controls.cancel && self.tab==1);
+        self.view.view(cx, ids!(participant_actions)).set_visible(cx,self.authorized && (self.participant_controls.reply || (self.tab==1 && self.participant_controls.cancel)));
         self.view
             .view(cx, ids!(assistance_area))
             .set_visible(cx, self.tab == 0 && !self.assistance_cards.is_empty());
@@ -1100,14 +1245,14 @@ impl BuWeiView {
             .set_visible(cx, self.tab == 5);
         self.view
             .view(cx, ids!(activity_cards))
-            .set_visible(cx, self.tab == 0);
+            .set_visible(cx, overview && self.signed_in && self.activity_count>0);
         self.view.view(cx, ids!(activity_details)).set_visible(
             cx,
-            self.tab == 1 || self.creating || self.activity_count == 0,
+            (self.tab==1 && self.has_activity && self.signed_in) || self.creating,
         );
         self.view
             .button(cx, ids!(open_current))
-            .set_visible(cx, self.tab == 0 && self.activity_count > 0);
+            .set_visible(cx, false);
         self.view
             .button(cx, ids!(back_to_activities))
             .set_visible(cx, self.tab == 1);
@@ -1251,7 +1396,7 @@ impl Widget for BuWeiView {
             }
             if let Some(tab) = if clicked!(nav_activity) || clicked!(back_to_activities) {
                 Some(0)
-            } else if clicked!(nav_discover) {
+            } else if clicked!(nav_discover) || clicked!(welcome_discover) {
                 Some(6)
             } else if clicked!(nav_goals) {
                 Some(5)
@@ -1261,7 +1406,7 @@ impl Widget for BuWeiView {
                 Some(2)
             } else if clicked!(nav_article) {
                 Some(3)
-            } else if clicked!(nav_help) {
+            } else if clicked!(nav_help) || clicked!(welcome_settings) {
                 Some(4)
             } else {
                 None
@@ -1271,6 +1416,12 @@ impl Widget for BuWeiView {
                 if !clicked!(join_card) {
                     return;
                 }
+            }
+            if clicked!(assistant_toggle) {
+                self.assistant_expanded=!self.assistant_expanded;
+                self.pages(cx);
+                self.view.view(cx,ids!(page_activity)).set_scroll_pos(cx,Vec2d{x:0.0,y:0.0});
+                return;
             }
             if clicked!(discovery_join) || clicked!(discovery_current) {
                 self.tab = 1;
