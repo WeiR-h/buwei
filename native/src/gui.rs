@@ -1057,18 +1057,6 @@ impl BuWeiView {
         self.view
             .label(cx, ids!(ai_result))
             .set_text(cx, &view.ai_result);
-        self.view.label(cx, ids!(profile)).set_text(
-            cx,
-            if !self.signed_in {
-                "登录后创建或发现活动"
-            } else if self.creating && self.tab==1 {
-                "策划草稿 · 确认后才创建"
-            } else if !view.organizer {
-                "本场以成员身份参加"
-            } else {
-                "本场由你组织"
-            },
-        );
         self.view.label(cx, ids!(account)).set_text(
             cx,
             &format!(
@@ -1205,6 +1193,14 @@ impl BuWeiView {
         self.view.redraw(cx);
     }
     fn pages(&mut self, cx: &mut Cx) {
+        self.view.label(cx, ids!(profile)).set_text(cx,
+            if !self.signed_in { "登录后创建或发现活动" }
+            else if self.tab==1 && self.creating { "策划草稿 · 确认后才创建" }
+            else if self.tab==6 { "选择范围，发现想参加的活动" }
+            else if !self.has_activity { "你可以组织或参加活动" }
+            else if self.current_organizer { "本场由你组织" }
+            else { "本场以成员身份参加" });
+        self.view.label(cx, ids!(message)).set_visible(cx, !self.creating || self.tab==1);
         self.view.label(cx, ids!(expires)).set_visible(cx,self.tab==4 && self.signed_in);
         let overview=self.tab==0 && !self.creating;
         self.view.view(cx, ids!(welcome)).set_visible(cx, overview && (!self.signed_in || !self.authorized || self.activity_count==0));
@@ -1412,6 +1408,7 @@ impl Widget for BuWeiView {
             } else {
                 None
             } {
+                if tab==0 { self.creating=false; }
                 self.tab = tab;
                 self.pages(cx);
                 if !clicked!(join_card) {
