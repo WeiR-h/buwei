@@ -2,6 +2,12 @@
   "schema_version": 1,
   "octosense_commit": "f9f6fea90b52182790cb2641fd0145c425af4d84",
   "octosense_release": "desktop-v0.1.0-rc.6",
+  "windows_loader": {
+    "crate": "webview2-com-sys",
+    "version": "0.39.1",
+    "file": "x64/WebView2Loader.dll",
+    "sha256": "86545b66cdb0603bc26b626fb9ad610cb6e71f28d468f5ea66df23b03dda96d5"
+  },
   "frameworks": {
     "makepad": "d653bc4493619ab979ccff165cf48c0c63b77d19",
     "octoscript": "2e37d9e657a246f16718d9a475e167ccd2d5b5fa",

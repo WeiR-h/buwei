@@ -8,6 +8,11 @@ Copyright Adobe, under the SIL Open Font License 1.1. The license is in
 licenses/SourceHanSans-LICENSE.txt; original URLs and SHA-256 values are in
 native/resources/fonts/sources.json.
 
+WebView2 loading code is from the Microsoft WebView2 SDK 1.0.3800.47,
+via the locked webview2-com-sys 0.39.1 crate. Its redistribution license is in
+licenses/Microsoft-WebView2-LICENSE.txt. MSVC links the static loader; GNU
+packages include the verified x64 WebView2Loader.dll.
+
 Official components retain their authors' copyright and licenses. All Rust
 sources are pinned in native/Cargo.lock. Frameworks are pinned in
  dependencies.lock.json. Bootstrap preserves upstream license files.

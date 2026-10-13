@@ -118,8 +118,8 @@ script_mod! {
                     assistant_area:=Panel{visible:false
                         assistant_heading:=Heading{text:"先说说你的想法"}
                         requirement_caption:=Small{text:"描述活动需求或本次安排，AI 会准备可编辑的建议。"}
-                        requirement:=Input{height:70 is_multiline:true empty_text:"例如：下周六晚上七点，办一场六人的读书会"}
-                        clarification:=Input{height:55 is_multiline:true visible:false empty_text:"只补充本次变化，未提及的信息保持原值"}
+                        requirement_field:=View{width:Fill height:Fit requirement:=Input{height:70 is_multiline:true empty_text:"例如：下周六晚上七点，办一场六人的读书会"}}
+                        clarification_field:=View{width:Fill height:Fit visible:false clarification:=Input{height:55 is_multiline:true empty_text:"只补充本次变化，未提及的信息保持原值"}}
                         View{width:Fill height:Fit flow:Right spacing:8
                             create_with_ai:=Primary{text:"准备可编辑策划稿"}
                             suggest:=Primary{text:"理解这次安排"} clarify:=Action{text:"合并补充"} apply_advice:=Primary{text:"核对并预览报名"}
@@ -127,7 +127,7 @@ script_mod! {
                         }
                         advice:=Text{}
                         ai_result:=Text{}
-                        question:=Input{empty_text:"问问这场活动：几点开始、还有多少名额？"}
+                        question_field:=View{width:Fill height:Fit question:=Input{empty_text:"问问这场活动：几点开始、还有多少名额？"}}
                         ask:=Action{text:"询问本场活动"}
                     }
                     activity_details:=View{width:Fill height:Fit flow:Down spacing:12 visible:false
@@ -1155,10 +1155,10 @@ impl BuWeiView {
         self.view.view(cx, ids!(assistant_area)).set_visible(cx, self.authorized && (self.creating || (self.assistant_expanded && self.tab==1 && self.has_activity)));
         self.view.button(cx, ids!(assistant_toggle)).set_visible(cx, self.authorized && self.has_activity && !self.creating);
         self.view.label(cx, ids!(assistant_heading)).set_text(cx, if self.creating {"先说说你的想法"} else {"活动助手"});
-        self.view.text_input(cx, ids!(requirement)).set_visible(cx, self.creating || (!view.organizer && self.participant_controls.register));
+        self.view.view(cx, ids!(requirement_field)).set_visible(cx, self.creating || (!view.organizer && self.participant_controls.register));
         self.view.label(cx, ids!(requirement_caption)).set_visible(cx, self.creating || (!view.organizer && self.participant_controls.register));
-        self.view.text_input(cx, ids!(clarification)).set_visible(cx, self.plan_id.is_some() || !view.advice.is_empty());
-        self.view.text_input(cx, ids!(question)).set_visible(cx, self.has_activity && !self.creating);
+        self.view.view(cx, ids!(clarification_field)).set_visible(cx, self.plan_id.is_some() || !view.advice.is_empty());
+        self.view.view(cx, ids!(question_field)).set_visible(cx, self.has_activity && !self.creating);
         self.view.button(cx, ids!(ask)).set_visible(cx, self.has_activity && !self.creating);
         self.view.button(cx, ids!(explain)).set_visible(cx, self.has_activity && !self.creating);
         self.view.label(cx, ids!(home_current)).set_visible(cx, false);

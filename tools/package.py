@@ -24,6 +24,12 @@ def stage(binary,destination,metadata=None):
         raise RuntimeError('Official kernel receipt does not match pinned sources')
     native=destination/'native';native.mkdir(parents=True)
     shutil.copy2(binary,native/'buwei-rinx-dual-host.exe')
+    loader_pin=pins.get('windows_loader')
+    if loader_pin and proof['rust_host'].endswith('windows-gnu'):
+        package=next(p for p in metadata['packages'] if p['name']==loader_pin['crate'] and p['version']==loader_pin['version'])
+        loader=pathlib.Path(package['manifest_path']).parent/loader_pin['file']
+        if digest(loader)!=loader_pin['sha256']:raise RuntimeError('Windows loader differs from the fixed SDK')
+        shutil.copy2(loader,native/'WebView2Loader.dll')
     shutil.copy2(kernel,native/kernel.name);shutil.copy2(receipt,native/receipt.name)
     (native/'Cargo.toml').write_text('[package]\nname="buwei-runtime"\nversion="'+version+'"\nedition="2024"\n','utf8')
     (native/'upstream').mkdir();shutil.copy2(ROOT/'.deps/octosense/desktop/upstream/makepad.json',native/'upstream/makepad.json')
