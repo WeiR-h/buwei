@@ -570,6 +570,13 @@ impl Controller {
         view
     }
     fn apply(&mut self, command: Command) -> Result<String> {
+        // Opening a previously verified local activity has no server side effect.
+        // Verify the live host session and grant; actual sends keep full preflight.
+        if let Command::SelectActivity(index)=&command {
+            if !self.host_session_current(){return Err("账号会话已变化，请重新登录并核对本人授权".into());}
+            self.g("read")?;
+            return self.apply_community(Command::SelectActivity(*index));
+        }
         if matches!(command, Command::QuickJoin | Command::JoinCardAndPrepare) {
             if matches!(command, Command::JoinCardAndPrepare) {
                 self.apply_community(Command::JoinCard)?;
