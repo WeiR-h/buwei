@@ -177,11 +177,19 @@ def check(package,output,show_window=False):
             while time.monotonic()<deadline:
                 try:
                     snap=json.loads(get('snap?all=1'));status=json.loads(get('s'))
+                    current=rendered_window(snap,status,release['version'])
+                    if current is None:
+                        time.sleep(.5);continue
+                    if current!=window:
+                        window=current;report['captured_window']=window
+                        report['window_reacquisitions']=report.get('window_reacquisitions',0)+1
                     heading=next((w['r'] for w in snap['s'] if w.get('w')==window and w.get('ty')=='Label' and '刚好有位' in w.get('t','') and w.get('v',1)!=0),None)
                     surface=next(w for w in status['w'] if w['i']==window)
                     raw=get('g?w='+str(window)+'&raw=1');visibility=frame_visibility(raw,heading,surface['sz'])
                 except urllib.error.HTTPError as error:
-                    if not remote_busy(error):raise
+                    # The owned Makepad surface can be replaced between /s
+                    # and /g. Reacquire its current ID within the same deadline.
+                    if error.code!=404 and not remote_busy(error):raise
                     report['frame_busy_replies']=report.get('frame_busy_replies',0)+1
                     time.sleep(.5);continue
                 if heading is None:visibility['visible']=False
