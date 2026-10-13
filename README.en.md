@@ -16,7 +16,7 @@ Participants use their own Rinx identities. Verified server receipts distinguish
 
 [Download for Windows](https://github.com/WeiR-h/buwei/releases/latest) · [Chinese guide](docs/FIRST-RUN.md) · [Privacy](docs/PRIVACY.md) · [Support](https://github.com/WeiR-h/buwei/issues)
 
-This branch is validating the **v0.2.9 preview**: persistent activity plans, organizer CSV exports, and activity selection within a Rinx community. Runtime downloads and walkthroughs use the corresponding fixed Release.
+This branch is validating the **v0.2.10 preview**: multiple organizers, public and community activities, full-event sign-up and fewer repeated steps. Each account can organize its own activities and join other people's activities. Runtime downloads and walkthroughs use the corresponding fixed Release.
 
 Organizers can describe an activity, edit its plan, confirm creation, and separately confirm community publication. Members select a published activity, request room access, and confirm their own registration. CSV exports use a verified organizer snapshot and protect text from spreadsheet formula interpretation. See the [community guide](docs/COMMUNITY.md).
 
@@ -28,7 +28,7 @@ Each Release includes a three-minute walkthrough made from reviewed captures of 
 
 ## Three steps to start
 
-1. Extract the complete runtime package, open the organizer or participant entry point and sign in to Rinx.
+1. Extract the complete runtime package, open the BuWei entry point and sign in to Rinx. The organizer and participant launchers keep separate profiles for testing two accounts.
 2. Open BuWei, verify your account and approve the permissions you need.
 3. Save your goal. Organizers create and share an activity; participants join from its card and confirm their own sign-up or invitation reply.
 
