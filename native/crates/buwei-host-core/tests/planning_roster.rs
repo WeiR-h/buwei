@@ -70,6 +70,32 @@ fn unknown_required_fields_are_questions_and_suggestions_do_not_create() {
     assert!(d.creation_digest(clock()).is_err());
     assert_eq!(d.status, PlanStatus::Draft);
     assert!(d.activity_id.is_none());
+
+    // Each missing required field must have a usable question. Existing answers
+    // remain intact while waiting, including the other end of a partial time range.
+    for field in ["title", "template", "start", "end", "location", "capacity"] {
+        let mut partial = basics();
+        match field {
+            "title" => partial.title.clear(),
+            "template" => partial.template.clear(),
+            "start" => partial.start.clear(),
+            "end" => partial.end.clear(),
+            "location" => partial.location.clear(),
+            "capacity" => partial.capacity = 0,
+            _ => unreachable!(),
+        }
+        let unchanged = partial.clone();
+        let questions = partial.questions();
+        assert_eq!(questions.len(), 1, "missing {field} needs one question");
+        assert!(partial.ready(clock()).is_err());
+        if field == "start" {
+            assert!(questions[0].contains("开始") && !questions[0].contains("结束"));
+        } else if field == "end" {
+            assert!(questions[0].contains("结束") && !questions[0].contains("开始"));
+        }
+        assert_eq!(partial, unchanged);
+    }
+    assert!(basics().questions().is_empty());
 }
 #[test]
 fn invalid_proposal_is_atomic_and_has_no_identity_or_permissions() {

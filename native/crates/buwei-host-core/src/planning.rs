@@ -55,8 +55,17 @@ impl ActivityBasics {
     }
     pub fn questions(&self) -> Vec<String> {
         let mut q = vec![];
-        if self.start.is_empty() || self.end.is_empty() {
-            q.push("活动哪天几点开始、几点结束？请补充仍缺少的时间。".into());
+        if self.title.trim().is_empty() {
+            q.push("这场活动叫什么名字？".into());
+        }
+        if self.template.is_empty() {
+            q.push("准备举办哪类活动：羽毛球、桌游、读书会，还是其他？".into());
+        }
+        match (self.start.is_empty(), self.end.is_empty()) {
+            (true, true) => q.push("活动哪天几点开始、哪天几点结束？".into()),
+            (true, false) => q.push("活动哪天几点开始？".into()),
+            (false, true) => q.push("活动哪天几点结束？".into()),
+            (false, false) => {}
         }
         if self.location.trim().is_empty() {
             q.push("活动在哪里举办？".into());
