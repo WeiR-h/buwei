@@ -59,7 +59,7 @@ script_mod! {
             nav_row_help:=NavRow{nav_help:=Nav{text:"账号与设置"}}
             Small{text:#(concat!("v",env!("CARGO_PKG_VERSION")," · Windows"))}
         }
-        workspace:=View{width:Fill height:Fill flow:Down padding:Inset{left:24 right:24 top:22 bottom:16} spacing:12
+        workspace:=View{width:Fill height:Fill flow:Down padding:Inset{left:24 right:24 top:22 bottom:96} spacing:12
             View{width:Fill height:Fit flow:Right spacing:18 align:Align{x:0.0 y:0.5}
                 View{width:Fill height:Fit flow:Down spacing:6
                     workspace_title:=Heading{text:"我的活动" draw_text.text_style.font_size:26}
