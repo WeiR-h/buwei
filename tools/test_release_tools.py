@@ -20,6 +20,37 @@ from formal_control import Control
 from capture_native import redaction_targets
 
 class ReleaseTools(unittest.TestCase):
+    def test_shutdown_socket_close_requires_zero_exit_without_resending_quit(self):
+        import http.client
+        for error in (ConnectionResetError('owned RPC closed'),http.client.RemoteDisconnected('closed')):
+            get=unittest.mock.Mock(side_effect=error);process=unittest.mock.Mock()
+            process.wait.return_value=0
+            self.assertFalse(normal_shutdown(process,get))
+            get.assert_called_once_with('quit');process.wait.assert_called_once_with(timeout=25)
+            process.wait.return_value=1
+            with self.assertRaises(AssertionError):normal_shutdown(process,unittest.mock.Mock(side_effect=error))
+            process.wait.side_effect=subprocess.TimeoutExpired('owned host',25)
+            with self.assertRaises(subprocess.TimeoutExpired):normal_shutdown(process,unittest.mock.Mock(side_effect=error))
+    def test_reviewed_host_patch_is_idempotent_and_rejects_extra_edits(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);host=root/'host';host.mkdir();patch_dir=root/'patches';patch_dir.mkdir()
+            source=host/'tool.rs';source.write_text('reviewed original\n','utf8')
+            subprocess.run(['git','init','-q',str(host)],check=True)
+            subprocess.run(['git','-C',str(host),'-c','core.autocrlf=false','add','tool.rs'],check=True)
+            subprocess.run(['git','-C',str(host),'-c','user.name=PatchTest','-c','user.email=patch@example.invalid','-c','commit.gpgsign=false','commit','-qm','fixture'],check=True)
+            source.write_text('reviewed extension\n','utf8')
+            patch_file=patch_dir/'extension.patch'
+            patch_file.write_bytes(subprocess.check_output(['git','-C',str(host),'diff','--binary']))
+            entry={'path':'patches/extension.patch','sha256':hashlib.sha256(patch_file.read_bytes()).hexdigest(),'changed_files':['tool.rs']}
+            source.write_text('reviewed original\n','utf8')
+            with patch.object(bootstrap,'ROOT',root):
+                bootstrap.reviewed_host_patches(host,[entry],apply=True)
+                bootstrap.reviewed_host_patches(host,[entry],apply=True)
+                self.assertEqual(source.read_text('utf8'),'reviewed extension\n')
+                source.write_text('unreviewed mutation\n','utf8')
+                with self.assertRaisesRegex(RuntimeError,'preserved'):
+                    bootstrap.reviewed_host_patches(host,[entry],apply=True)
+                self.assertEqual(source.read_text('utf8'),'unreviewed mutation\n')
     def test_v030_cannot_replace_system_chat_and_cross_machine_evidence_with_local_checks(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=pathlib.Path(tmp);evidence=root/'local.json';path=root/'acceptance.json'

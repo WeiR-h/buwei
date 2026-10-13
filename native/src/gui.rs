@@ -2162,6 +2162,7 @@ impl ServiceExecutor for BuWeiExecutor {
         super::planning_service::manifest()
     }
     fn execute(&mut self, _cx: &mut Cx, call: &ServiceCall) -> ExecOutcome {
+        self.pending.retain(|_, token| !token.load(std::sync::atomic::Ordering::SeqCst));
         let cancelled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         match super::host::plan_tool(self.scope, call, self.replies.clone(), cancelled.clone()) {
             Ok(()) => {

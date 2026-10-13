@@ -8,6 +8,36 @@ def call(*args,cwd=None):
     subprocess.run(list(args),cwd=cwd,check=True)
 def git(path,*args):
     return subprocess.check_output(['git','-C',str(path),*args],text=True).strip()
+
+def reviewed_host_patches(host,entries,apply=False):
+    paths=sorted({path for entry in entries for path in entry['changed_files']})
+    if set(git(host,'diff','--name-only').splitlines())-set(paths):
+        raise RuntimeError('Modified official OctoSense host preserved; fixed sources required.')
+    if not entries:return
+    for entry in entries:
+        patch=ROOT/entry['path']
+        if hashlib.sha256(patch.read_bytes()).hexdigest()!=entry['sha256']:
+            raise RuntimeError('OctoSense product patch hash mismatch')
+        if subprocess.run(['git','-C',str(host),'apply','--reverse','--check',str(patch)],capture_output=True).returncode:
+            if not apply:raise RuntimeError('Modified official OctoSense host preserved; patch does not match.')
+            if git(host,'diff','--name-only','--',*entry['changed_files']):
+                raise RuntimeError('Modified official OctoSense host preserved; unreviewed patch edits.')
+            call('git','-C',str(host),'apply','--check',str(patch))
+            call('git','-C',str(host),'apply',str(patch))
+    if git(host,'diff','--name-only').splitlines()!=paths:
+        raise RuntimeError('OctoSense product patch paths differ; preserved.')
+    private=ROOT/'.run';private.mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=private,prefix='verify-octosense-') as folder:
+        review=pathlib.Path(folder).resolve()
+        if not review.is_relative_to(private.resolve()):raise RuntimeError('Host review directory outside workspace')
+        call('git','init','-q',str(review))
+        for path in paths:
+            target=review/path;target.parent.mkdir(parents=True,exist_ok=True)
+            target.write_bytes(subprocess.check_output(['git','-C',str(host),'show','HEAD:'+path]))
+        for entry in entries:call('git','-C',str(review),'apply',str(ROOT/entry['path']))
+        for path in paths:
+            if (host/path).read_bytes().replace(b'\r\n',b'\n')!=(review/path).read_bytes().replace(b'\r\n',b'\n'):
+                raise RuntimeError('OctoSense product patch content differs; preserved.')
 def main():
     # Windows Git defaults may convert reviewed patch bytes to CRLF. Override
     # only this process and its children; do not change the user's Git settings.
@@ -22,7 +52,10 @@ def main():
     if host.exists():
         if not (host/'.git').exists():raise RuntimeError('Existing dependency snapshot preserved. A clean checkout is required for reproducible bootstrap.')
         if git(host,'rev-parse','HEAD')!=PIN:raise RuntimeError('Existing dependency revision differs; preserved.')
-        if git(host,'status','--porcelain','--untracked-files=no'):raise RuntimeError('Modified official OctoSense host preserved; fixed sources required.')
+        if git(host,'status','--porcelain','--untracked-files=no'):
+            lock=ROOT/'dependencies.lock.json'
+            if not lock.is_file():raise RuntimeError('Modified official OctoSense host preserved; fixed sources required.')
+            reviewed_host_patches(host,json.loads(lock.read_text('utf8')).get('octosense_product_patches',[]))
     else:
         cache=args.source_cache/'OctoSense' if args.source_cache else None
         if cache and cache.exists():call('git','clone','--shared','--no-checkout',str(cache),str(host))
@@ -32,6 +65,7 @@ def main():
     setup+=['--hub',str(args.source_cache.resolve())] if args.source_cache else ['--no-hub']
     # Verify the official overlay before applying the explicitly listed product patch.
     expected=json.loads((ROOT/'dependencies.lock.json').read_text('utf8'))
+    reviewed_host_patches(host,expected.get('octosense_product_patches',[]),apply=True)
     framework=host/'.sources/makepad';patch=ROOT/'patches/makepad-unicode-smallvec.patch'
     product_patches=[{'path':'patches/makepad-unicode-smallvec.patch','sha256':expected['product_patch_sha256'],'changed_files':['libs/unicode/unicode-bidi/Cargo.toml']},*expected.get('additional_product_patches',[])]
     for entry in product_patches:

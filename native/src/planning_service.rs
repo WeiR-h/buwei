@@ -37,6 +37,17 @@ pub(crate) fn manifest() -> ServiceManifest {
         .with_tool(ToolDef::new("prepare_activity_plan","将本人原话整理成可编辑策划稿。新稿 draft_id/revision=null；先读取原稿再修改。updates只含本次提及的基础字段，source逐字引用text。日期为北京时间YYYY-MM-DD HH:MM，capacity为数字字符串，template限badminton/boardgame/reading/custom。流程、准备、招募文案、提醒只作建议。缺项由应用追问；工具不会创建、分享或报名。",proposal.to_string(),Risk::Act).with_preview())
         .with_tool(ToolDef::new("get_activity_plan","读取本人当前策划稿与版本，供修改前核对。draft_id=null读取当前稿。",read.to_string(),Risk::Read))
 }
+pub(crate) const SYSTEM_TOOLS: &[(&str, &str)] = &[
+    ("buwei", "buwei.prepare_activity_plan"),
+    ("buwei", "buwei.get_activity_plan"),
+];
+pub(crate) fn system_declarations() -> Vec<Value> {
+    manifest().tools.into_iter().map(|tool| {
+        let name = format!("buwei.{}", tool.name);
+        let risk = if name == "buwei.get_activity_plan" { "read" } else { "act" };
+        json!({"name":name,"description":tool.description,"input_schema":serde_json::from_str::<Value>(&tool.parameters).expect("constant plan schema"),"risk":risk,"confirm":"host","shareable":true})
+    }).collect()
+}
 pub(crate) fn parse(call: &ServiceCall, scope: InstanceScope) -> Result<Request> {
     if call.args.len() > 18000 || call.call_id.len() > 160 {
         return Err("工具输入超出范围".into());
@@ -73,6 +84,7 @@ pub(crate) fn run(c: &mut controller::Controller, call: Call) -> Option<controll
     let result = c.planning_tool(&call.actor, call.request);
     let reply=match result {Ok(p)=>ToolResult::ok(&call.call_id,"策划稿已准备，请在补位中核对基础信息并另行确认创建。","本机策划稿").with_data(json!({"draft_id":p.id,"revision":p.revision,"goal":p.goal,"basics":p.basics,"agenda":p.agenda,"preparation":p.preparation,"recruitment":p.recruitment,"reminders":p.reminders,"questions":p.basics.questions(),"requires_user_confirmation":true,"matrix_actions_performed":0}).to_string()).with_preview(),Err(e)=>ToolResult::refused(&call.call_id,e)};
     call.replies.reply(reply);
+    call.cancelled.store(true, Ordering::SeqCst);
     Some(c.view())
 }
 #[cfg(test)]
@@ -95,5 +107,23 @@ mod tests {
             ..call
         };
         assert!(parse(&call, s).is_err());
+    }
+    #[test]
+    fn system_tools_are_only_scoped_draft_tools_with_host_confirmation() {
+        let declarations=system_declarations();
+        assert_eq!(declarations.len(),2);
+        for declaration in declarations {
+            assert!(SYSTEM_TOOLS.iter().any(|(_,name)| *name==declaration["name"].as_str().unwrap()));
+            assert_eq!(declaration["confirm"],"host");
+            assert_eq!(declaration["input_schema"]["additionalProperties"],false);
+            assert!(declaration["input_schema"]["properties"].get("account").is_none());
+        }
+    }
+    #[test]
+    fn packaged_system_tool_grants_reject_unlinked_and_foreign_owners() {
+        assert_eq!(octosense_shell::ext::system_tools_given(SYSTEM_TOOLS, &["buwei"]).len(), 2);
+        assert!(octosense_shell::ext::system_tools_given(SYSTEM_TOOLS, &[]).is_empty());
+        let forged=[("buwei","terminal.run"),("other","other.read"),("buwei","buwei.nested.run")];
+        assert!(octosense_shell::ext::system_tools_given(&forged,&["buwei"]).is_empty());
     }
 }

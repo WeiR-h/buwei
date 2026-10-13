@@ -38,6 +38,7 @@ Rinx 管理登录会话。补位从 Rinx 当前客户端取得账号，并向 `h
 ## 3. 密钥与登录会话
 
 - **Kimi Code key：** 配置窗口在本机使用 Windows DPAPI `CurrentUser` 加密，写入资料目录 `.secrets/kimi-code.dpapi`。配置时不联网；请求模型时由宿主解密到内存，以 `Authorization: Bearer` 通过 HTTPS 发给固定的 Kimi Code 地址。传输代码不跟随重定向。DPAPI 保护静态文件，同一 Windows 用户下有权限的程序仍可能解密，不能替代账号与电脑访问保护。旧 `.secrets/minimax-cn.dpapi` 保留但不供 Kimi 请求使用。
+- **系统智能体模型：** OctoSense 的系统聊天使用宿主单独选择的提供商与凭据，保存方式以宿主设置为准。补位配置工具不会向其模型配置写入明文密钥。系统聊天的模型用量由宿主管理；补位应用内的本机调用记录与它分别管理。策划工具只返回本人策划内容，实际账号与业务授权由补位宿主核验。
 - **Rinx 会话：** 固定上游把 access token、refresh token（如有）及数据库 passphrase 序列化为 JSON，保存在 `data/v<版本>/rinx/<处理后的账号>/persistent_state/session`。该会话文件没有 DPAPI 加密；Windows 依靠资料目录继承的文件权限。Rinx 使用 passphrase 配置 SDK 存储，但 passphrase 同时保存在会话文件中，不能把整个目录视为加密备份。
 - **本机连接凭据：** Octos 外部连接描述文件含 token，启用时位于 `%LOCALAPPDATA%\OctoSense\client-connection.json`。它依靠目录文件权限保护，不使用 DPAPI。宿主连接 token 保留在进程内。
 

@@ -1,5 +1,5 @@
 """Start an actual packaged native host on a fresh profile and system-only PATH."""
-import argparse,hashlib,json,os,pathlib,re,socket,struct,subprocess,tempfile,time,urllib.error,urllib.request,zlib
+import argparse,hashlib,http.client,json,os,pathlib,re,socket,struct,subprocess,tempfile,time,urllib.error,urllib.request,zlib
 
 def startup_environment(source,show_window=False):
     """Isolate a fresh test home; CI can show its measured native surface.
@@ -46,6 +46,10 @@ def normal_shutdown(process,get):
     try:get('quit')
     except urllib.error.HTTPError as error:
         if not remote_busy(error):raise
+        acknowledged=False
+    except (ConnectionResetError, http.client.RemoteDisconnected):
+        # A fast normal exit can close the owned RPC socket before its reply.
+        # Keep the original Quit, and require its process's zero exit below.
         acknowledged=False
     if process.wait(timeout=25)!=0:raise AssertionError('Native host did not exit normally')
     return acknowledged
