@@ -137,4 +137,18 @@ mod tests {
         catalog.declare("buwei",system_declarations());
         assert_eq!(catalog.entry("buwei","buwei.get_activity_plan").unwrap()["risk"],"read");
     }
+    #[test]
+    fn tool_enums_have_explicit_types_required_by_k3() {
+        fn verify(value:&Value) {
+            match value {
+                Value::Object(object) => {
+                    if object.contains_key("enum") {assert!(object.contains_key("type"),"K3 tool enums require an explicit type");}
+                    for child in object.values(){verify(child);}
+                }
+                Value::Array(values) => for child in values {verify(child);},
+                _ => {}
+            }
+        }
+        for declaration in system_declarations(){verify(&declaration["input_schema"]);}
+    }
 }

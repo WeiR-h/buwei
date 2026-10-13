@@ -44,7 +44,7 @@ pub(crate) fn plan_request(
 }
 pub(crate) fn plan_properties() -> Value {
     let lines = json!({"type":"array","maxItems":8,"items":{"type":"string","maxLength":600}});
-    json!({"updates":{"type":"array","maxItems":7,"items":{"type":"object","additionalProperties":false,"required":["field","value","source"],"properties":{"field":{"enum":buwei_host_core::planning::BASIC_FIELDS},"value":string(),"source":string()}}},"agenda":lines,"preparation":lines,"recruitment":{"type":"string","maxLength":1600},"reminders":lines})
+    json!({"updates":{"type":"array","maxItems":7,"items":{"type":"object","additionalProperties":false,"required":["field","value","source"],"properties":{"field":{"type":"string","enum":buwei_host_core::planning::BASIC_FIELDS},"value":string(),"source":string()}}},"agenda":lines,"preparation":lines,"recruitment":{"type":"string","maxLength":1600},"reminders":lines})
 }
 pub(crate) fn prepare_plan(
     host: &ModelHost,
