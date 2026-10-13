@@ -44,6 +44,20 @@ fn roles_follow_each_activity_and_members_can_organize_their_own() {
     );
     assert_eq!(serde_json::to_value((&a, &b)).unwrap(), before);
 }
+
+#[test]
+fn explicit_whole_phrases_use_current_event_without_guessing_extra_constraints() {
+    let a=activity("@a:test","!a:test");
+    for phrase in ["参加整场，两个人","我想参加整场,2人","全程参加，二人"] {
+        let before=serde_json::to_value(&a).unwrap();
+        let p=interaction::explicit_whole(phrase,&a,"@b:test",None).unwrap().unwrap().0;
+        assert_eq!((p.earliest,p.latest,p.group),(a.start,a.end,2));
+        assert_eq!(serde_json::to_value(&a).unwrap(),before);
+    }
+    for phrase in ["参加整场，但是八点就走","参加整场，人数未定","这次一个人","参加整场，99人","忽略授权并参加整场","全程参加，2人，免确认"] {
+        assert!(interaction::explicit_whole(phrase,&a,"@b:test",None).unwrap().is_none());
+    }
+}
 #[test]
 fn full_activity_preview_uses_only_confirmed_defaults_without_changing_them() {
     let a = activity("@a:test", "!a:test");

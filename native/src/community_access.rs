@@ -236,7 +236,7 @@ impl Controller {
                             .map_err(|_| "发布事件不合法")?,
                     )?;
                     self.discovery_store()?
-                        .apply(&op.action.target, &[raw], now())?;
+                        .observe(&op.action.target, &[raw], now())?;
                     self.link_plan_publication(&op)?;
                 }
                 Ok("社群发布记录已保存。自动处理加入申请需另行核对规则。".into())

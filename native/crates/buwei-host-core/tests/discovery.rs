@@ -20,6 +20,38 @@ fn cards_do_not_grant_membership_and_forged_identity_is_rejected() {
     e["content"]["org.buwei.community"]["protocol"] = 9.into();
     assert!(Listing::parse(&e, "!community:test", clock()).is_err());
 }
+
+#[test]
+fn observing_own_publication_does_not_skip_other_organizers_messages() {
+    let path=std::env::temp_dir().join(format!("buwei-sparse-{}.db",action_receipts::new_id()));
+    let mut s=DiscoveryStore::open(&path,"@member:test").unwrap();
+    s.apply("!community:test",&[json!({"event_id":"$before"})],clock()).unwrap();
+    let first=event("$earlier");let mut own=event("$own");
+    own["content"]["org.buwei.community"]["activity_id"]="b".repeat(32).into();
+    s.observe("!community:test",&[own.clone()],clock()).unwrap();
+    assert_eq!(s.cursor("!community:test").unwrap().as_deref(),Some("$before"));
+    s.apply("!community:test",&[first,own],clock()).unwrap();
+    assert_eq!(s.list().unwrap().len(),2);
+    drop(s);
+    let s=DiscoveryStore::open(&path,"@member:test").unwrap();
+    assert_eq!(s.cursor("!community:test").unwrap().as_deref(),Some("$own"));
+    drop(s);let _=std::fs::remove_file(path);
+}
+
+#[test]
+fn old_sync_checkpoint_replays_without_losing_existing_request_receipts() {
+    let path=std::env::temp_dir().join(format!("buwei-cursor-upgrade-{}.db",action_receipts::new_id()));
+    let mut s=DiscoveryStore::open(&path,"@member:test").unwrap();
+    let l=Listing::parse(&event("$card"),"!community:test",clock()).unwrap();
+    let events=vec![event("$card"),request(&l)];s.apply("!community:test",&events,clock()+2).unwrap();
+    s.set_request("$request","unknown",Some("original-operation")).unwrap();drop(s);
+    let db=rusqlite::Connection::open(&path).unwrap();db.execute("UPDATE cursor_versions SET version=1",[]).unwrap();drop(db);
+    let mut s=DiscoveryStore::open(&path,"@member:test").unwrap();
+    assert!(s.cursor("!community:test").unwrap().is_none());
+    s.apply("!community:test",&events,clock()+2).unwrap();
+    let rows=s.requests().unwrap();assert_eq!(rows.len(),1);assert_eq!(rows[0].1,"unknown");assert_eq!(rows[0].2.as_deref(),Some("original-operation"));
+    drop(s);let _=std::fs::remove_file(path);
+}
 #[test]
 fn request_binds_original_event_actor_and_activity() {
     let l = Listing::parse(&event("$card"), "!community:test", clock()).unwrap();

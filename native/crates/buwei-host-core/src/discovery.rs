@@ -258,6 +258,14 @@ impl DiscoveryStore {
         }
         let db = Connection::open(path).map_err(|_| "社群资料不可打开")?;
         db.execute_batch("PRAGMA journal_mode=WAL;PRAGMA synchronous=FULL;CREATE TABLE IF NOT EXISTS listings(account TEXT NOT NULL,key TEXT NOT NULL,body TEXT NOT NULL,PRIMARY KEY(account,key));CREATE TABLE IF NOT EXISTS cursors(account TEXT NOT NULL,room TEXT NOT NULL,event TEXT NOT NULL,PRIMARY KEY(account,room));CREATE TABLE IF NOT EXISTS entry_requests(account TEXT NOT NULL,event TEXT NOT NULL,body TEXT NOT NULL,status TEXT NOT NULL,operation TEXT,PRIMARY KEY(account,event));").map_err(|_|"社群资料不可初始化")?;
+        db.execute_batch("CREATE TABLE IF NOT EXISTS cursor_versions(account TEXT PRIMARY KEY,version INTEGER NOT NULL);").map_err(|_|"同步版本不可初始化")?;
+        let version: Option<u8>=db.query_row("SELECT version FROM cursor_versions WHERE account=?1",[account],|r|r.get(0)).optional().map_err(|_|"同步版本不可读取")?;
+        if version!=Some(2) {
+            db.execute_batch("BEGIN IMMEDIATE").map_err(|_|"同步进度不可升级")?;
+            let upgraded=(|| {db.execute("DELETE FROM cursors WHERE account=?1",[account])?;db.execute("INSERT INTO cursor_versions VALUES(?1,2) ON CONFLICT(account) DO UPDATE SET version=2",[account])?;Ok::<_,rusqlite::Error>(())})();
+            if upgraded.is_err(){let _=db.execute_batch("ROLLBACK");return Err("同步进度升级失败，旧记录保留".into());}
+            db.execute_batch("COMMIT").map_err(|_|"同步进度升级不可保存")?;
+        }
         Ok(Self {
             db,
             account: account.into(),
@@ -295,6 +303,12 @@ impl DiscoveryStore {
             .map_err(|_| "社群同步进度不可读取".into())
     }
     pub fn apply(&mut self, room: &str, events: &[Value], clock: u64) -> Result<()> {
+        self.apply_events(room,events,clock,true)
+    }
+    pub fn observe(&mut self, room: &str, events: &[Value], clock: u64) -> Result<()> {
+        self.apply_events(room,events,clock,false)
+    }
+    fn apply_events(&mut self, room: &str, events: &[Value], clock: u64, advance_cursor: bool) -> Result<()> {
         let existing = self.list()?;
         let mut listings = existing;
         for e in events.iter().filter(|e| {
@@ -336,7 +350,7 @@ impl DiscoveryStore {
                 }
             }
         }
-        if let Some(last) = events.last().and_then(|v| v["event_id"].as_str()) {
+        if let Some(last) = events.last().and_then(|v| v["event_id"].as_str()).filter(|_|advance_cursor) {
             tx.execute("INSERT INTO cursors VALUES(?1,?2,?3) ON CONFLICT(account,room) DO UPDATE SET event=excluded.event",params![self.account,room,last]).map_err(|_|"同步进度不可保存")?;
         }
         tx.commit().map_err(|_| "社群资料不可保存")?;

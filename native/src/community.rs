@@ -465,7 +465,7 @@ impl Controller {
                 requirement,
                 answer,
             } => {
-                let g = self.g("model")?;
+                self.g("participate")?;
                 let a = self.activity()?;
                 let mut turns = self
                     .dated_dialogue
@@ -482,13 +482,17 @@ impl Controller {
                     return Err("最多补充三轮，请将完整信息重新填入需求".into());
                 }
                 let supplement = turns.join("\n后续更正：");
-                let draft = super::super::model::recommend_dated(
+                let personal=self.intent_store().and_then(|s|s.load()).ok().map(|s|s.preferences);
+                let known=if turns.is_empty(){buwei_host_core::interaction::explicit_whole(&requirement,&a,&self.actor(),personal.as_ref())?}else{None};
+                let draft = if let Some((p,source))=known {
+                    DatedDraft{earliest:Some(calendar::display(p.earliest)),latest:Some(calendar::display(p.latest)),group:Some(p.group),questions:vec![],explanation:format!("本次明确要求参加整场；{source}。请核对本人报名预览。")}
+                }else{super::super::model::recommend_dated(
                     &self.model,
-                    &g,
+                    &self.g("model")?,
                     &a,
                     &requirement,
                     &supplement,
-                )?;
+                )?};
                 self.dated_dialogue = Some((requirement.clone(), turns));
                 self.ai_result = format!("{}\n{}", draft.explanation, draft.questions.join("\n"));
                 self.dated_suggestion = Some((
