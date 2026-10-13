@@ -4,7 +4,7 @@ The reserve is the same 16 MiB requested in .cargo/config.toml. Post-link
 normalization avoids target-specific flags being replaced by path-remap flags.
 Only the reserve and PE checksum may change; code and resources stay identical.
 """
-import argparse,hashlib,json,pathlib,struct
+import argparse,array,hashlib,json,pathlib,struct,sys
 
 def normalize(file,reserve=16*1024*1024):
     original=file.read_bytes();data=bytearray(original)
@@ -23,14 +23,16 @@ def normalize(file,reserve=16*1024*1024):
     struct.pack_into('<Q',data,optional+72,reserve)
     checksum_offset=optional+64
     struct.pack_into('<I',data,checksum_offset,0)
-    total=0
-    for offset in range(0,len(data),2):
-        total+=data[offset]+((data[offset+1] if offset+1<len(data) else 0)<<8)
-        total=(total&0xffff)+(total>>16)
-    checksum=((total&0xffff)+(total>>16))+len(data)
+    words=array.array('H');words.frombytes(memoryview(data)[:len(data)//2*2])
+    if sys.byteorder!='little':words.byteswap()
+    total=sum(words)+(data[-1] if len(data)%2 else 0)
+    while total>>16:total=(total&0xffff)+(total>>16)
+    checksum=total+len(data)
     struct.pack_into('<I',data,checksum_offset,checksum&0xffffffff)
-    allowed=set(range(optional+72,optional+80))|set(range(checksum_offset,checksum_offset+4))
-    if any(a!=b and i not in allowed for i,(a,b) in enumerate(zip(original,data))):raise AssertionError('Executable code or resources changed')
+    start=0
+    for stop,end in sorted([(optional+72,optional+80),(checksum_offset,checksum_offset+4)])+[(len(data),len(data))]:
+        if hashlib.sha256(memoryview(original)[start:stop]).digest()!=hashlib.sha256(memoryview(data)[start:stop]).digest():raise AssertionError('Executable code or resources changed')
+        start=end
     if data!=original:file.write_bytes(data)
     return {'stack_reserve_before':old,'stack_reserve_bytes':reserve,'stack_commit_bytes':commit,'code_and_resources_unchanged':True,'unsigned_pe':True,'binary_sha256':hashlib.sha256(data).hexdigest()}
 

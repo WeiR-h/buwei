@@ -5,11 +5,11 @@ Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Security
 $buweiPrivateRoot=[IO.Path]::GetFullPath($ProfileDirectory)
 $buweiForm=New-Object Windows.Forms.Form
-$buweiForm.Text='补位 · MiniMax 本机配置'
+$buweiForm.Text='补位 · Kimi Code · K3 本机配置'
 $buweiForm.ClientSize=New-Object Drawing.Size(640,220)
 $buweiForm.StartPosition='CenterScreen'
 $buweiLabel=New-Object Windows.Forms.Label
-$buweiLabel.Text='填写 minimax.cn 的普通 API key，仅加密保存在当前 Windows 用户下。'
+$buweiLabel.Text='填写 Kimi Code 会员 API Key，仅加密保存在当前 Windows 用户下。'
 $buweiLabel.Location=New-Object Drawing.Point(20,20)
 $buweiLabel.Size=New-Object Drawing.Size(600,30)
 $buweiInput=New-Object Windows.Forms.TextBox
@@ -30,12 +30,12 @@ $buweiButton.Add_Click({
   $buweiSecretDir=Join-Path $buweiPrivateRoot '.secrets'
   New-Item -ItemType Directory -Path $buweiSecretDir -Force | Out-Null
   $buweiClear=[Text.Encoding]::UTF8.GetBytes($buweiInput.Text)
-  try{$buweiSealed=[Security.Cryptography.ProtectedData]::Protect($buweiClear,[Text.Encoding]::UTF8.GetBytes('buwei/minimax-cn/v1'),[Security.Cryptography.DataProtectionScope]::CurrentUser)}finally{[Array]::Clear($buweiClear,0,$buweiClear.Length);$buweiInput.Clear()}
-  $buweiPath=Join-Path $buweiSecretDir 'minimax-cn.dpapi'
+  try{$buweiSealed=[Security.Cryptography.ProtectedData]::Protect($buweiClear,[Text.Encoding]::UTF8.GetBytes('buwei/kimi-code/v1'),[Security.Cryptography.DataProtectionScope]::CurrentUser)}finally{[Array]::Clear($buweiClear,0,$buweiClear.Length);$buweiInput.Clear()}
+  $buweiPath=Join-Path $buweiSecretDir 'kimi-code.dpapi'
   $buweiTemporary=$buweiPath+'.'+[Guid]::NewGuid().ToString('N')+'.tmp'
   [IO.File]::WriteAllBytes($buweiTemporary,$buweiSealed)
   if([IO.File]::Exists($buweiPath)){[IO.File]::Replace($buweiTemporary,$buweiPath,$null)}else{[IO.File]::Move($buweiTemporary,$buweiPath)}
-  $buweiStatus.Text='已加密保存。返回补位即可主动调用 MiniMax-M3，未进行网络调用。'
+  $buweiStatus.Text='已加密保存。返回补位即可主动调用 Kimi K3，未进行网络调用。'
  }catch{$buweiStatus.Text='配置未保存。请检查密钥及目录权限，原配置保留。'}
 })
 $buweiForm.Controls.AddRange(@($buweiLabel,$buweiInput,$buweiButton,$buweiStatus))

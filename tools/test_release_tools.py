@@ -1,7 +1,7 @@
 import json,pathlib,sqlite3,tempfile,unittest,struct,subprocess,sys,hashlib,os,shutil,zlib,zipfile,io,urllib.error
 from contextlib import closing
 from migrate import migrate
-from release_gate import check,REQUIRED,COMMUNITY_REQUIRED,INTENT_STAGES
+from release_gate import check,REQUIRED,COMMUNITY_REQUIRED,INTENT_STAGES,READING_REQUIRED
 from startup_check import inspect_log,rendered_window,frame_visibility
 from startup_check import check as check_startup
 from startup_check import normal_shutdown,remote_busy,deny_optional_rinx_agent,startup_environment
@@ -9,7 +9,7 @@ from package_scan import content_findings,BINARY_PUBLIC_LITERALS
 from pe_stack import normalize
 from fault_acceptance import FaultSuite
 from dual_acceptance import Suite
-from verify_public_download import formal_checksums,check_release_metadata,downloaded_runtime_startup
+from verify_public_download import formal_checksums,check_release_metadata,downloaded_runtime_startup,asset_format
 from unittest.mock import patch
 from intent_acceptance import IntentSuite
 import stage_release
@@ -20,6 +20,43 @@ from formal_control import Control
 from capture_native import redaction_targets
 
 class ReleaseTools(unittest.TestCase):
+    def test_shutdown_socket_close_requires_zero_exit_without_resending_quit(self):
+        import http.client
+        for error in (ConnectionResetError('owned RPC closed'),http.client.RemoteDisconnected('closed')):
+            get=unittest.mock.Mock(side_effect=error);process=unittest.mock.Mock()
+            process.wait.return_value=0
+            self.assertFalse(normal_shutdown(process,get))
+            get.assert_called_once_with('quit');process.wait.assert_called_once_with(timeout=25)
+            process.wait.return_value=1
+            with self.assertRaises(AssertionError):normal_shutdown(process,unittest.mock.Mock(side_effect=error))
+            process.wait.side_effect=subprocess.TimeoutExpired('owned host',25)
+            with self.assertRaises(subprocess.TimeoutExpired):normal_shutdown(process,unittest.mock.Mock(side_effect=error))
+    def test_reviewed_host_patch_is_idempotent_and_rejects_extra_edits(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);host=root/'host';host.mkdir();patch_dir=root/'patches';patch_dir.mkdir()
+            source=host/'tool.rs';source.write_text('reviewed original\n','utf8')
+            subprocess.run(['git','init','-q',str(host)],check=True)
+            subprocess.run(['git','-C',str(host),'-c','core.autocrlf=false','add','tool.rs'],check=True)
+            subprocess.run(['git','-C',str(host),'-c','user.name=PatchTest','-c','user.email=patch@example.invalid','-c','commit.gpgsign=false','commit','-qm','fixture'],check=True)
+            source.write_text('reviewed extension\n','utf8')
+            patch_file=patch_dir/'extension.patch'
+            patch_file.write_bytes(subprocess.check_output(['git','-C',str(host),'diff','--binary']))
+            entry={'path':'patches/extension.patch','sha256':hashlib.sha256(patch_file.read_bytes()).hexdigest(),'changed_files':['tool.rs']}
+            source.write_text('reviewed original\n','utf8')
+            with patch.object(bootstrap,'ROOT',root):
+                bootstrap.reviewed_host_patches(host,[entry],apply=True)
+                bootstrap.reviewed_host_patches(host,[entry],apply=True)
+                self.assertEqual(source.read_text('utf8'),'reviewed extension\n')
+                source.write_text('unreviewed mutation\n','utf8')
+                with self.assertRaisesRegex(RuntimeError,'preserved'):
+                    bootstrap.reviewed_host_patches(host,[entry],apply=True)
+                self.assertEqual(source.read_text('utf8'),'unreviewed mutation\n')
+    def test_v030_cannot_replace_system_chat_and_cross_machine_evidence_with_local_checks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);evidence=root/'local.json';path=root/'acceptance.json'
+            evidence.write_text(json.dumps({'version':'0.3.0','passed':True,'actual_system_chat_call':False,'account_scope_verified':True,'unauthorized_actions':0,'distinct_identities':2,'windows_machines':1,'actual_user_confirmation':False}),'utf8')
+            path.write_text(json.dumps({'version':'0.3.0','scoped_agent_planning':{'passed':True,'evidence':evidence.name},'cross_machine_community_trial':{'passed':True,'evidence':evidence.name}}),'utf8')
+            result=check(path);self.assertIn('scoped_agent_planning',result['missing_or_failed']);self.assertIn('cross_machine_community_trial',result['missing_or_failed'])
     def test_public_download_uses_visible_fresh_startup_and_requires_actual_native_frame(self):
         package=pathlib.Path('downloaded/windows');evidence=pathlib.Path('downloaded/runtime-evidence')
         valid={'passed':True,'version':'0.2.3','actual_native_render':True}
@@ -214,7 +251,15 @@ class ReleaseTools(unittest.TestCase):
             path.write_text(json.dumps(report),'utf8')
             checked=check(path)
             self.assertFalse(checked['stable_release_allowed'])
-            self.assertEqual(set(checked['missing_or_failed']),{name for names in INTENT_STAGES.values() for name in names})
+            self.assertEqual(set(checked['missing_or_failed']),{name for names in INTENT_STAGES.values() for name in names}|set(READING_REQUIRED))
+    def test_reading_gate_rejects_controlled_loops_as_a_three_identity_user_trial(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);path=root/'acceptance.json';file=root/'trial.json'
+            file.write_text(json.dumps({'version':'0.2.5','passed':True,'distinct_identities':2,'actual_user_trial':False}),'utf8')
+            path.write_text(json.dumps({'version':'0.2.5','three_identity_reading_trial':{'passed':True,'evidence':file.name}}),'utf8')
+            self.assertIn('three_identity_reading_trial',check(path)['missing_or_failed'])
+            file.write_text(json.dumps({'version':'0.2.5','passed':True,'distinct_identities':3,'actual_user_trial':True}),'utf8')
+            self.assertNotIn('three_identity_reading_trial',check(path)['missing_or_failed'])
     def test_startup_refuses_wallpaper_or_uniform_background_instead_of_title(self):
         def png(rows):
             def chunk(kind,body):return struct.pack('>I',len(body))+kind+body+struct.pack('>I',zlib.crc32(kind+body)&0xffffffff)
@@ -242,6 +287,16 @@ class ReleaseTools(unittest.TestCase):
         current=lines.replace('0.2.0','0.2.3')
         with self.assertRaises(ValueError):formal_checksums(current,'0.2.3')
         self.assertEqual(len(formal_checksums(current+'c'*64+'  PRIVACY.md\n','0.2.3')),3)
+
+    def test_new_release_keeps_exact_three_assets_and_bundled_privacy(self):
+        runtime,demo,sums,attachment=asset_format('0.2.11')
+        self.assertFalse(attachment)
+        lines='a'*64+'  '+runtime+'\n'+'b'*64+'  '+demo+'\n'
+        self.assertEqual(set(formal_checksums(lines,'0.2.11')),{runtime,demo})
+        release={'draft':False,'prerelease':False,'assets':[{'name':x} for x in (runtime,demo,sums)]}
+        check_release_metadata(release,{runtime,demo,sums})
+        for invalid in (lines+'c'*64+'  PRIVACY.md\n',lines.replace('Demo','demo'),lines.splitlines()[0]+'\n'):
+            with self.assertRaises(ValueError):formal_checksums(invalid,'0.2.11')
     def test_startup_capture_selects_visible_app_and_rejects_hidden_labels(self):
         windows={'w':[{'i':0,'sz':[1024,720]},{'i':1,'sz':[1400,900]}]}
         labels=[{'w':1,'ty':'Label','r':[30,100+n*25,400,20],'t':t} for n,t in enumerate(['补位','v0.2.0','未授权'])]
@@ -316,10 +371,10 @@ class ReleaseTools(unittest.TestCase):
         self.assertIn('private_key',content_findings(material,True))
         self.assertIn('private_key_utf16',content_findings(material.decode().encode('utf-16le'),True))
     def test_startup_accepts_only_the_pinned_deferred_vm_guard(self):
-        line='[E] public/makepad/widgets/src/widget_async.rs:839:9 - BUG: update_global_ui_handle while isolate SplashVmId(2) is installed; deferred'
+        line='[E] public/makepad/widgets/src/widget_async.rs:856:9 - BUG: update_global_ui_handle while isolate SplashVmId(2) is installed; deferred'
         self.assertEqual(inspect_log(line)[0]['count'],1)
         self.assertEqual(inspect_log(line.replace('SplashVmId(2)','SplashVmId(1)'))[0]['count'],1)
-        for error in [line.replace('widget_async.rs:839','widget_async.rs:787'),line+'\n[E] unexpected error','[E] renderer failed','Failed to load resource']:
+        for error in [line.replace('widget_async.rs:856','widget_async.rs:839'),line+'\n[E] unexpected error','[E] renderer failed','Failed to load resource']:
             with self.assertRaises(AssertionError):inspect_log(error)
     def test_sqlite_header_and_wal_migrate_preserve_ids_and_original(self):
         with tempfile.TemporaryDirectory() as tmp:

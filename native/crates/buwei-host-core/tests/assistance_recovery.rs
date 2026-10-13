@@ -46,6 +46,7 @@ fn setup(actor: &str) -> (IntentStore, Activity, u64) {
             check_at: if actor == a.owner { Some(now) } else { None },
             recurrence_days: None,
             preparation_hours: 24,
+        availability: None,
         },
         &[a.clone()],
         now,

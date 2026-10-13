@@ -55,6 +55,8 @@ impl AppMain for App {
             linked_modules,
             trusted_module: trusted,
         });
+        octosense_shell::ext::install_system_tools(super::planning_service::SYSTEM_TOOLS);
+        octosense_shell::host_tools::declare("buwei", super::planning_service::system_declarations());
         ShellApp::shell_script_mod(vm);
         self::script_mod(vm)
     }

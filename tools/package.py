@@ -24,11 +24,19 @@ def stage(binary,destination,metadata=None):
         raise RuntimeError('Official kernel receipt does not match pinned sources')
     native=destination/'native';native.mkdir(parents=True)
     shutil.copy2(binary,native/'buwei-rinx-dual-host.exe')
+    loader_pin=pins.get('windows_loader')
+    if loader_pin and proof['rust_host'].endswith('windows-gnu'):
+        package=next(p for p in metadata['packages'] if p['name']==loader_pin['crate'] and p['version']==loader_pin['version'])
+        loader=pathlib.Path(package['manifest_path']).parent/loader_pin['file']
+        if digest(loader)!=loader_pin['sha256']:raise RuntimeError('Windows loader differs from the fixed SDK')
+        shutil.copy2(loader,native/'WebView2Loader.dll')
     shutil.copy2(kernel,native/kernel.name);shutil.copy2(receipt,native/receipt.name)
     (native/'Cargo.toml').write_text('[package]\nname="buwei-runtime"\nversion="'+version+'"\nedition="2024"\n','utf8')
     (native/'upstream').mkdir();shutil.copy2(ROOT/'.deps/octosense/desktop/upstream/makepad.json',native/'upstream/makepad.json')
     (native/'config').mkdir();(native/'config/apps.json').write_text('[]\n','utf8')
     licenses=destination/'licenses';licenses.mkdir();inventory=[]
+    for notice in (ROOT/'licenses').glob('*'):
+        if notice.is_file():shutil.copy2(notice,licenses/notice.name)
     for package in metadata['packages']:
         directory=pathlib.Path(package['manifest_path']).parent;name=package['name'];resource=directory/'resources'
         if resource.is_dir():shutil.copytree(resource,native/name.replace('-','_')/'resources')
@@ -52,6 +60,7 @@ def stage(binary,destination,metadata=None):
     if (ROOT/'assets').is_dir():shutil.copytree(ROOT/'assets',destination/'assets')
     for role,label in [('organizer','启动组织者'),('participant','启动参与者')]:
         (destination/(label+'.cmd')).write_bytes(('@echo off\r\npowershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\\Start-BuWei.ps1" -Role '+role+' -Executable "%~dp0native\\buwei-rinx-dual-host.exe"\r\n').encode('utf8'))
+    shutil.copy2(destination/'启动组织者.cmd',destination/'启动补位.cmd')
     hashes={p.relative_to(destination).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in destination.rglob('*') if p.is_file()}
     report={'version':version,'variant':'full-host; acceptance control excluded','native_binary_sha256':hashes['native/buwei-rinx-dual-host.exe'],'dependency_lock_sha256':hashes['dependencies.lock.json'],'private_configuration_copied':False,'sha256':hashes}
     report['build_proof']=proof

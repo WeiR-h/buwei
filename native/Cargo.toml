@@ -1,6 +1,6 @@
 [package]
 name = "buwei-rinx-dual-host"
-version = "0.2.3"
+version = "0.2.11"
 edition = "2024"
 license = "Apache-2.0"
 publish = false
@@ -30,7 +30,7 @@ hex = "0.4"
 httpdate = "=1.0.3"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_UI_Shell", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_UI_Shell", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging", "Win32_UI_Controls_Dialogs"] }
 
 [features]
 default = []
@@ -74,6 +74,8 @@ makepad-studio-protocol = { path = "../.deps/octosense/.sources/makepad/platform
 makepad-network = { path = "../.deps/octosense/.sources/makepad/platform/network" }
 makepad-wm-api = { path = "../.deps/octosense/.sources/makepad/libs/wm_api" }
 makepad-ai-services = { path = "../.deps/octosense/.sources/makepad/libs/ai/services" }
+makepad-audio-decode = { path = "../.deps/octosense/.sources/makepad/libs/audio_decode" }
+makepad-script-compute = { path = "../.deps/octosense/.sources/makepad/platform/script/compute" }
 makepad-strict-json = { path = "../.deps/octosense/.sources/makepad/libs/strict_json" }
 makepad-app-module = { path = "../.deps/octosense/.sources/makepad/libs/app_module" }
 makepad-wm-theme = { path = "../.deps/octosense/.sources/makepad/libs/wm_theme" }
@@ -95,6 +97,7 @@ octoscript-core = { path = "../.deps/octosense/.sources/octoscript/crates/octosc
 
 
 [patch."https://github.com/OctoSense-org/Octoscript-Makepad.git"]
+makepad-d3 = { path = "../.deps/octosense/.sources/octoscript-makepad/crates/makepad-d3" }
 octoscript-makepad = { path = "../.deps/octosense/.sources/octoscript-makepad/crates/octoscript-makepad" }
 octoscript-widgets = { path = "../.deps/octosense/.sources/octoscript-makepad/crates/octoscript-widgets" }
 octoscript-node = { path = "../.deps/octosense/.sources/octoscript-makepad/crates/octoscript-node" }

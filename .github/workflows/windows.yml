@@ -38,10 +38,22 @@ jobs:
           key: windows-msvc-v6-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-${{ hashFiles('native/Cargo.lock') }}
           restore-keys: |
             windows-msvc-v6-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-
+            windows-msvc-v6-
             windows-msvc-v5-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-
             windows-msvc-v5-
       - name: Verify or download pinned official dependencies
-        run: python tools/bootstrap.py
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          if (Test-Path .deps/octosense) {
+            $buweiExpected=(Get-Content dependencies.lock.json -Raw | ConvertFrom-Json).octosense_commit
+            $buweiCached=git -C .deps/octosense rev-parse HEAD
+            if ($buweiCached -ne $buweiExpected) {
+              New-Item -ItemType Directory -Path .run -Force | Out-Null
+              Move-Item -LiteralPath .deps -Destination .run/preserved-dependency-cache
+            }
+          }
+          python tools/bootstrap.py
       - name: Fetch locked kernel dependencies for offline package inventory
         shell: pwsh
         run: |
@@ -56,8 +68,8 @@ jobs:
           ./tools/Build.ps1 -Tests
           ./tools/Build.ps1 -Release
           python -m unittest discover -s tools -p test_release_tools.py
-      - name: Save verified compilation before runtime validation
-        if: steps.native-cache.outputs.cache-hit != 'true'
+      - name: Save reusable compilation before runtime validation
+        if: always() && steps.native-cache.outputs.cache-hit != 'true' && steps.compile.outcome != 'skipped'
         uses: actions/cache/save@v4
         with:
           path: |

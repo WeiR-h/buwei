@@ -1,6 +1,12 @@
 name: Diagnose fresh native startup
 on:
   workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: 'Windows build run containing the original windows-preview artifact'
+        required: true
+        type: string
+        default: '38328375695'
 permissions:
   contents: read
   actions: read
@@ -16,29 +22,28 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: windows-preview
-          run-id: 37034759066
+          run-id: ${{ inputs.source_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: downloaded
-      - name: Verify stack normalization on the actual previously compiled package
+      - name: Recheck the original runtime and normal exit without changing its binary
         shell: pwsh
+        env:
+          MAKEPAD_FORCE_SOFTWARE_GPU: '1'
+          BUWEI_SOURCE_RUN_ID: ${{ inputs.source_run_id }}
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           @'
-          import json,pathlib,sys
+          import json,os,pathlib,sys
           sys.path.insert(0,'tools')
-          from pe_stack import normalize
+          from package_scan import scan
           from startup_check import check
           p=next(pathlib.Path('downloaded').rglob('release.json')).parent
-          result=normalize(p/'native/buwei-rinx-dual-host.exe')
-          print(json.dumps(result))
-          release=json.loads((p/'release.json').read_text('utf8'))
-          release['native_binary_sha256']=result['binary_sha256']
-          release['sha256']['native/buwei-rinx-dual-host.exe']=result['binary_sha256']
-          release['diagnostic_only_post_link_stack_normalization']=True
-          (p/'release.json').write_text(json.dumps(release,indent=2),'utf8')
-          report=check(p,pathlib.Path('.run/stack-probe'))
+          integrity=scan(p)
+          assert integrity['passed'], 'Original package integrity failed'
+          report=check(p,pathlib.Path('.run/stack-probe'),show_window=True)
           report['diagnostic_only']=True
-          report['stack_normalization']=result
+          report['source_run_id']=os.environ['BUWEI_SOURCE_RUN_ID']
+          report['original_binary_unchanged']=True
           pathlib.Path('.run/stack-probe/diagnostic.json').write_text(json.dumps(report,indent=2),'utf8')
           print(json.dumps(report))
           '@ | python -

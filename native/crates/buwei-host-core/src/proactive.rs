@@ -113,6 +113,49 @@ fn make(
         registration_sequence: None,
     }
 }
+fn shortfall_details(f: &VerifiedFacts, target: usize) -> String {
+    let a = &f.activity;
+    let mut lines = vec![format!(
+        "目标 {} 人 · 已确认 {} 人 · 名额保留 {} 人 · 待确认缺口 {} 人。",
+        target,
+        a.confirmed(),
+        a.held(),
+        target.saturating_sub(a.confirmed())
+    )];
+    for (position, person) in a
+        .people
+        .iter()
+        .filter(|p| p.status == PersonStatus::Waiting)
+        .enumerate()
+        .take(5)
+    {
+        let reason = if !person.preferences_confirmed {
+            "本场报名时段尚未由本人确认".into()
+        } else if person.preferences.earliest > a.start || person.preferences.latest < a.end {
+            format!(
+                "登记时段 {}–{} 不覆盖活动 {}–{}",
+                crate::calendar::display(person.preferences.earliest),
+                crate::calendar::display(person.preferences.latest),
+                crate::calendar::display(a.start),
+                crate::calendar::display(a.end)
+            )
+        } else if person.preferences.group as usize > a.free() {
+            format!(
+                "同行 {} 人，当前只有 {} 个空位，保留排位且不拆组",
+                person.preferences.group,
+                a.free()
+            )
+        } else {
+            "符合条件，等待当前授权规则核验邀请".into()
+        };
+        lines.push(format!("候补第 {} 位：{}。", position + 1, reason));
+    }
+    if let Some(reason) = &f.automation_pause {
+        lines.push(format!("暂停原因：{}", reason));
+    }
+    lines.push("可以继续跟进当前候补，或选择联系人并预览分享；报名由成员本人确认。".into());
+    lines.join("\n")
+}
 pub fn evaluate(
     actor: &str,
     state: &PrivateState,
@@ -235,10 +278,7 @@ pub fn evaluate(
                         CardKind::Shortfall,
                         Some(g),
                         "活动人数还没齐",
-                        format!(
-                            "已到你设置的检查时间，距离目标还差 {} 人。",
-                            g.input.target.unwrap() as usize - a.confirmed()
-                        ),
+                        shortfall_details(f, g.input.target.unwrap() as usize),
                         SuggestedAction::Share,
                         clock,
                         a.start,
@@ -254,8 +294,8 @@ pub fn evaluate(
                     f,
                     CardKind::NoCandidate,
                     None,
-                    "有名额，但暂时无法整组补位",
-                    "候补的时间或同行人数不满足条件，原排位保留。可以选择联系人分享活动。".into(),
+                    "有名额，但候补暂时不满足条件",
+                    shortfall_details(f, a.capacity as usize),
                     SuggestedAction::Share,
                     clock,
                     a.start,
@@ -314,6 +354,10 @@ pub fn evaluate(
                         && g.input.template != a.metadata.as_ref().unwrap().template
                     || g.input.earliest > a.start
                     || g.input.latest < a.end
+                    || g.input
+                        .availability
+                        .as_ref()
+                        .is_some_and(|s| !s.covers(a.start, a.end))
                     || a.start <= clock
                     || a.free() < g.input.group as usize
                     || person.is_some_and(|p| {
@@ -328,8 +372,13 @@ pub fn evaluate(
                     Some(g),
                     "发现适合你的活动",
                     format!(
-                        "符合本次目标的类型和时段，当前可容纳你们 {} 人。报名信息将先由本人确认。",
-                        g.input.group
+                        "符合本次目标的类型、全程时段和 {} 人同行条件。{}报名信息将先由本人确认。",
+                        g.input.group,
+                        g.input
+                            .availability
+                            .as_ref()
+                            .map(|s| format!("采用每周安排：{}。", s.description()))
+                            .unwrap_or_default()
                     ),
                     SuggestedAction::Register,
                     clock,

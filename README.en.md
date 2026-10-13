@@ -16,17 +16,19 @@ Participants use their own Rinx identities. Verified server receipts distinguish
 
 [Download for Windows](https://github.com/WeiR-h/buwei/releases/latest) · [Chinese guide](docs/FIRST-RUN.md) · [Privacy](docs/PRIVACY.md) · [Support](https://github.com/WeiR-h/buwei/issues)
 
-The current source version is **v0.2.3**. Runtime downloads and walkthroughs are provided with the corresponding fixed Release.
+**v0.2.11** uses the official desktop RC6 host, a clearer activity workspace, focused planning and contextual registration controls. Each account can organize its own activities and join other people's activities.
 
-BuWei uses pinned official OctoSense and Rinx 1.1.0 sources and ships as a native Windows host extension with organizer and participant entry points. Participants sign up and reply with their own Rinx identities; the organizer verifies results before displaying a confirmed place.
+Organizers can describe an activity, edit its plan, confirm creation, and separately confirm community publication. Members select a published activity, request room access, and confirm their own registration. CSV exports use a verified organizer snapshot and protect text from spreadsheet formula interpretation. See the [community guide](docs/COMMUNITY.md).
+
+BuWei uses pinned official OctoSense desktop RC6 and Rinx 1.1.0 sources and ships as a native Windows host extension with organizer and participant entry points. Participants sign up and reply with their own Rinx identities; the organizer verifies results before displaying a confirmed place.
 
 Optional Windows tray duty continues synchronization while the computer and application run with valid authorization. Explicit feedback updates only the chosen scope. Recurring activity drafts require fresh confirmation of their date, location and capacity. [Goals and assistance](docs/INTENTIONS.md) · [Submission and historical versions](docs/SUBMISSION.md).
 
-Each Release includes a three-minute walkthrough made from reviewed captures of the actual native interface. Runtime requirements: Windows 10/11 x64 and the Microsoft Visual C++ v14 x64 runtime.
+[Watch the 110-second walkthrough](https://github.com/WeiR-h/buwei/releases/download/v0.2.11/BuWei-v0.2.11-Demo.mp4): two actual Rinx identities complete planning, publication, activity selection, registration, automatic invitation, acceptance, roster export and cancellation. Runtime requirements: Windows 10/11 x64 and the Microsoft Visual C++ v14 x64 runtime.
 
 ## Three steps to start
 
-1. Extract the complete runtime package, open the organizer or participant entry point and sign in to Rinx.
+1. Extract the complete runtime package, open the BuWei entry point and sign in to Rinx. The organizer and participant launchers keep separate profiles for testing two accounts.
 2. Open BuWei, verify your account and approve the permissions you need.
 3. Save your goal. Organizers create and share an activity; participants join from its card and confirm their own sign-up or invitation reply.
 

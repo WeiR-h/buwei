@@ -1,6 +1,13 @@
 //! Shared native transport/evidence verification for both business scenes.
 use super::*;
 pub(crate) fn content(op: &Operation, kind: &str) -> Value {
+    if op.action.permission == "publish_community" {
+        return json!({"msgtype":activity_card::MSGTYPE,"body":op.action.payload["body"],"buwei":op.action.payload["card"],"org.buwei.community":op.action.payload["announcement"],"org.buwei.action":{"operation_id":op.id,"digest":op.digest,"action":op.action}});
+    }
+    if op.action.permission == "request_entry" {
+        let l = &op.action.payload["listing"];
+        return json!({"protocol":1,"activity_id":l["announcement"]["activity_id"],"activity_room":l["announcement"]["activity_room"],"announcement_event":l["event_id"],"org.buwei.action":{"operation_id":op.id,"digest":op.digest,"action":op.action}});
+    }
     if op.action.permission == "share_card" {
         return activity_card::content(op);
     }
@@ -75,7 +82,7 @@ pub(crate) fn lookup(
     let values = fixture_values(rt, client, room)?;
     let mut matches = vec![];
     for value in values {
-        let content = if kind == "m.room.message" {
+        let content = if kind == "m.room.message" || kind == "org.buwei.entry.request" {
             &value["content"]["org.buwei.action"]
         } else {
             &value["content"]

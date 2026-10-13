@@ -1,15 +1,7 @@
 diff --git a/platform/src/os/windows/d3d11.rs b/platform/src/os/windows/d3d11.rs
+index 1fdf234..efab5db 100644
 --- a/platform/src/os/windows/d3d11.rs
 +++ b/platform/src/os/windows/d3d11.rs
-@@ -33,7 +33,7 @@
-             Graphics::{
-                 Direct3D::{
-                     Fxc::D3DCompile, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST,
--                    D3D_DRIVER_TYPE_UNKNOWN, D3D_FEATURE_LEVEL_11_0, D3D_SRV_DIMENSION,
-+                    D3D_DRIVER_TYPE_UNKNOWN, D3D_DRIVER_TYPE, D3D_FEATURE_LEVEL_11_0, D3D_SRV_DIMENSION,
-                     D3D_SRV_DIMENSION_TEXTURECUBE,
-                 },
-                 Direct3D11::{
 @@ -90,7 +90,7 @@
                          DXGI_FORMAT_R8_UNORM,
                          DXGI_SAMPLE_DESC,
@@ -19,61 +11,52 @@ diff --git a/platform/src/os/windows/d3d11.rs b/platform/src/os/windows/d3d11.rs
                      IDXGISwapChain, IDXGISwapChain1, IDXGISwapChain2, DXGI_CREATE_FACTORY_FLAGS,
                      DXGI_ERROR_WAS_STILL_DRAWING, DXGI_FRAME_STATISTICS, DXGI_PRESENT,
                      DXGI_PRESENT_DO_NOT_WAIT, DXGI_RGBA, DXGI_SCALING_NONE, DXGI_SWAP_CHAIN_DESC1,
-@@ -2524,22 +2524,49 @@
+@@ -2542,26 +2542,38 @@ fn create_device_tier() -> windows_core::Result<(
              // A DXGI factory snapshots its adapter enumeration when it is created, so one made
              // before a hybrid-GPU transition or a driver reinstall keeps handing back the
              // adapter that went away. Recovery always starts from a fresh factory.
 -            let factory: IDXGIFactory2 = CreateDXGIFactory2(DXGI_CREATE_FACTORY_FLAGS(0))?;
--            let adapter = factory.EnumAdapters(0)?;
 +            let mut factory: IDXGIFactory2 = CreateDXGIFactory2(DXGI_CREATE_FACTORY_FLAGS(0))?;
+             // Explicit diagnostics/CI opt-in to Windows' built-in software
+             // rasterizer. Normal hosts still select their hardware adapter.
+-            let warp = std::env::var_os("MAKEPAD_D3D11_WARP").is_some_and(|value| value == "1");
+-            let adapter = if warp { None } else { Some(factory.EnumAdapters(0)?) };
++            let warp = std::env::var_os("MAKEPAD_D3D11_WARP").is_some_and(|value| value == "1")
++                || std::env::var_os("MAKEPAD_FORCE_SOFTWARE_GPU").is_some_and(|value| value == "1");
              let mut device: Option<ID3D11Device> = None;
              let mut context: Option<ID3D11DeviceContext> = None;
              let mut query: Option<ID3D11Query> = None;
 -            D3D11CreateDevice(
--                &adapter,
--                D3D_DRIVER_TYPE_UNKNOWN,
+-                adapter.as_ref(),
+-                if warp { D3D_DRIVER_TYPE(5) /* D3D_DRIVER_TYPE_WARP */ } else { D3D_DRIVER_TYPE_UNKNOWN },
 -                HMODULE(std::ptr::null_mut()),
--                D3D11_CREATE_DEVICE_FLAG(0x800 | 0x20), // VIDEO_SUPPORT | BGRA_SUPPORT
+-                // WARP does not require the hardware video decoding interface.
+-                D3D11_CREATE_DEVICE_FLAG(if warp { 0x20 } else { 0x800 | 0x20 }),
 -                Some(&[D3D_FEATURE_LEVEL_11_0]),
 -                D3D11_SDK_VERSION,
 -                Some(&mut device),
 -                None,
 -                Some(&mut context),
 -            )?;
-+            let force_software = std::env::var("MAKEPAD_FORCE_SOFTWARE_GPU").as_deref() == Ok("1");
-+            let hardware = if force_software {
-+                None
-+            } else {
++            let hardware = if warp { None } else {
 +                Some(factory.EnumAdapters(0).and_then(|adapter| {
 +                    D3D11CreateDevice(
-+                        &adapter,
-+                        D3D_DRIVER_TYPE_UNKNOWN,
-+                        HMODULE(std::ptr::null_mut()),
-+                        D3D11_CREATE_DEVICE_FLAG(0x800 | 0x20), // VIDEO_SUPPORT | BGRA_SUPPORT
-+                        Some(&[D3D_FEATURE_LEVEL_11_0]),
-+                        D3D11_SDK_VERSION,
-+                        Some(&mut device),
-+                        None,
-+                        Some(&mut context),
++                        &adapter, D3D_DRIVER_TYPE_UNKNOWN, HMODULE(std::ptr::null_mut()),
++                        D3D11_CREATE_DEVICE_FLAG(0x800 | 0x20),
++                        Some(&[D3D_FEATURE_LEVEL_11_0]), D3D11_SDK_VERSION,
++                        Some(&mut device), None, Some(&mut context),
 +                    )
 +                }))
 +            };
 +            if hardware.as_ref().is_none_or(|result| result.is_err()) {
-+                // WARP is the Windows software renderer. It does not request
-+                // hardware video support. Retain the ordinary device/query and
-+                // swap-chain path, using the factory associated with this device.
 +                device = None;
 +                context = None;
 +                D3D11CreateDevice(
 +                    None::<&windows::Win32::Graphics::Dxgi::IDXGIAdapter>,
-+                    D3D_DRIVER_TYPE(5), // D3D_DRIVER_TYPE_WARP (fixed Windows binding omits the name)
-+                    HMODULE(std::ptr::null_mut()),
-+                    D3D11_CREATE_DEVICE_FLAG(0x20), // BGRA_SUPPORT
-+                    Some(&[D3D_FEATURE_LEVEL_11_0]),
-+                    D3D11_SDK_VERSION,
-+                    Some(&mut device),
-+                    None,
-+                    Some(&mut context),
++                    D3D_DRIVER_TYPE(5), HMODULE(std::ptr::null_mut()),
++                    D3D11_CREATE_DEVICE_FLAG(0x20),
++                    Some(&[D3D_FEATURE_LEVEL_11_0]), D3D11_SDK_VERSION,
++                    Some(&mut device), None, Some(&mut context),
 +                )?;
 +                let dxgi: IDXGIDevice = device.as_ref().unwrap().cast()?;
 +                factory = dxgi.GetAdapter()?.GetParent()?;

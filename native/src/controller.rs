@@ -12,6 +12,12 @@ use buwei_host_core::{
     serde(tag = "command", content = "value", deny_unknown_fields)
 )]
 pub(crate) enum Command {
+    Planning(planning::PlanningCommand),
+    QuickJoin,
+    JoinCardAndPrepare,
+    Discovery(community_access::DiscoveryCommand),
+    PreviewRosterExport(String),
+    ConfirmRosterExport(String),
     Assistance(intentions::IntentCommand),
     CreateDated(community::ActivityForm),
     UseTemplate(String),
@@ -104,11 +110,15 @@ pub(crate) enum Command {
     #[cfg(feature = "acceptance")]
     TestContact(String),
     #[cfg(feature = "acceptance")]
+    TestCommunity { title:String, member:String },
+    #[cfg(feature = "acceptance")]
     TestJoinContact(String),
     #[cfg(feature = "acceptance")]
     CollectEvidence,
     #[cfg(feature = "acceptance")]
     CollectEvidenceSince(String),
+    #[cfg(feature="acceptance")]
+    CollectCommunityEvidence(String),
     #[cfg(feature = "acceptance")]
     TestLegacyArticle {
         title: String,
@@ -117,10 +127,27 @@ pub(crate) enum Command {
 }
 #[derive(Clone, Default)]
 pub(crate) struct View {
+    pub communities: Vec<(String, String)>,
+    pub community_listings: Vec<buwei_host_core::discovery::Listing>,
+    pub community_status: String,
+    pub community_operation: Option<Operation>,
+    pub community_preview: String,
+    pub access_nonce: Option<String>,
+    pub access_preview: String,
+    pub access_status: String,
+    pub entry_progress: String,
+    pub roster_export_nonce: Option<String>,
+    pub roster_export_preview: String,
+    pub plan: Option<buwei_host_core::planning::ActivityPlanDraft>,
+    pub plan_choices: Vec<(String, String)>,
+    pub plan_creation_nonce: Option<String>,
+    pub plan_creation_preview: String,
     pub goals: Vec<(String, String)>,
     pub goal_form: Option<intentions::GoalForm>,
     pub goal_sources: String,
     pub goal_id: Option<String>,
+    pub goal_correction: Option<(String, String, bool)>,
+    pub goal_registration_status: String,
     pub personal_preferences: Option<buwei_host_core::assistance::PersonalPreferences>,
     pub intention_result: String,
     pub assistance_cards: Vec<buwei_host_core::proactive::AssistanceCard>,
@@ -161,6 +188,13 @@ pub(crate) struct View {
     pub message: String,
     pub sync_status: String,
     pub organizer: bool,
+    pub can_create: bool,
+    pub participant_controls: buwei_host_core::interaction::ParticipantControls,
+    pub seat_counts: [usize; 4],
+    pub public_directory_nonce: Option<String>,
+    pub public_directory_preview: String,
+    pub public_mode: bool,
+    pub public_room: Option<String>,
     pub authorized: bool,
     pub consent_id: Option<String>,
     pub consent: String,
@@ -168,6 +202,23 @@ pub(crate) struct View {
     pub fault: bool,
 }
 pub(crate) struct Controller {
+    public_directory_preview: Option<public_directory::DirectoryPreview>,
+    public_mode: bool,
+    community_grant: Option<Grant>,
+    communities: Vec<(String, String)>,
+    watched_communities: Vec<String>,
+    discovery_filter: buwei_host_core::discovery::Filter,
+    community_current: Option<Operation>,
+    community_status: String,
+    access_preview: Option<community_access::AccessPreview>,
+    access_policies: std::collections::HashMap<String, buwei_host_core::discovery::AccessPolicy>,
+    access_permits: std::collections::HashMap<String, automation_guard::Permit>,
+    discovery_rotation: usize,
+    last_discovery: u64,
+    roster_preview: Option<roster_export::ExportPreview>,
+    selected_plan: Option<String>,
+    creating_plan: Option<String>,
+    plan_creation_preview: Option<planning::CreationPreview>,
     goal_form: Option<intentions::GoalForm>,
     goal_ai_draft: bool,
     selected_goal: Option<String>,
@@ -195,6 +246,7 @@ pub(crate) struct Controller {
     contacts: Vec<(String, String)>,
     share_current: Option<Operation>,
     incoming_card: Option<(String, String)>,
+    expected_card_owner: Option<String>,
     create_form: Option<community::ActivityForm>,
     dated_suggestion: Option<(String, String, u64, community::DatedDraft)>,
     ai_result: String,
@@ -252,6 +304,26 @@ impl Controller {
         let journal = Journal::open(data.join("operations.db")).map_err(|_| "回执数据库不可用")?;
         let selected_activity = community::last_selected(&data);
         Ok(Self {
+            public_directory_preview: None,
+            public_mode: false,
+            community_grant: None,
+            communities: vec![],
+            watched_communities: std::fs::read(data.join("watched-communities.json"))
+                .ok()
+                .and_then(|b| serde_json::from_slice(&b).ok())
+                .unwrap_or_default(),
+            discovery_filter: Default::default(),
+            community_current: None,
+            community_status: String::new(),
+            access_preview: None,
+            access_policies: Default::default(),
+            access_permits: Default::default(),
+            discovery_rotation: 0,
+            last_discovery: 0,
+            roster_preview: None,
+            selected_plan: std::fs::read_to_string(data.join("selected-plan.txt")).ok(),
+            creating_plan: None,
+            plan_creation_preview: None,
             goal_form: None,
             goal_ai_draft: false,
             selected_goal: None,
@@ -273,6 +345,7 @@ impl Controller {
             contacts: vec![],
             share_current: None,
             incoming_card: None,
+            expected_card_owner: None,
             create_form: None,
             dated_suggestion: None,
             ai_result: String::new(),
@@ -320,6 +393,26 @@ impl Controller {
         rinx_bridge::record_status(root, Some(&actor), true, false)?;
         let selected_activity = community::last_selected(&data);
         Ok(Self {
+            public_directory_preview: None,
+            public_mode: false,
+            community_grant: None,
+            communities: vec![],
+            watched_communities: std::fs::read(data.join("watched-communities.json"))
+                .ok()
+                .and_then(|b| serde_json::from_slice(&b).ok())
+                .unwrap_or_default(),
+            discovery_filter: Default::default(),
+            community_current: None,
+            community_status: String::new(),
+            access_preview: None,
+            access_policies: Default::default(),
+            access_permits: Default::default(),
+            discovery_rotation: 0,
+            last_discovery: 0,
+            roster_preview: None,
+            selected_plan: std::fs::read_to_string(data.join("selected-plan.txt")).ok(),
+            creating_plan: None,
+            plan_creation_preview: None,
             goal_form: None,
             goal_ai_draft: false,
             selected_goal: None,
@@ -341,6 +434,7 @@ impl Controller {
             contacts: vec![],
             share_current: None,
             incoming_card: None,
+            expected_card_owner: None,
             create_form: None,
             dated_suggestion: None,
             ai_result: String::new(),
@@ -387,7 +481,7 @@ impl Controller {
         }
     }
     fn model_receipt(&self, reply: &Value, revision: u64) -> Result<()> {
-        let proof = json!({"version":env!("CARGO_PKG_VERSION"),"returned_model":"MiniMax-M3","official_model_host":true,"schema_validated":true,"usage":reply["meta"]["usage"],"budget":reply["meta"]["budget"],"model_did_not_change_activity":self.activity()?.revision==revision,"billing_verified":false});
+        let proof = json!({"version":env!("CARGO_PKG_VERSION"),"returned_model":model::MODEL_ID,"official_model_host":true,"schema_validated":true,"usage":reply["meta"]["usage"],"budget":reply["meta"]["budget"],"model_did_not_change_activity":self.activity()?.revision==revision,"billing_verified":false});
         std::fs::write(
             self.data.join("model-receipt.json"),
             serde_json::to_vec_pretty(&proof).map_err(|_| "模型回执格式不合法")?,
@@ -478,6 +572,26 @@ impl Controller {
         view
     }
     fn apply(&mut self, command: Command) -> Result<String> {
+        // Opening a previously verified local activity has no server side effect.
+        // Verify the live host session and grant; actual sends keep full preflight.
+        if let Command::SelectActivity(index)=&command {
+            if !self.host_session_current(){return Err("账号会话已变化，请重新登录并核对本人授权".into());}
+            self.g("read")?;
+            return self.apply_community(Command::SelectActivity(*index));
+        }
+        if matches!(command, Command::QuickJoin | Command::JoinCardAndPrepare) {
+            if matches!(command, Command::JoinCardAndPrepare) {
+                self.apply_community(Command::JoinCard)?;
+            }
+            self.g("participate")?;
+            #[cfg(feature = "full-host")]
+            self.sync_activity()?;
+            let a = self.activity()?;
+            let preferences = self.intent_store().and_then(|s| s.load()).ok().map(|s| s.preferences);
+            let (p, source) = buwei_host_core::interaction::whole_activity(&a, &self.actor(), preferences.as_ref())?;
+            self.apply(Command::Join(p))?;
+            return Ok(format!("已准备参加本场完整时段；{source}。尚未发送，请在当前页面核对并确认。"));
+        }
         #[cfg(feature = "acceptance")]
         if let Command::TestTrayAction(name) = &command {
             crate::tray::test_action(name)?;
@@ -485,6 +599,14 @@ impl Controller {
         }
         // Revocation and pause must work even if identity preflight is offline.
         if matches!(&command, Command::Revoke) {
+            self.access_policies.clear();
+            self.access_permits.clear();
+            self.access_preview = None;
+            if let Some(g) = &self.community_grant {
+                g.revoke();
+            }
+            self.roster_preview = None;
+            self.plan_creation_preview = None;
             self.analysis_until = 0;
             self.analysis_consent = None;
             self.automation_interlock.invalidate_all();
@@ -548,10 +670,40 @@ impl Controller {
         if community::is_community_command(&command) {
             return self.apply_community(command);
         }
+        if let Command::Planning(command) = command {
+            return self.apply_planning(command);
+        }
+        if let Command::Discovery(command) = command {
+            return self.apply_discovery(command);
+        }
         if let Command::Assistance(command) = command {
             return self.apply_intention(command);
         }
         match command {
+            #[cfg(feature="acceptance")]
+            Command::CollectCommunityEvidence(room)=>{
+                self.g("read")?;
+                if !self.watched_communities.contains(&room){return Err("只核验本人已选择的测试社群".into());}
+                let room:OwnedRoomId=room.parse().map_err(|_|"社群编号不合法")?;
+                let events=official_sync::timeline(&self.rt,self.active(),&room)?.into_iter().filter(|v|v["type"]=="org.buwei.entry.request"||v["content"].get("org.buwei.community").is_some()).collect::<Vec<_>>();
+                std::fs::write(self.root.join(".run/acceptance/community-events.private.json"),serde_json::to_vec(&json!({"room":room,"events":events,"collected_at_unix":now()})).map_err(|_|"证据格式不合法")?).map_err(|_|"私密证据不可保存")?;Ok("社群事件证据已保存到本机私密验收目录。".into())
+            }
+            #[cfg(feature="acceptance")]
+            Command::TestCommunity{title,member}=> {
+                self.g("create")?;
+                if !std::env::args().any(|a|a=="--acceptance")||title.chars().count()>80||title.trim().is_empty()||member==self.actor(){return Err("独立社群验收参数不合法".into());}
+                let member:matrix_sdk::ruma::OwnedUserId=member.parse().map_err(|_|"测试成员不合法")?;
+                let setup=self.root.join(".run/acceptance/community-setup.local.json");
+                if setup.exists(){return Err("测试社群创建结果需先核实，不会自动重复创建".into());}
+                std::fs::write(&setup,serde_json::to_vec(&json!({"owner":self.actor(),"title":title,"member":member})).map_err(|_|"测试记录不合法")?).map_err(|_|"测试预执行记录不可保存")?;
+                let mut request=create_room::v3::Request::new();request.name=Some(title);request.invite=vec![member];
+                let result=self.rt.block_on(async{self.active().send(request).with_request_config(RequestConfig::new().disable_retry().timeout(Duration::from_secs(10))).await}).map_err(|_|"独立社群创建结果待核实")?;
+                std::fs::write(&setup,serde_json::to_vec(&json!({"owner":self.actor(),"room":result.room_id})).map_err(|_|"测试记录不合法")?).map_err(|_|"测试社群记录不可保存")?;
+                self.communities.push((result.room_id.to_string(),"补位独立社群验收".into()));
+                Ok(format!("独立普通社群已创建：{}",result.room_id))
+            }
+            Command::PreviewRosterExport(path) => self.preview_roster(path),
+            Command::ConfirmRosterExport(nonce) => self.confirm_roster(&nonce),
             #[cfg(feature = "acceptance")]
             Command::TestJoinContact(room) => {
                 self.g("read")?;
@@ -595,7 +747,7 @@ impl Controller {
                     .next()
                     .ok_or("配置工具未随程序安装，请使用完整运行包")?;
                 std::process::Command::new("powershell.exe")
-                    .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"])
+                    .args(["-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-File"])
                     .arg(script)
                     .arg("-ProfileDirectory")
                     .arg(&self.root)
@@ -670,7 +822,7 @@ impl Controller {
                     &room,
                     anchor.as_deref(),
                 )?;
-                let events=values.into_iter().filter(|v|matches!(v["type"].as_str(),Some("org.buwei.invitation"|"org.buwei.join"|"org.buwei.reply"|"org.buwei.cancel"|"m.room.message"|"org.buwei.activity"|"org.octosense.article"))).map(|v|json!({"event_id":v["event_id"],"sender":v["sender"],"type":v["type"],"origin_server_ts":v["origin_server_ts"],"content":v["content"]})).collect::<Vec<_>>();
+                let events=values.into_iter().filter(|v|matches!(v["type"].as_str(),Some("org.buwei.invitation"|"org.buwei.join"|"org.buwei.reply"|"org.buwei.cancel"|"m.room.message"|"org.buwei.activity"|"org.octosense.article"|"m.room.member"))).map(|v|json!({"event_id":v["event_id"],"sender":v["sender"],"type":v["type"],"state_key":v["state_key"],"origin_server_ts":v["origin_server_ts"],"content":v["content"]})).collect::<Vec<_>>();
                 let evidence = json!({"collected_at_unix":now(),"complete_sdk_history":anchor.is_none(),"complete_since_anchor":anchor,"room":a.room,"events":events});
                 let dir = self.root.join(".run/acceptance");
                 std::fs::write(
@@ -685,6 +837,15 @@ impl Controller {
                 Ok("请核对下面的账号、权限范围和有效期，再确认授权。".into())
             }
             Command::ConfirmAuthorization(id) => {
+                self.public_directory_preview=None;
+                self.access_policies.clear();
+                self.access_permits.clear();
+                self.access_preview = None;
+                self.plan_creation_preview = None;
+                self.roster_preview = None;
+                if let Some(g) = &self.community_grant {
+                    g.revoke();
+                }
                 self.policies.clear();
                 self.policy_preview = None;
                 self.consent.as_ref().ok_or("请先查看授权范围")?.check(
@@ -721,6 +882,16 @@ impl Controller {
                         )
                         .map_err(|_| "授权不可用")?,
                 );
+                self.community_grant = Some(
+                    self.authority
+                        .grant(
+                            "buwei-community",
+                            &["read", "publish_community", "request_entry", "admit_entry"],
+                            clock,
+                            3600,
+                        )
+                        .map_err(|_| "社群授权不可用")?,
+                );
                 self.article_grant = Some(
                     self.authority
                         .grant("buwei-article", &["create", "publish"], clock, 3600)
@@ -754,6 +925,8 @@ impl Controller {
                 Ok("已授权当前真实账号。旧的未执行确认不会自动恢复，请重新预览。".into())
             }
             Command::Switch => {
+                self.public_directory_preview=None;
+                self.public_mode=false;
                 self.policies.clear();
                 self.policy_preview = None;
                 self.dated_suggestion = None;
@@ -1436,6 +1609,14 @@ impl Controller {
         ))
     }
     pub fn shutdown(&mut self) {
+        self.access_policies.clear();
+        self.access_permits.clear();
+        self.access_preview = None;
+        self.plan_creation_preview = None;
+        self.roster_preview = None;
+        if let Some(g) = &self.community_grant {
+            g.revoke();
+        }
         self.analysis_until = 0;
         self.analysis_consent = None;
         self.automation_interlock.invalidate_all();
@@ -1467,7 +1648,15 @@ impl Controller {
     #[cfg(feature = "acceptance")]
     pub fn acceptance_snapshot(&self) -> Value {
         let view = self.view();
-        json!({"version":env!("CARGO_PKG_VERSION"),"collected_at_unix":now(),"account":self.actor(),"authorized":self.is_authorized(),"consent_id":self.consent.as_ref().map(|c|&c.id),"message":self.message,"sync_status":self.last_sync_status,"automation_status":view.automation_status,"reply_status":view.reply,"activity":self.activity().ok(),"invitation":self.current,"participant":self.participant_current,"article":self.article_current,"generated_note":self.note.as_ref().map(|(_,_,n)|json!({"title":n.title,"markdown":n.markdown})),"explanation":self.explanation,"policy_consent_id":view.policy_consent_id,"share":self.share_current,"contacts":self.contacts,"ai_result":self.ai_result,"activities":buwei_host_core::catalog::Catalog::open(&self.data).and_then(|c|c.list()).ok(),"intentions":self.intent_store().and_then(|s|s.load()).ok(),"assistance_cards":view.assistance_cards,"create_form":self.create_form,"goal_form":view.goal_form,"goal_id":view.goal_id,"background":crate::host::background(),"background_paused":crate::host::paused(),"tray_hidden":crate::tray::hidden(),"analysis_consent_id":self.analysis_consent.as_ref().map(|c|&c.id)})
+        let mut report = json!({"version":env!("CARGO_PKG_VERSION"),"collected_at_unix":now(),"account":self.actor(),"authorized":self.is_authorized(),"consent_id":self.consent.as_ref().map(|c|&c.id),"message":self.message,"sync_status":self.last_sync_status,"automation_status":view.automation_status,"reply_status":view.reply,"activity":self.activity().ok(),"invitation":self.current,"participant":self.participant_current,"article":self.article_current,"generated_note":self.note.as_ref().map(|(_,_,n)|json!({"title":n.title,"markdown":n.markdown})),"explanation":self.explanation,"policy_consent_id":view.policy_consent_id,"share":self.share_current,"contacts":self.contacts,"ai_result":self.ai_result,"activities":buwei_host_core::catalog::Catalog::open(&self.data).and_then(|c|c.list()).ok(),"intentions":self.intent_store().and_then(|s|s.load()).ok(),"assistance_cards":view.assistance_cards,"create_form":self.create_form,"goal_form":view.goal_form,"goal_registration_status":view.goal_registration_status,"model_status":view.model_status,"goal_id":view.goal_id,"background":crate::host::background(),"background_paused":crate::host::paused(),"tray_hidden":crate::tray::hidden(),"analysis_consent_id":self.analysis_consent.as_ref().map(|c|&c.id)});
+        report["planning"] = json!({"draft":view.plan,"choices":view.plan_choices,"creation_nonce":view.plan_creation_nonce,"creation_preview":view.plan_creation_preview});
+        report["roles"] = json!({"organizer":view.organizer,"can_create":view.can_create});
+        report["dated_suggestion"] = self.dated_suggestion.as_ref().map(|(_,_,_,draft)|json!(draft)).unwrap_or(Value::Null);
+        report["public_directory"] = json!({"mode":view.public_mode,"room":view.public_room,"nonce":view.public_directory_nonce,"preview":view.public_directory_preview});
+        report["roster_export"] =
+            json!({"nonce":view.roster_export_nonce,"preview":view.roster_export_preview});
+        report["community"] = json!({"rooms":view.communities,"listings":view.community_listings,"operation":view.community_operation,"access_nonce":view.access_nonce,"access_status":view.access_status,"status":view.community_status,"entry_progress":view.entry_progress,"pending_requests":self.discovery_store().and_then(|s|s.requests()).ok()});
+        report
     }
     pub fn view(&self) -> View {
         let mut v = View {
@@ -1478,7 +1667,8 @@ impl Controller {
                 .as_ref()
                 .is_some_and(|g| g.check("read", now()).is_ok()),
             fault: self.fault,
-            organizer: std::env::var("BUWEI_PROFILE").as_deref() != Ok("participant"),
+            organizer: self.activity().is_ok_and(|a| buwei_host_core::interaction::is_organizer(&a, &self.actor())),
+            can_create: self.host_session_current(),
             sync_status: if self.is_authorized() {
                 self.last_sync_status.clone()
             } else {
@@ -1508,6 +1698,8 @@ impl Controller {
         match self.activity() {
             Ok(a) => {
                 v.organizer = a.owner == self.actor();
+                v.participant_controls = buwei_host_core::interaction::participant_controls(&a, &self.actor(), now());
+                v.seat_counts = [a.capacity as usize, a.confirmed(), a.held(), a.free()];
                 v.reply = match a.invitations.iter().rev().find(|i| {
                     i.recipient == self.actor()
                         && i.reply == buwei_host_core::Reply::Pending
@@ -1661,6 +1853,18 @@ impl Controller {
             .and_then(|s| s.load().ok().flatten())
             .map(|a| (a.title, a.markdown));
         self.community_view(&mut v);
+        self.planning_view(&mut v);
+        self.discovery_view(&mut v);
+        v.roster_export_nonce = self
+            .roster_preview
+            .as_ref()
+            .filter(|p| p.account == self.actor() && p.expires > now())
+            .map(|p| p.nonce.clone());
+        v.roster_export_preview = self
+            .roster_preview
+            .as_ref()
+            .map(|p| p.summary.clone())
+            .unwrap_or_default();
         self.intention_view(&mut v);
         v.model_status = model::status(&self.root, &self.model);
         v.generated_note = self.note.as_ref().map(|(_, revision, n)| {
@@ -1690,5 +1894,13 @@ fn event_transaction(actor: &str, activity: &Activity, kind: &str, content: &Val
 
 #[path = "community.rs"]
 pub(crate) mod community;
+#[path = "community_access.rs"]
+pub(crate) mod community_access;
 #[path = "intentions.rs"]
 pub(crate) mod intentions;
+#[path = "planning.rs"]
+pub(crate) mod planning;
+#[path = "roster_export.rs"]
+pub(crate) mod roster_export;
+#[path = "public_directory.rs"]
+pub(crate) mod public_directory;

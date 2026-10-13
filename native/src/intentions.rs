@@ -22,6 +22,66 @@ pub(crate) struct GoalForm {
     pub recurrence_days: String,
     #[serde(default)]
     pub preparation_hours: String,
+    #[serde(default)]
+    pub availability: Option<AvailabilitySnapshot>,
+}
+
+#[cfg(test)]
+mod editor_tests {
+    use super::*;
+    #[test]
+    fn unsaved_fields_cannot_prepare_a_correction_or_registration_update() {
+        let saved = GoalForm {
+            kind: GoalKind::Participate,
+            activity_id: None,
+            title: "参加读书会".into(),
+            template: "reading".into(),
+            earliest: "2026-10-13 19:30".into(),
+            latest: "2026-10-13 20:30".into(),
+            group: "1".into(),
+            target: String::new(),
+            check_at: String::new(),
+            recurrence_days: String::new(),
+            preparation_hours: "24".into(),
+            availability: None,
+        };
+        assert!(saved.participation_fields_match(
+            "参加读书会",
+            "读书会",
+            "2026-10-13 19:30",
+            "2026-10-13 20:30",
+            "1"
+        ));
+        for fields in [
+            [
+                "参加读书会",
+                "读书会",
+                "2026-10-13 19:30",
+                "2026-10-13 21:30",
+                "1",
+            ],
+            [
+                "参加读书会",
+                "读书会",
+                "2026-10-13 19:30",
+                "2026-10-13 20:30",
+                "2",
+            ],
+            [
+                "参加桌游",
+                "桌游",
+                "2026-10-13 19:30",
+                "2026-10-13 20:30",
+                "1",
+            ],
+        ] {
+            assert!(
+                !saved.participation_fields_match(
+                    fields[0], fields[1], fields[2], fields[3], fields[4]
+                )
+            );
+        }
+    }
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "command", content = "value", deny_unknown_fields)]
@@ -32,6 +92,23 @@ pub(crate) enum IntentCommand {
         kind: GoalKind,
     },
     SelectGoal(String),
+    PrepareGoalCorrection {
+        id: String,
+        text: String,
+    },
+    ConfirmGoalCorrection {
+        id: String,
+        scope: FeedbackScope,
+    },
+    PrepareGoalRegistrationUpdate(String),
+    SetGoalAvailability {
+        form: GoalForm,
+        weekly: bool,
+    },
+    FollowCard {
+        id: String,
+        fingerprint: String,
+    },
     SaveGoal {
         id: Option<String>,
         form: GoalForm,
@@ -76,6 +153,20 @@ pub(crate) fn parse_template(value: &str) -> Result<String> {
     }
 }
 impl GoalForm {
+    pub fn participation_fields_match(
+        &self,
+        title: &str,
+        template: &str,
+        earliest: &str,
+        latest: &str,
+        group: &str,
+    ) -> bool {
+        self.title.trim() == title.trim()
+            && parse_template(template).is_ok_and(|t| t == self.template)
+            && self.earliest.trim() == earliest.trim()
+            && self.latest.trim() == latest.trim()
+            && self.group.trim() == group.trim()
+    }
     fn from_goal(g: &ActivityGoal) -> Self {
         Self {
             kind: g.input.kind,
@@ -93,6 +184,7 @@ impl GoalForm {
                 .map(|n| n.to_string())
                 .unwrap_or_default(),
             preparation_hours: g.input.preparation_hours.to_string(),
+            availability: g.input.availability.clone(),
         }
     }
     fn input(&self) -> Result<GoalInput> {
@@ -141,10 +233,32 @@ impl GoalForm {
                     .parse()
                     .map_err(|_| "筹备提前量请填写小时数")?
             },
+            availability: self.availability.clone(),
         })
     }
 }
 impl Controller {
+    fn require_saved_goal_form(&self, id: &str) -> Result<()> {
+        if self.selected_goal.as_deref() == Some(id) {
+            let saved = self
+                .intent_store()?
+                .load()?
+                .goals
+                .into_iter()
+                .find(|g| g.id == id)
+                .ok_or("目标已不存在")?;
+            if !self
+                .goal_form
+                .as_ref()
+                .is_some_and(|form| form.input().is_ok_and(|input| input == saved.input))
+            {
+                return Err(
+                    "目标或每周时间约束尚未保存，请先确认保存目标，再准备更正或候补更新。".into(),
+                );
+            }
+        }
+        Ok(())
+    }
     fn retain_assistance_previews(&mut self) -> Result<()> {
         let Some(task_id) = self.active_task.clone() else {
             return Ok(());
@@ -277,7 +391,10 @@ impl Controller {
         }) {
             self.active_task = None;
         }
-        if self.analysis_until > clock && clock.saturating_sub(self.last_analysis) >= 60 {
+        if !model::interactive_only()
+            && self.analysis_until > clock
+            && clock.saturating_sub(self.last_analysis) >= 60
+        {
             let state = store.load()?;
             if let Some(card) = store
                 .visible_cards(clock)?
@@ -362,16 +479,152 @@ impl Controller {
                 | IntentCommand::PauseTask(_)
                 | IntentCommand::Feedback { .. }
                 | IntentCommand::UndoFeedback(_)
+                | IntentCommand::ConfirmGoalCorrection { .. }
         ) {
             self.retain_assistance_previews()?;
         }
         match command {
+            IntentCommand::PrepareGoalCorrection { id, text } => {
+                self.require_saved_goal_form(&id)?;
+                let goal = self
+                    .intent_store()?
+                    .load()?
+                    .goals
+                    .into_iter()
+                    .find(|g| {
+                        g.id == id
+                            && g.status == GoalStatus::Active
+                            && g.input.kind == GoalKind::Participate
+                    })
+                    .ok_or("请先选择有效的参与目标")?;
+                let permit = self.automation_interlock.issue("_intent_ai");
+                let draft = crate::intent_model::correction(
+                    &self.model,
+                    &self.g("model")?,
+                    &text,
+                    &goal.input,
+                )?;
+                self.g("model")?;
+                if !permit.valid() || !self.host_session_current() {
+                    return Err("账号或授权已变化，请重新核对目标".into());
+                }
+                let current = self
+                    .intent_store()?
+                    .load()?
+                    .goals
+                    .into_iter()
+                    .find(|g| g.id == id && g.revision == goal.revision && g.input == goal.input)
+                    .ok_or("目标已有变化，请重新准备更正")?;
+                let proposal = self.intent_store()?.prepare_correction(
+                    &current.id,
+                    &text,
+                    draft.changes,
+                    draft.questions,
+                    &self.intent_activities()?,
+                    now(),
+                )?;
+                self.selected_goal = Some(current.id.clone());
+                self.goal_form = Some(GoalForm::from_goal(&current));
+                self.intention_result =
+                    buwei_host_core::goal_correction::correction_text(&proposal);
+                Ok(self.intention_result.clone())
+            }
+            IntentCommand::ConfirmGoalCorrection { id, scope } => {
+                let goal = self.intent_store()?.confirm_correction(
+                    &id,
+                    scope,
+                    &self.intent_activities()?,
+                    now(),
+                )?;
+                self.invalidate_assistance_previews()?;
+                self.selected_goal = Some(goal.id.clone());
+                self.goal_form = Some(GoalForm::from_goal(&goal));
+                self.goal_ai_draft = false;
+                Ok("更正已保存。候补报名尚未修改，请另行预览本场更新；长期偏好按本次所选范围处理。".into())
+            }
+            IntentCommand::PrepareGoalRegistrationUpdate(id) => {
+                self.require_saved_goal_form(&id)?;
+                self.g("participate")?;
+                let activity = self.activity()?;
+                let operations = self
+                    .journal
+                    .recent(&self.g("read")?, now())
+                    .map_err(|_| "原执行记录不可读取")?;
+                let task = self.intent_store()?.prepare_registration_update(
+                    &id,
+                    &activity,
+                    &operations,
+                    now(),
+                )?;
+                let goal = self
+                    .intent_store()?
+                    .load()?
+                    .goals
+                    .into_iter()
+                    .find(|g| g.id == id && g.revision == task.goal_revision)
+                    .ok_or("目标已变化")?;
+                self.active_task = Some(task.id.clone());
+                self.assistance_route = Some(1);
+                let result = self.apply(Command::Join(Preferences {
+                    earliest: goal.input.earliest,
+                    latest: goal.input.latest,
+                    group: goal.input.group,
+                }))?;
+                if let Some(op) = &self.participant_current {
+                    self.intent_store()?.link_operation(&task.id, op, now())?;
+                }
+                Ok(result)
+            }
+            IntentCommand::SetGoalAvailability { mut form, weekly } => {
+                if form.kind != GoalKind::Participate {
+                    return Err("每周安排用于参与目标".into());
+                }
+                form.availability = if weekly {
+                    Some(AvailabilitySnapshot::from_preferences(
+                        &self.intent_store()?.load()?.preferences,
+                    )?)
+                } else {
+                    None
+                };
+                self.goal_form = Some(form);
+                Ok("已准备本次时间约束，请核对日期范围后确认保存。".into())
+            }
+            IntentCommand::FollowCard { id, fingerprint } => {
+                self.refresh_assistance()?;
+                let card = self
+                    .intent_store()?
+                    .visible_cards(now())?
+                    .into_iter()
+                    .find(|c| {
+                        c.id == id
+                            && c.fingerprint == fingerprint
+                            && c.action == SuggestedAction::Share
+                    })
+                    .ok_or("建议已变化，请核对最新卡片")?;
+                let task = self.intent_store()?.start_task(&id, &fingerprint, now())?;
+                self.select_activity(card.activity_id)?;
+                self.active_task = Some(task.id);
+                self.assistance_route = Some(1);
+                Ok("继续跟进当前候补，按已授权规则同步；如需扩大范围，可另行选择联系人并预览分享。".into())
+            }
             IntentCommand::PreviewAnalysis => {
+                if model::interactive_only() {
+                    return Err(
+                        "Kimi Code 按本人主动请求使用；后台只运行本地规则提示，不自动请求模型。"
+                            .into(),
+                    );
+                }
                 self.g("model")?;
                 self.analysis_consent = Some(consent::Consent::prepare(self.actor(), now()));
                 Ok("主动 AI 分析预览：仅将活动类型、完整时段、人数统计与本人确认的目标字段发送至 api.minimax.cn，使用共享预算；不发送姓名、账号、房间编号或活动标题。相关事实或目标变化后最多每分钟一次，相同依据复用结果；只选择事实说明，不能执行或修改偏好。与本人授权同时到期，最长一小时，可单独撤销。".into())
             }
             IntentCommand::ConfirmAnalysis(id) => {
+                if model::interactive_only() {
+                    return Err(
+                        "Kimi Code 不启用后台模型分析；主动建议和自动补位继续由本地规则处理。"
+                            .into(),
+                    );
+                }
                 self.g("model")?;
                 self.analysis_consent
                     .as_ref()
@@ -460,16 +713,19 @@ impl Controller {
                     },
                     template: a
                         .as_ref()
+                        .filter(|_| kind == GoalKind::Organize)
                         .and_then(|a| a.metadata.as_ref())
                         .map(|m| m.template.clone())
                         .or(p.template)
                         .unwrap_or("any".into()),
                     earliest: a
                         .as_ref()
+                        .filter(|_| kind == GoalKind::Organize)
                         .map(|a| calendar::display(a.start))
                         .unwrap_or_default(),
                     latest: a
                         .as_ref()
+                        .filter(|_| kind == GoalKind::Organize)
                         .map(|a| calendar::display(a.end))
                         .unwrap_or_default(),
                     group: if kind == GoalKind::Organize {
@@ -495,6 +751,7 @@ impl Controller {
                     },
                     recurrence_days: String::new(),
                     preparation_hours: "24".into(),
+                    availability: None,
                 });
                 self.intention_result =
                     "核对本次目标。时间与人数为空时请补充；填入的长期偏好仍可修改。".into();
@@ -706,6 +963,63 @@ impl Controller {
     pub(super) fn intention_view(&self, v: &mut View) {
         match self.intent_store().and_then(|s| s.load()) {
             Ok(state) => {
+                if let Some(goal) = state.goals.iter().find(|g| {
+                    Some(&g.id) == self.selected_goal.as_ref()
+                        && g.input.kind == GoalKind::Participate
+                }) {
+                    if let Ok(activity) = self.activity() {
+                        v.goal_registration_status = match self.g("read").and_then(|grant| {
+                            self.journal
+                                .recent(&grant, now())
+                                .map_err(|_| "执行记录暂不可读取".into())
+                        }) {
+                            Ok(operations) => {
+                                buwei_host_core::goal_progress::registration_progress(
+                                    &goal.input,
+                                    &activity,
+                                    &self.actor(),
+                                    &operations,
+                                    now(),
+                                )
+                            }
+                            Err(_) => {
+                                "当前未授权读取报名结果；请续期授权后核验本场候补状态。".into()
+                            }
+                        };
+                        if !self
+                            .goal_form
+                            .as_ref()
+                            .is_some_and(|form| form.input().is_ok_and(|input| input == goal.input))
+                        {
+                            v.goal_registration_status = format!(
+                                "目标草稿还有未保存的修改，请先确认保存。\n已保存目标的报名进度：{}",
+                                v.goal_registration_status
+                            );
+                        }
+                    }
+                }
+                v.goal_correction = state
+                    .corrections
+                    .iter()
+                    .rev()
+                    .find(|p| {
+                        !p.applied
+                            && p.expires_at > now()
+                            && Some(&p.goal_id) == self.selected_goal.as_ref()
+                            && state.goals.iter().any(|g| {
+                                g.id == p.goal_id
+                                    && g.revision == p.base_revision
+                                    && g.input == p.before
+                                    && g.status == GoalStatus::Active
+                            })
+                    })
+                    .map(|p| {
+                        (
+                            p.id.clone(),
+                            buwei_host_core::goal_correction::correction_text(p),
+                            p.questions.is_empty(),
+                        )
+                    });
                 v.task_choices = state
                     .tasks
                     .iter()
@@ -849,7 +1163,9 @@ impl Controller {
             }
         }
         v.analysis_consent_id = self.analysis_consent.as_ref().map(|p| p.id.clone());
-        v.analysis_status = if self.analysis_consent.is_some() {
+        v.analysis_status = if model::interactive_only() {
+            "Kimi Code · 本人主动请求 AI；后台使用本地规则，不发起模型调用".into()
+        } else if self.analysis_consent.is_some() {
             "主动分析预览：发送去身份的活动类型、时段、人数与本人目标字段至 api.minimax.cn；使用共享预算，变化后最多每分钟一次，相同事实复用结果。只解释已有事实，不能执行或更新偏好；随本人授权到期，最长一小时，可单独撤销。".into()
         } else if self.analysis_until > now() {
             format!(

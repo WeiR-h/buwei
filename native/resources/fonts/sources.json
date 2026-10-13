@@ -1,0 +1,20 @@
+[
+  {
+    "path": "native/resources/fonts/SourceHanSansSC-Regular.otf",
+    "source": "https://raw.githubusercontent.com/adobe-fonts/source-han-sans/release/OTF/SimplifiedChinese/SourceHanSansSC-Regular.otf",
+    "sha256": "f1d8611151880c6c336aabeac4640ef434fa13cbfbf1ffe82d0a71b2a5637256",
+    "bytes": 16529832
+  },
+  {
+    "path": "native/resources/fonts/SourceHanSansSC-Bold.otf",
+    "source": "https://raw.githubusercontent.com/adobe-fonts/source-han-sans/release/OTF/SimplifiedChinese/SourceHanSansSC-Bold.otf",
+    "sha256": "df2b90f5bcc6d01dfc964cec5f6d535d6b6aebd26ed7fd79a9c1b3f2112fcb6b",
+    "bytes": 16963428
+  },
+  {
+    "path": "licenses/SourceHanSans-LICENSE.txt",
+    "source": "https://raw.githubusercontent.com/adobe-fonts/source-han-sans/release/LICENSE.txt",
+    "sha256": "fcac737e761ec63dbfbdce11030a1780161920d80315edba9c8beff1c2bac5a2",
+    "bytes": 4463
+  }
+]

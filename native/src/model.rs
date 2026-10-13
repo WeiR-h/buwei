@@ -1,4 +1,4 @@
-//! Host-owned DPAPI provider, official ModelHost ledger/schema, bounded M3 wire.
+//! Host-owned DPAPI provider, official ModelHost ledger/schema, personal K3 requests.
 use super::*;
 pub(crate) use crate::community_model::{ask_activity, create_activity, recommend_dated};
 use buwei_host_core::preference_draft::PreferenceDraft;
@@ -6,7 +6,7 @@ use octosense_llm_config::{ApiType, Provider};
 use octosense_llm_service::complete::{
     Candidate, Class, ModelHost, Options, Providers, Request, Transport, ledger::Limits,
 };
-pub(crate) const EVALUATION_APP: &str = "buwei-evaluation-v1";
+pub(crate) const EVALUATION_APP: &str = "buwei-kimi-interactive-check-v1";
 struct PrivateProvider {
     root: PathBuf,
     ledger_ready: bool,
@@ -17,8 +17,8 @@ impl Providers for PrivateProvider {
             return Err("模型计数迁移不可核实，请保留旧目录并核对预算".into());
         }
         let key = unseal(
-            &self.root.join(".secrets/minimax-cn.dpapi"),
-            b"buwei/minimax-cn/v1",
+            &self.root.join(".secrets/kimi-code.dpapi"),
+            b"buwei/kimi-code/v1",
         )?;
         let key = String::from_utf8(key).map_err(|_| "模型私密配置不可用")?;
         if key.trim() != key
@@ -28,8 +28,8 @@ impl Providers for PrivateProvider {
         {
             return Err("模型私密配置不可用".into());
         }
-        let mut provider = Provider::new("minimax-cn", Some("MiniMax-M3".into()));
-        provider.base_url = Some("https://api.minimax.cn/v1".into());
+        let mut provider = Provider::new("kimi-code", Some(MODEL_ID.into()));
+        provider.base_url = Some(MODEL_BASE.into());
         provider.api_type = Some(ApiType::OpenAi);
         Ok(vec![Candidate {
             provider,
@@ -37,59 +37,61 @@ impl Providers for PrivateProvider {
         }])
     }
 }
-struct BoundedM3 {
+// Bounded personal Kimi Code requests through the official model host.
+struct BoundedK3 {
     root: PathBuf,
 }
-impl Transport for BoundedM3 {
+pub(crate) const MODEL_ID: &str = "k3";
+pub(crate) const MODEL_BASE: &str = "https://api.kimi.com/coding/v1";
+pub(crate) fn interactive_only() -> bool {
+    true
+}
+pub(crate) fn subscription_budget(
+    root: &Path,
+) -> Result<buwei_host_core::subscription_budget::Budget> {
+    let folder = std::env::var_os("BUWEI_MODEL_BUDGET_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            std::env::var_os("LOCALAPPDATA")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| root.to_owned())
+                .join("BuWei/model-budget")
+        });
+    std::fs::create_dir_all(&folder).map_err(|_| "会员模型用量目录不可用")?;
+    buwei_host_core::subscription_budget::Budget::open(folder.join("kimi-code-usage.db"))
+}
+impl Transport for BoundedK3 {
     fn post(&self, url: &str, headers: &[(String, String)], body: &str) -> Result<(u16, Vec<u8>)> {
         use std::io::Read;
-        if url != "https://api.minimax.cn/v1/chat/completions" {
+        if url != "https://api.kimi.com/coding/v1/chat/completions" {
             return Err("模型服务地址不符合宿主配置".into());
         }
         let mut request: Value = serde_json::from_str(body).map_err(|_| "模型请求格式不合法")?;
-        if request["model"] != "MiniMax-M3" {
+        if request["model"] != MODEL_ID {
             return Err("模型型号不符合宿主配置".into());
         }
-        // A code review needs room for reasoning before its JSON result.
-        // Both caps stay below the shared reserve, including the bounded input.
-        let reviewing = std::env::args().any(|a| a == "--community-evaluation")
-            && request["messages"].as_array().is_some_and(|messages| {
-                messages.iter().any(|message| {
-                    message["content"]
-                        .as_str()
-                        .is_some_and(|text| text.contains("审查本段公开 Rust 源码"))
-                })
-            });
-        request["max_completion_tokens"] = if reviewing { 7168 } else { 4096 }.into();
+        request["max_tokens"] = 8192.into();
+        request["reasoning_effort"] = "high".into();
         request["stream"] = false.into();
+        request
+            .as_object_mut()
+            .unwrap()
+            .remove("max_completion_tokens");
         if request.to_string().len() > 16384 {
-            return Err("模型请求超出开发预算范围".into());
+            return Err("模型请求超出范围".into());
         }
-        let mut shared = shared_budget(&self.root)?;
-        let reservation = shared.reserve()?;
-        let path = self.root.join("data/model/development-budget.json");
-        std::fs::create_dir_all(path.parent().unwrap()).map_err(|_| "模型预算不可保存")?;
-        let mut budget: Value = if path.exists() {
-            serde_json::from_slice(&std::fs::read(&path).map_err(|_| "模型预算不可读取")?)
-                .map_err(|_| "历史模型用量损坏")?
-        } else {
-            json!({"attempts_reserved":0,"estimated_rmb":0.0,"billing_verified":false})
-        };
-        let calls = budget["attempts_reserved"]
-            .as_u64()
-            .ok_or("模型预算格式不合法")?;
-        budget["attempts_reserved"] = (calls + 1).into();
-        budget["shared_budget"] = shared.summary()?;
-        save_budget(&path, &budget)?;
+        let mut usage = subscription_budget(&self.root)?;
+        let reservation = usage.reserve(now())?;
+        let path = self.root.join("data/model/kimi-code-usage.json");
+        std::fs::create_dir_all(path.parent().unwrap()).map_err(|_| "会员模型用量目录不可保存")?;
+        save_budget(&path, &usage.summary()?)?;
         let agent = ureq::AgentBuilder::new()
-            .timeout(Duration::from_secs(
-                if std::env::args().any(|a| a == "--community-evaluation") {
-                    120
-                } else {
-                    45
-                },
-            ))
+            .timeout(Duration::from_secs(90))
             .redirects(0)
+            .user_agent(&format!(
+                "BuWei/{} (OctoSense native host)",
+                env!("CARGO_PKG_VERSION")
+            ))
             .build();
         let mut call = agent.post(url);
         for (name, value) in headers {
@@ -99,26 +101,23 @@ impl Transport for BoundedM3 {
             call = call.set(name, value);
         }
         let response = match call.send_string(&request.to_string()) {
-            Ok(r) => r,
-            Err(ureq::Error::Status(code, _)) => return Err(format!("模型服务 HTTP {code}")),
+            Ok(response) => response,
+            Err(ureq::Error::Status(code, _)) => return Err(format!("Kimi Code 服务 HTTP {code}")),
             Err(_) => return Err("模型服务暂时不可用".into()),
         };
         let status = response.status();
         let mut raw = vec![];
         response
             .into_reader()
-            .take(65537)
+            .take(131073)
             .read_to_end(&mut raw)
             .map_err(|_| "模型响应未完整读取")?;
-        if raw.len() > 65536 {
+        if raw.len() > 131072 {
             return Err("模型响应超出范围".into());
         }
         let parsed: Value = serde_json::from_slice(&raw).map_err(|_| "模型响应格式不合法")?;
-        if parsed["model"] != "MiniMax-M3"
-            || parsed
-                .get("base_resp")
-                .and_then(|r| r.get("status_code"))
-                .is_some_and(|c| c != 0)
+        if !matches!(parsed["model"].as_str(), Some("k3" | "kimi-k3"))
+            || parsed.get("error").is_some()
         {
             return Err("模型型号或业务结果不匹配".into());
         }
@@ -126,40 +125,13 @@ impl Transport for BoundedM3 {
             parsed["usage"]["prompt_tokens"].as_u64(),
             parsed["usage"]["completion_tokens"].as_u64(),
         ) {
-            shared.record(&reservation, input, output)?;
-            budget["shared_budget"] = shared.summary()?;
-            let estimated = input as f64 * 2.10 / 1_000_000.0 + output as f64 * 8.40 / 1_000_000.0;
-            budget["estimated_rmb"] =
-                json!(budget["estimated_rmb"].as_f64().unwrap_or(0.0) + estimated);
-            budget["input_tokens"] = json!(
-                budget["input_tokens"]
-                    .as_u64()
-                    .unwrap_or(0)
-                    .checked_add(input)
-                    .ok_or("模型用量超出范围")?
-            );
-            budget["output_tokens"] = json!(
-                budget["output_tokens"]
-                    .as_u64()
-                    .unwrap_or(0)
-                    .checked_add(output)
-                    .ok_or("模型用量超出范围")?
-            );
-            budget["usage_responses"] = json!(budget["usage_responses"].as_u64().unwrap_or(0) + 1);
-            budget["usage_tracking_since"] =
-                json!("v0.1.1; earlier responses remain in estimated_rmb");
-            budget["max_completion_tokens"] = request["max_completion_tokens"].clone();
-            if parsed["choices"][0]["finish_reason"] == "length" {
-                budget["truncated_responses"] =
-                    json!(budget["truncated_responses"].as_u64().unwrap_or(0) + 1);
-            }
-            budget["pricing_checked_on"] = json!("2026-10-03");
-            budget["pricing_url"] = json!("https://platform.minimax.cn/docs/guides/pricing-paygo");
-            save_budget(&path, &budget)?;
+            usage.record(&reservation, input, output)?;
+            save_budget(&path, &usage.summary()?)?;
         }
         Ok((status, raw))
     }
 }
+
 pub(crate) fn shared_budget(root: &Path) -> Result<buwei_host_core::model_budget::Budget> {
     let folder = std::env::var_os("BUWEI_MODEL_BUDGET_ROOT")
         .map(PathBuf::from)
@@ -316,7 +288,7 @@ pub(crate) fn host(root: &Path) -> Arc<ModelHost> {
                         root: root.to_owned(),
                         ledger_ready,
                     }))
-                    .transport(Arc::new(BoundedM3 {
+                    .transport(Arc::new(BoundedK3 {
                         root: root.to_owned(),
                     }))
                     .grants(|_, _| false)
@@ -342,13 +314,16 @@ pub(crate) fn host(root: &Path) -> Arc<ModelHost> {
 pub(crate) fn status(root: &Path, host: &ModelHost) -> String {
     let _ = host;
     format!(
-        "MiniMax-M3 · {}",
-        if root.join(".secrets/minimax-cn.dpapi").is_file() {
-            "已连接本机模型配置"
+        "Kimi Code · K3 · {}",
+        if root.join(".secrets/kimi-code.dpapi").is_file() {
+            "本机密钥已保存；调用时核验连接"
         } else {
             "请配置模型；手动报名可直接使用"
         }
     )
+}
+pub(crate) fn failure_message(error: &octosense_llm_service::complete::Refusal) -> &'static str {
+    buwei_host_core::model_failure::user_message(error.code.as_str(), error.detail.as_deref())
 }
 pub(crate) fn anonymous_summary(a: &Activity) -> Value {
     let people = a.ordered_people();
@@ -385,14 +360,14 @@ pub(crate) fn note(host: &ModelHost, g: &Grant, a: &Activity) -> Result<(Note, V
     g.check("model", now()).map_err(|_| "模型授权已失效")?;
     let completion = host
         .complete("buwei", note_request(a))
-        .map_err(|r| format!("模型草稿不可用：{}", r.code.as_str()))?;
+        .map_err(|r| format!("{}；可手动编辑草稿", failure_message(&r)))?;
     Ok((parse_note(&completion.output)?, completion.to_reply()))
 }
 pub(crate) fn explain(host: &ModelHost, g: &Grant, a: &Activity) -> Result<(String, Value)> {
     g.check("model", now()).map_err(|_| "模型授权已失效")?;
     let completion = host
         .complete("buwei", explain_request(a))
-        .map_err(|r| format!("模型解释不可用：{}", r.code.as_str()))?;
+        .map_err(|r| format!("{}；可查看候补规则", failure_message(&r)))?;
     Ok((
         parse_explanation(&completion.output, a)?,
         completion.to_reply(),
@@ -607,7 +582,7 @@ pub(crate) fn recommend_dialogue(
     }
     let completion = host
         .complete("buwei", preference_request(turns)?)
-        .map_err(|r| format!("模型建议不可用：{}", r.code.as_str()))?;
+        .map_err(|r| format!("{}；可手动填写报名信息", failure_message(&r)))?;
     Ok((
         parse_preferences(&completion.output, turns)?,
         completion.to_reply(),
@@ -652,7 +627,7 @@ pub(crate) fn evaluation_host(root: &Path) -> Result<ModelHost> {
                 root: root.to_owned(),
                 ledger_ready: true,
             }))
-            .transport(Arc::new(BoundedM3 {
+            .transport(Arc::new(BoundedK3 {
                 root: root.to_owned(),
             }))
             .limits(Limits {

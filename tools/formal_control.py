@@ -11,7 +11,14 @@ class Control:
         self.config={'account':account,'room':room,'nonce':self.nonce,'expires_at':int(time.time())+3500}
         self.write('config.local.json',self.config)
     def write(self,name,value):
-        temporary=self.directory/(name+'.tmp');temporary.write_text(json.dumps(value,ensure_ascii=False),'utf8');temporary.replace(self.directory/name)
+        temporary=self.directory/(name+'.tmp');temporary.write_text(json.dumps(value,ensure_ascii=False),'utf8')
+        # Windows may briefly deny replacement while the opted-in host reads
+        # the old file. Retry the identical local marker, never a business send.
+        for attempt in range(20):
+            try:temporary.replace(self.directory/name);return
+            except PermissionError:
+                if attempt==19:raise
+                time.sleep(.05)
     def command(self,name,value=None,timeout=55):
         request=uuid.uuid4().hex;action={'command':name}
         if value is not None:action['value']=value

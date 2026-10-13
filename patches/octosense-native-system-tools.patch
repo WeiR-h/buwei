@@ -1,0 +1,98 @@
+diff --git a/crates/shell/src/ext.rs b/crates/shell/src/ext.rs
+index dfbc709..bc1fc29 100644
+--- a/crates/shell/src/ext.rs
++++ b/crates/shell/src/ext.rs
+@@ -28,6 +28,43 @@ pub fn linked_modules() -> Vec<&'static dyn AppModule> {
+     EXT.get().map(|ext| (ext.linked_modules)()).unwrap_or_default()
+ }
+ 
++// A package may expose only named tools belonging to its linked native modules.
++// Install before shell startup; no card or model argument can modify the grants.
++static SYSTEM_TOOLS: OnceLock<&'static [(&'static str, &'static str)]> = OnceLock::new();
++
++pub fn install_system_tools(tools: &'static [(&'static str, &'static str)]) {
++    let _ = SYSTEM_TOOLS.set(tools);
++}
++
++pub fn is_package_module(id: &str) -> bool {
++    linked_modules().iter().any(|module| module.id() == id)
++}
++
++pub fn system_tools() -> std::collections::BTreeSet<String> {
++    let linked: Vec<&str> = linked_modules().iter().map(|module| module.id()).collect();
++    system_tools_given(SYSTEM_TOOLS.get().copied().unwrap_or_default(), &linked)
++}
++
++pub fn system_tools_given(tools: &[(&str, &str)], linked: &[&str]) -> std::collections::BTreeSet<String> {
++    tools.iter().filter(|(owner, tool)| linked.contains(owner)
++        && tool.split_once('.').is_some_and(|(prefix, name)| prefix == *owner
++            && !name.is_empty() && name.len() <= 32
++            && name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'_')))
++        .map(|(_, tool)| tool.to_string()).collect()
++}
++
++#[cfg(test)]
++mod package_tool_tests {
++    #[test]
++    fn package_tools_require_linked_owner_and_exact_namespace() {
++        let tools = [("reading", "reading.prepare_plan"), ("reading", "terminal.run"),
++            ("unknown", "unknown.read"), ("reading", "reading.nested.run"), ("reading", "reading.")];
++        assert_eq!(super::system_tools_given(&tools, &["reading"]),
++            std::collections::BTreeSet::from(["reading.prepare_plan".to_string()]));
++        assert!(super::system_tools_given(&tools, &[]).is_empty());
++    }
++}
++
+ pub fn trusted_module(module: &dyn AppModule) -> bool {
+     EXT.get().is_some_and(|ext| (ext.trusted_module)(module))
+ }
+diff --git a/crates/shell/src/host_tools/admission.rs b/crates/shell/src/host_tools/admission.rs
+index 2f14cba..d606d2a 100644
+--- a/crates/shell/src/host_tools/admission.rs
++++ b/crates/shell/src/host_tools/admission.rs
+@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
+ 
+ pub(crate) fn check(app: &str) -> Result<(), String> {
+     if crate::native_apps::find(app).is_some()
++        || crate::ext::is_package_module(app)
+         || [super::relay::SYSTEM, super::relay::TOOLBOX, super::relay::HOST_EXECUTOR, crate::agents::OWNER].contains(&app)
+     {
+         return Ok(());
+diff --git a/crates/shell/src/host_tools/relay.rs b/crates/shell/src/host_tools/relay.rs
+index b50d01c..fed1774 100644
+--- a/crates/shell/src/host_tools/relay.rs
++++ b/crates/shell/src/host_tools/relay.rs
+@@ -64,6 +64,8 @@ pub const TERMINAL_APP: &str = "terminal";
+ /// it is not running.
+ pub fn serves_on_bus(owner: &str) -> bool {
+     crate::native_apps::find(owner).is_some_and(|app| app.tools_json != "[]")
++        || (crate::ext::is_package_module(owner)
++            && crate::ext::system_tools().iter().any(|tool| tool.split_once('.').is_some_and(|(id, _)| id == owner)))
+ }
+ /// Developer mode's command tool (§13), run by the shell ([`super::dev_run`]).
+ pub const DEV_RUN: &str = "dev.run";
+@@ -341,7 +343,7 @@ impl Catalog {
+         if ns == TOOLBOX || ns == "workflow" {
+             return Some(TOOLBOX.to_string());
+         }
+-        if crate::native_apps::find(ns).is_some() {
++        if crate::native_apps::find(ns).is_some() || crate::ext::is_package_module(ns) {
+             return Some(ns.to_string());
+         }
+         Some(format!("os.{ns}"))
+diff --git a/crates/shell/src/system_chat/grants.rs b/crates/shell/src/system_chat/grants.rs
+index b4851cc..1dfff7f 100644
+--- a/crates/shell/src/system_chat/grants.rs
++++ b/crates/shell/src/system_chat/grants.rs
+@@ -247,7 +247,10 @@ pub const MAX_SESSION_TOOLS: usize = 64;
+ /// not running.
+ pub fn native_system_tools() -> std::collections::BTreeSet<String> {
+     let processes = crate::host::processes_available();
+-    native_system_tools_given(|id| crate::apps::is_linked(id) || (processes && crate::apps::process_form(id)))
++    let mut tools = native_system_tools_given(|id| crate::apps::is_linked(id) || (processes && crate::apps::process_form(id)));
++    // Pure package declarations: the relay can evaluate this while holding its catalog lock.
++    tools.extend(crate::ext::system_tools());
++    tools
+ }
+ 
+ /// [`native_system_tools`] for the apps `runs_here` says this device has.

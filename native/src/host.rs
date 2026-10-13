@@ -39,6 +39,43 @@ struct Lease {
 }
 static LEASE: Mutex<Option<Lease>> = Mutex::new(None);
 static CARD: Mutex<Option<(String, String)>> = Mutex::new(None);
+static TOOLS: Mutex<std::collections::VecDeque<super::planning_service::Call>> =
+    Mutex::new(std::collections::VecDeque::new());
+pub(crate) fn plan_tool(
+    scope: InstanceScope,
+    call: &makepad_app_module::makepad_ai_services::wire::ServiceCall,
+    replies: makepad_app_module::ReplySink,
+    cancelled: Arc<AtomicBool>,
+) -> Result<()> {
+    let request = super::planning_service::parse(call, scope)?;
+    let lease = LEASE.lock().unwrap();
+    let l = lease
+        .as_ref()
+        .filter(|l| l.scope == scope && l.alive.load(Ordering::SeqCst))
+        .ok_or("请先打开补位并登录本人账号")?;
+    let actor = l
+        .updates
+        .last
+        .lock()
+        .unwrap()
+        .as_ref()
+        .filter(|v| v.authorized)
+        .map(|v| v.account.clone())
+        .ok_or("请在补位查看并确认当前账号授权")?;
+    let mut queue = TOOLS.lock().unwrap();
+    if queue.len() >= 4 {
+        return Err("策划正在处理，请稍后重试".into());
+    }
+    queue.push_back(super::planning_service::Call {
+        scope,
+        actor,
+        call_id: call.call_id.clone(),
+        request,
+        cancelled,
+        replies,
+    });
+    Ok(())
+}
 pub(crate) fn configure(root: PathBuf) {
     let _ = ROOT.set(root);
 }
@@ -101,6 +138,19 @@ pub(crate) fn open(scope: InstanceScope) -> (SyncSender<Command>, Receiver<Resul
                         let _ = updates.send(Ok(c.handle(Command::OpenCard { room, activity_id })));
                     }
                     while alive.load(Ordering::SeqCst) {
+                        let tool_call = { TOOLS.lock().unwrap().pop_front() };
+                        if let Some(call) = tool_call {
+                            let valid = LEASE.lock().unwrap().as_ref().is_some_and(|l| {
+                                l.scope == call.scope && l.alive.load(Ordering::SeqCst)
+                            });
+                            if valid && !PAUSED.load(Ordering::SeqCst) {
+                                if let Some(view) = super::planning_service::run(&mut c, call) {
+                                    let _ = updates.send(Ok(view));
+                                }
+                            } else {
+                                call.replies.reply(makepad_app_module::makepad_ai_services::wire::ToolResult::denied(call.call_id,"应用实例已关闭或值守已暂停"));
+                            }
+                        }
                         if PAUSED.load(Ordering::SeqCst) && c.is_authorized() {
                             let view = c.handle(Command::Revoke);
                             let _ = updates.send(Ok(view));
@@ -269,5 +319,10 @@ pub(crate) fn open_card(room: String, activity_id: String) {
         let _ = lease
             .commands
             .try_send(Command::OpenCard { room, activity_id });
+    }
+}
+pub(crate) fn invalidate_community(scope: InstanceScope) {
+    if let Some(l) = LEASE.lock().unwrap().as_ref().filter(|l| l.scope == scope) {
+        l.interlock.invalidate_prefix("community:");
     }
 }

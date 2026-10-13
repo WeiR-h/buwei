@@ -19,8 +19,41 @@ fn complete(host: &ModelHost, g: &Grant, r: Request) -> Result<Value> {
     g.check("model", now()).map_err(|_| "模型授权已失效")?;
     let c = host
         .complete("buwei", r)
-        .map_err(|e| format!("AI 暂不可用：{}", e.code.as_str()))?;
+        .map_err(|e| format!("{}；可以手动填写", model::failure_message(&e)))?;
     Ok(c.output)
+}
+pub(crate) fn plan_request(
+    text: &str,
+    previous: Option<&buwei_host_core::planning::ActivityPlanDraft>,
+) -> Result<Request> {
+    if text.trim().is_empty() || text.len() > 4000 {
+        return Err("请填写活动需求，最多 4000 字节".into());
+    }
+    Ok(request(
+        "把本人自然语言需求整理为活动策划提案。updates 只写本次明确提出或更正的基础字段；未提字段保持已有值，不填推测日期、地点、容量或结束时间。每个 update.source 必须逐字引用本次 user_intake 的片段；capacity 的 value 为0至30的数字字符串，未知留空字段或不更新；template 只能 badminton/boardgame/reading/custom。北京时间 YYYY-MM-DD HH:MM，参考日期由 input 给出。可按用户明确类型拟一个标题。agenda/preparation/recruitment/reminders 是建议，不能声称已预约场地、已报名、已发送、实际到场或已启用提醒。不确定的必需基础信息由应用追问，不额外追问选填流程。修改已有策划时，仅改变本人明确提及字段。活动创建、分享、报名均由本人另行确认。",
+        json!({"reference_beijing":buwei_host_core::calendar::display(now()),"user_intake":text,"previous_basics":previous.map(|p|&p.basics),"previous_suggestions":previous.map(|p|json!({"agenda":p.agenda,"preparation":p.preparation,"recruitment":p.recruitment,"reminders":p.reminders}))}),
+        plan_properties(),
+        &[
+            "updates",
+            "agenda",
+            "preparation",
+            "recruitment",
+            "reminders",
+        ],
+    ))
+}
+pub(crate) fn plan_properties() -> Value {
+    let lines = json!({"type":"array","maxItems":8,"items":{"type":"string","maxLength":600}});
+    json!({"updates":{"type":"array","maxItems":7,"items":{"type":"object","additionalProperties":false,"required":["field","value","source"],"properties":{"field":{"type":"string","enum":buwei_host_core::planning::BASIC_FIELDS},"value":string(),"source":string()}}},"agenda":lines,"preparation":lines,"recruitment":{"type":"string","maxLength":1600},"reminders":lines})
+}
+pub(crate) fn prepare_plan(
+    host: &ModelHost,
+    g: &Grant,
+    text: &str,
+    previous: Option<&buwei_host_core::planning::ActivityPlanDraft>,
+) -> Result<buwei_host_core::planning::PlanProposal> {
+    serde_json::from_value(complete(host, g, plan_request(text, previous)?)?)
+        .map_err(|_| "策划提案结构不合法，可以手动填写".into())
 }
 pub(crate) fn dated_request(a: &Activity, requirement: &str, answer: &str) -> Result<Request> {
     if requirement.trim().is_empty() || requirement.len() + answer.len() > 4000 {
@@ -186,7 +219,7 @@ pub(crate) fn grounded_note(
             "buwei",
             facts_request(a, "为活动小记选择时间、名额、报名、预留和地点信息")?,
         )
-        .map_err(|e| format!("活动小记暂不可用：{}", e.code.as_str()))?;
+        .map_err(|e| format!("{}；可手动编辑活动小记", model::failure_message(&e)))?;
     let ids: Vec<String> = serde_json::from_value(completion.output["fact_ids"].clone())
         .map_err(|_| "草稿引用不合法")?;
     let markdown = buwei_host_core::facts::render(a, &ids)?;

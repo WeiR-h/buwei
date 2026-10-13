@@ -12,6 +12,8 @@ python tools/bootstrap.py
 
 `dependencies.lock.json` 固定官方 OctoSense、Rinx、Makepad、OctoScript、App Hub 和 octos 内核提交。依赖保存在被忽略的 `.deps`；获取脚本核对提交和产品补丁摘要，并逐文件验证补丁结果。Rust 工具链和 Cargo.lock 随源码固定。
 
+系统聊天接入使用 `patches/octosense-native-system-tools.patch`，仅为包装内已链接的原生模块登记明确的工具名称，沿用宿主确认与调用路由。补丁摘要及四个修改文件均在依赖清单中固定；未登记的修改会停止构建准备。
+
 构建后使用 `tools/Start-BuWei.ps1 -Role organizer -Executable native/target/release/buwei-rinx-dual-host.exe`。参与者将角色改为 `participant`。首次运行不含登录、模型密钥或业务授权。
 
 正式构建使用 `full-host`。本地测试接口仅在显式 `acceptance` 功能和启动参数同时开启时使用，公开运行包不包含该接口。源码检查、干净 Windows 构建、独立运行环境启动及包摘要核验由 Windows 工作流完成。

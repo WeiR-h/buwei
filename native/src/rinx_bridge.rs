@@ -40,7 +40,16 @@ pub fn ensure_current(c: &Client) -> Result<()> {
 pub fn verify_current(rt: &Runtime, c: &Client) -> Result<()> {
     ensure_current(c)?;
     let response = rt
-        .block_on(async { tokio::time::timeout(Duration::from_secs(8), c.whoami()).await })
+        .block_on(async {
+            tokio::time::timeout(
+                Duration::from_secs(10),
+                c.send(matrix_sdk::ruma::api::client::account::whoami::v3::Request::new())
+                    .with_request_config(
+                        RequestConfig::new().disable_retry().timeout(Duration::from_secs(8)),
+                    ),
+            )
+            .await
+        })
         .map_err(|_| "正式服务器身份核验超时；尚未执行动作")?
         .map_err(|_| "正式服务器身份核验失败；尚未执行动作")?;
     if c.user_id() != Some(&response.user_id) {
