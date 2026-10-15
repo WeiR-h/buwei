@@ -44,6 +44,12 @@ impl From<ActivityForm> for buwei_host_core::planning::ActivityBasics {
     }
 }
 impl ActivityForm {
+    // A new draft can have identical defaults. It must replace unsaved input
+    // from the previous draft; polling the same draft must preserve edits.
+    pub(crate) fn display_key(&self, account: &str, plan: Option<&str>) -> String {
+        serde_json::to_string(&(account, plan, self)).unwrap_or_default()
+    }
+
     fn activity(&self, owner: String, room: String, id: String) -> Result<Activity> {
         let start = calendar::parse(&self.start)?;
         let end = calendar::parse(&self.end)?;
@@ -60,6 +66,35 @@ impl ActivityForm {
         });
         a.validate()?;
         Ok(a)
+    }
+}
+
+#[cfg(test)]
+mod form_display_tests {
+    use super::*;
+
+    #[test]
+    fn new_draft_or_account_replaces_identical_form_defaults() {
+        let form: ActivityForm = buwei_host_core::planning::ActivityPlanDraft::from_template(
+            "@owner:test", "dining", 1_800_000_000,
+        ).unwrap().basics.into();
+        let first = form.display_key("@owner:test", Some("first-draft"));
+        assert_ne!(first, form.display_key("@owner:test", Some("second-draft")));
+        assert_ne!(first, form.display_key("@other:test", Some("first-draft")));
+        assert_ne!(first, form.display_key("@owner:test", None));
+        // Routine host updates for the same draft do not overwrite local edits.
+        assert_eq!(first, form.display_key("@owner:test", Some("first-draft")));
+    }
+
+    #[test]
+    fn saved_changes_are_applied_within_the_same_draft() {
+        let mut form: ActivityForm = buwei_host_core::planning::ActivityPlanDraft::from_template(
+            "@owner:test", "hiking", 1_800_000_000,
+        ).unwrap().basics.into();
+        let before = form.display_key("@owner:test", Some("draft"));
+        form.capacity = 3;
+        form.location = "虚构集合地点".into();
+        assert_ne!(before, form.display_key("@owner:test", Some("draft")));
     }
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]

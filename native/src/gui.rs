@@ -1003,7 +1003,7 @@ impl BuWeiView {
             }
         }
         if let Some(form) = &view.create_form {
-            let key = serde_json::to_string(form).unwrap_or_default();
+            let key = form.display_key(&view.account, self.plan_id.as_deref());
             if self.last_form.as_ref() != Some(&key) {
                 self.view
                     .text_input(cx, ids!(title))
