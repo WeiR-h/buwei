@@ -25,7 +25,7 @@ BuWei uses pinned official OctoSense desktop RC6 and Rinx 1.1.0 sources and ship
 
 Optional Windows tray duty continues synchronization while the computer and application run with valid authorization. Explicit feedback updates only the chosen scope. Recurring activity drafts require fresh confirmation of their date, location and capacity. [Goals and assistance](docs/INTENTIONS.md) · [Submission and historical versions](docs/SUBMISSION.md).
 
-[Watch the 60-second continuous native recording](https://github.com/WeiR-h/buwei/releases/download/v0.2.12/BuWei-v0.2.12-demo.mp4): two real local Rinx accounts complete a natural-language sign-up, rule-based invitation, personal acceptance and final organizer verification. Capture preserves elapsed time and covers private identifiers. [Planning, community publication and export walkthrough (v0.2.11)](https://github.com/WeiR-h/buwei/releases/download/v0.2.11/BuWei-v0.2.11-Demo.mp4). Runtime requirements: Windows 10/11 x64 and the Microsoft Visual C++ v14 x64 runtime.
+[Activity library and community walkthrough (v0.2.13)](https://github.com/WeiR-h/buwei/releases/download/v0.2.13/BuWei-v0.2.13-demo.mp4): actual Windows activity templates, editable plans, type filters and registration results, with private identifiers covered. [Continuous sign-up and acceptance recording (v0.2.12)](https://github.com/WeiR-h/buwei/releases/download/v0.2.12/BuWei-v0.2.12-demo.mp4) · [Planning, publication and export walkthrough (v0.2.11)](https://github.com/WeiR-h/buwei/releases/download/v0.2.11/BuWei-v0.2.11-Demo.mp4). Runtime requirements: Windows 10/11 x64 and the Microsoft Visual C++ v14 x64 runtime.
 
 ## Three steps to start
 

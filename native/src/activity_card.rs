@@ -2,6 +2,7 @@
 use super::*;
 use serde::{Deserialize, Serialize};
 pub(crate) const MSGTYPE: &str = "org.buwei.activity.card";
+const CLIENT_DOWNLOAD: &str = concat!("https://github.com/WeiR-h/buwei/releases/tag/v", env!("CARGO_PKG_VERSION"));
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Card {
@@ -31,13 +32,42 @@ impl Card {
     }
     pub fn body(&self) -> String {
         format!(
-            "[补位活动] {}\n{} 至 {} · 北京时间\n地点：{}\n当前可用 {} 个名额\n在补位中查看并报名。\n客户端下载：https://github.com/WeiR-h/buwei/releases/latest",
+            "[补位活动] {}\n{} 至 {} · 北京时间\n地点：{}\n当前可用 {} 个名额\n在补位中查看并报名。\n客户端下载：{}",
             self.title,
             buwei_host_core::calendar::display(self.start),
             buwei_host_core::calendar::display(self.end),
             self.location,
-            self.free
+            self.free,
+            CLIENT_DOWNLOAD,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn activity_upgrade_link_targets_the_producing_version_including_previews() {
+        let card = Card { protocol: 2, activity_id: "a".repeat(32), room: "!activity:test".into(),
+            title: "聚餐".into(), start: 1_793_448_000, end: 1_793_451_600, location: "测试地点".into(), free: 2 };
+        assert!(card.body().ends_with(&format!("/releases/tag/v{}", env!("CARGO_PKG_VERSION"))));
+        assert!(!card.body().contains("/releases/latest"));
+    }
+    #[test]
+    fn recovery_preserves_the_body_frozen_before_an_upgrade() {
+        let authority = action_receipts::Authority::default();
+        authority.set_account(Some("@owner:test"));
+        let grant = authority.grant("buwei", &["share_card"], 100, 3600).unwrap();
+        let path = std::env::temp_dir().join(format!("buwei-card-{}.db", action_receipts::new_id()));
+        let old = "旧活动卡片\n客户端下载：https://github.com/WeiR-h/buwei/releases/latest";
+        {
+            let mut journal = Journal::open(&path).unwrap();
+            let op = journal.prepare(&grant, Action { permission: "share_card".into(), target: "!chat:test".into(),
+                summary: "已核对分享".into(), payload: json!({"body":old,"card":{"protocol":2}}) }, 1, 100, 120).unwrap();
+            assert_eq!(content(&op)["body"], old);
+            assert_eq!(channel::content(&op, "m.room.message")["body"], old);
+        }
+        let _ = std::fs::remove_file(path);
     }
 }
 pub(crate) fn content(op: &Operation) -> Value {

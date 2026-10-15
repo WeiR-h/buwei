@@ -40,7 +40,9 @@
 
 [活动策划、社群报名与名单导出](docs/COMMUNITY.md)
 
-[60 秒连续原生实录](https://github.com/WeiR-h/buwei/releases/download/v0.2.12/BuWei-v0.2.12-demo.mp4)：本机两个真实账号完成自然语言报名、规则邀请、本人接受与组织者最终核验。画面按实际时间连续采集，私密标识已遮盖。
+[活动库与社群使用演示（v0.2.13）](https://github.com/WeiR-h/buwei/releases/download/v0.2.13/BuWei-v0.2.13-demo.mp4)：查看活动模板、准备可编辑策划、按类型挑选社群活动与跟进报名结果。演示来自实际 Windows 程序，私密标识已遮盖。
+
+[报名、邀请与接受的 60 秒连续实录（v0.2.12）](https://github.com/WeiR-h/buwei/releases/download/v0.2.12/BuWei-v0.2.12-demo.mp4)：本机两个真实账号完成自然语言报名、规则邀请、本人接受与组织者最终核验。
 
 [策划、社群发布与导出流程演示（v0.2.11）](https://github.com/WeiR-h/buwei/releases/download/v0.2.11/BuWei-v0.2.11-Demo.mp4) · [源码、服务与恢复验证记录](docs/VERIFICATION.md)
 
