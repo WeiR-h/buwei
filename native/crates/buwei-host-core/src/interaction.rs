@@ -5,6 +5,19 @@ pub fn is_organizer(activity: &Activity, actor: &str) -> bool {
     activity.owner == actor
 }
 
+/// UI completion follows the requested plan and its verified activity, not an unrelated update.
+pub fn creation_is_complete(
+    pending_plan: Option<&str>,
+    plan: Option<&crate::planning::ActivityPlanDraft>,
+    activity_id: &str,
+) -> bool {
+    let (Some(pending), Some(plan)) = (pending_plan, plan) else { return false; };
+    !activity_id.is_empty()
+        && pending == plan.id
+        && matches!(plan.status, crate::planning::PlanStatus::Created | crate::planning::PlanStatus::Published)
+        && plan.activity_id.as_deref() == Some(activity_id)
+}
+
 /// Presentation hints only. The host still validates each prepared action.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ParticipantControls {

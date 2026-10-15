@@ -466,7 +466,7 @@ pub struct BuWeiView {
     #[rust]
     creating: bool,
     #[rust]
-    pending_creation: bool,
+    pending_creation_plan: Option<String>,
     #[rust]
     signed_in: bool,
     #[rust]
@@ -1021,11 +1021,12 @@ impl BuWeiView {
             }
         }
         self.display_templates(cx);
-        if self.pending_creation {
-            if view.success {
-                self.creating = false;
-            }
-            self.pending_creation = false;
+        if buwei_host_core::interaction::creation_is_complete(
+            self.pending_creation_plan.as_deref(), view.plan.as_ref(), &view.activity_identity,
+        ) {
+            self.creating = false;
+            self.pending_creation_plan = None;
+            self.tab = 1;
         }
         self.view
             .view(cx, ids!(creation_form))
@@ -1660,6 +1661,7 @@ impl Widget for BuWeiView {
             }
             if clicked!(new_activity) {
                 self.creating = true;
+                self.pending_creation_plan = None;
                 self.plan_id = None;
                 self.plan_revision = None;
                 self.send(
@@ -1716,6 +1718,7 @@ impl Widget for BuWeiView {
             }
             if clicked!(cancel_setup) {
                 self.creating = false;
+                self.pending_creation_plan = None;
                 self.view
                     .view(cx, ids!(creation_form))
                     .set_visible(cx, false);
@@ -1732,7 +1735,7 @@ impl Widget for BuWeiView {
                 self.pages(cx);
             }
             if clicked!(plan_confirm_create) {
-                self.pending_creation = true;
+                self.pending_creation_plan = self.plan_id.clone();
             }
             let parse = |value: String| {
                 value

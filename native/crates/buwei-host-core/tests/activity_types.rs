@@ -410,6 +410,51 @@ fn plan_type_changes_cannot_relabel_a_different_request() {
 }
 
 #[test]
+fn creation_page_waits_for_its_own_verified_activity_through_intermediate_updates() {
+    use buwei_host_core::interaction::creation_is_complete;
+    let mut draft = ActivityPlanDraft::from_template("@owner:test", "dining", clock()).unwrap();
+    let plan_id = draft.id.clone();
+    let activity_id = action_receipts::new_id();
+    assert!(!creation_is_complete(
+        Some(&plan_id),
+        Some(&draft),
+        &activity_id
+    ));
+    draft.status = PlanStatus::Creating;
+    draft.setup_id = Some(activity_id.clone());
+    assert!(!creation_is_complete(
+        Some(&plan_id),
+        Some(&draft),
+        &activity_id
+    ));
+    draft.status = PlanStatus::Created;
+    draft.activity_id = Some(activity_id.clone());
+    assert!(creation_is_complete(
+        Some(&plan_id),
+        Some(&draft),
+        &activity_id
+    ));
+    assert!(!creation_is_complete(
+        Some("old-plan"),
+        Some(&draft),
+        &activity_id
+    ));
+    assert!(!creation_is_complete(
+        Some(&plan_id),
+        Some(&draft),
+        "other-activity"
+    ));
+    assert!(!creation_is_complete(None, Some(&draft), &activity_id));
+    assert!(!creation_is_complete(Some(&plan_id), None, &activity_id));
+    draft.status = PlanStatus::Published;
+    assert!(creation_is_complete(
+        Some(&plan_id),
+        Some(&draft),
+        &activity_id
+    ));
+}
+
+#[test]
 fn verified_type_is_available_in_answers_and_organizer_csv_without_private_preferences() {
     for t in types::ALL {
         let mut a = activity(t.id);
