@@ -19,15 +19,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Download without credentials, verify fixed source and start native runtime
+      - name: Download assets anonymously, verify metadata and start native runtime
         shell: pwsh
         env:
           BUWEI_PUBLIC_TAG: ${{ inputs.release_tag }}
           MAKEPAD_FORCE_SOFTWARE_GPU: '1'
+          BUWEI_GITHUB_METADATA_TOKEN: ${{ github.token }}
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           $buweiPublicUrl = 'https://github.com/WeiR-h/buwei/releases/download/' + $env:BUWEI_PUBLIC_TAG
-          python tools/verify_public_download.py --base-url $buweiPublicUrl --destination .run/public-download --output .run/public-release-check.json --allow-preview
+          python tools/verify_public_download.py --base-url $buweiPublicUrl --destination .run/public-download --output .run/public-release-check.json --allow-preview --authenticated-metadata
       - uses: actions/upload-artifact@v4
         if: always()
         with:

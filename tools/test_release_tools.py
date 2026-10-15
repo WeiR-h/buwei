@@ -9,7 +9,7 @@ from package_scan import content_findings,BINARY_PUBLIC_LITERALS
 from pe_stack import normalize
 from fault_acceptance import FaultSuite
 from dual_acceptance import Suite
-from verify_public_download import formal_checksums,check_release_metadata,downloaded_runtime_startup,asset_format
+from verify_public_download import formal_checksums,check_release_metadata,downloaded_runtime_startup,asset_format,take_metadata_token,release_metadata,NoMetadataRedirect
 from unittest.mock import patch
 from intent_acceptance import IntentSuite
 import stage_release
@@ -20,6 +20,25 @@ from formal_control import Control
 from capture_native import redaction_targets
 
 class ReleaseTools(unittest.TestCase):
+    def test_metadata_credential_is_removed_before_starting_downloaded_runtime(self):
+        with patch.dict(os.environ,{'BUWEI_GITHUB_METADATA_TOKEN':'ephemeral-test-credential'}):
+            self.assertEqual(take_metadata_token(True),'ephemeral-test-credential')
+            self.assertNotIn('BUWEI_GITHUB_METADATA_TOKEN',os.environ)
+        with patch.dict(os.environ,{'BUWEI_GITHUB_METADATA_TOKEN':'discarded-test-credential'}):
+            self.assertIsNone(take_metadata_token(False))
+            self.assertNotIn('BUWEI_GITHUB_METADATA_TOKEN',os.environ)
+        with patch.dict(os.environ,{},clear=True):
+            with self.assertRaises(ValueError):take_metadata_token(True)
+    def test_metadata_authentication_cannot_redirect_or_reach_another_endpoint(self):
+        opener=unittest.mock.MagicMock();opener.open.return_value.__enter__.return_value.read.return_value=b'{"object":{"type":"commit"}}'
+        with patch('verify_public_download.urllib.request.build_opener',return_value=opener):
+            self.assertEqual(release_metadata('git/ref/tags/v0.2.12','ephemeral-test-credential')['object']['type'],'commit')
+        request=opener.open.call_args.args[0]
+        self.assertEqual(request.full_url,'https://api.github.com/repos/WeiR-h/buwei/git/ref/tags/v0.2.12')
+        self.assertEqual(request.get_header('Authorization'),'Bearer ephemeral-test-credential')
+        for path in ('https://example.org/','../another-project','releases/tags/v0.2.12?redirect=elsewhere'):
+            with self.assertRaises(ValueError):release_metadata(path,'ephemeral-test-credential')
+        with self.assertRaises(ValueError):NoMetadataRedirect().redirect_request(request,None,302,'redirect',{},'https://example.org/')
     def test_shutdown_socket_close_requires_zero_exit_without_resending_quit(self):
         import http.client
         for error in (ConnectionResetError('owned RPC closed'),http.client.RemoteDisconnected('closed')):

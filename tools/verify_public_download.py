@@ -1,9 +1,29 @@
 """Download public release assets without credentials and start their native host."""
-import argparse,hashlib,json,pathlib,re,time,urllib.request,urllib.parse,zipfile
+import argparse,hashlib,json,os,pathlib,re,time,urllib.request,urllib.parse,zipfile
 from startup_check import check as startup
 from package_scan import scan
 from build_proof import source_fingerprint
 import build_proof
+
+def take_metadata_token(enabled):
+    # Remove it before the downloaded application is started. This credential
+    # belongs to the verifier, never to the application or asset downloads.
+    token=os.environ.pop('BUWEI_GITHUB_METADATA_TOKEN',None)
+    if not enabled:return None
+    if not token or any(c in token for c in '\r\n'):raise ValueError('Read-only GitHub metadata credential missing or invalid')
+    return token
+
+class NoMetadataRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self,req,fp,code,msg,headers,newurl):
+        raise ValueError('Authenticated metadata redirects are refused')
+
+def release_metadata(path,token=None):
+    if not re.fullmatch(r'(?:git/ref/tags/v\d+\.\d+\.\d+|git/tags/[0-9a-f]{40}|releases/tags/v\d+\.\d+\.\d+)',path):
+        raise ValueError('Unexpected release metadata endpoint')
+    headers={'Accept':'application/vnd.github+json','User-Agent':'BuWei-release-verifier'}
+    if token:headers['Authorization']='Bearer '+token
+    request=urllib.request.Request('https://api.github.com/repos/WeiR-h/buwei/'+path,headers=headers)
+    with urllib.request.build_opener(NoMetadataRedirect()).open(request,timeout=25) as response:return json.load(response)
 
 def asset_format(version):
     # Preserve v0.2.11's frozen three-asset release. v0.2.12 uses the
@@ -53,6 +73,7 @@ def downloaded_runtime_startup(package,evidence,version):
     return runtime
 
 def verify(a):
+    metadata_token=take_metadata_token(getattr(a,'authenticated_metadata',False))
     url=urllib.parse.urlsplit(a.base_url)
     if url.scheme!='https' or url.netloc!='github.com' or not url.path.startswith('/WeiR-h/buwei/releases/download/') or url.query or url.fragment:
         raise ValueError('Expected a public BuWei release download URL')
@@ -103,9 +124,7 @@ def verify(a):
     if source_lock!=release['dependency_lock_sha256'] or source_lock!=proof['dependencies_lock_sha256']:raise ValueError('Downloaded fixed dependencies differ from the build')
     binary=hashlib.sha256((package/'native/buwei-rinx-dual-host.exe').read_bytes()).hexdigest()
     if binary!=proof['binary_sha256'] or binary!=release['native_binary_sha256']:raise ValueError('Downloaded binary differs from the build')
-    def public_api(path):
-        request=urllib.request.Request('https://api.github.com/repos/WeiR-h/buwei/'+path,headers={'Accept':'application/vnd.github+json','User-Agent':'BuWei-release-verifier'})
-        with urllib.request.urlopen(request,timeout=25) as response:return json.load(response)
+    def public_api(path):return release_metadata(path,metadata_token)
     ref=public_api('git/ref/tags/'+urllib.parse.quote(tag,safe=''))['object']
     for _ in range(4):
         if ref['type']=='commit':break
@@ -117,11 +136,11 @@ def verify(a):
     hashes[checksum_name]=hashlib.sha256(sums.read_bytes()).hexdigest()
     for asset in published['assets']:
         if asset.get('digest') and asset['digest']!='sha256:'+hashes[asset['name']]:raise ValueError('Public asset differs from GitHub upload digest')
-    report={'version':version,'passed':True,'public_base_url':a.base_url,'http_credentials_used':False,'assets_sha256':hashes,'source_commit':proof['source_commit'],'binary_build_source_commit':proof['source_commit'],'native_source_sha256':proof['native_source_sha256'],'fixed_tag_source_archive_sha256':hashlib.sha256(source_zip.read_bytes()).hexdigest(),'package_privacy':privacy,'actual_downloaded_native_startup':runtime,'environment':'existing Windows machine, fresh profile and system-only PATH; separate clean Windows runner evidence remains required'}
+    report={'version':version,'passed':True,'public_base_url':a.base_url,'http_credentials_used':bool(metadata_token),'public_asset_http_credentials_used':False,'metadata_api_credentials_used':bool(metadata_token),'metadata_credential_removed_before_runtime_start':True,'assets_sha256':hashes,'source_commit':proof['source_commit'],'binary_build_source_commit':proof['source_commit'],'native_source_sha256':proof['native_source_sha256'],'fixed_tag_source_archive_sha256':hashlib.sha256(source_zip.read_bytes()).hexdigest(),'package_privacy':privacy,'actual_downloaded_native_startup':runtime,'environment':'fresh profile and system-only PATH; clean Windows runner context is recorded by the calling workflow'}
     report.update(public_tag_commit_verified=True,dependency_lock_sha256=source_lock,native_binary_sha256=binary,public_release_is_preview=published['prerelease'])
     a.output.parent.mkdir(parents=True,exist_ok=True);a.output.write_text(json.dumps(report,indent=2),'utf8')
     return {'version':version,'passed':True,'public_assets_verified':len(hashes)}
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--base-url',required=True);p.add_argument('--destination',type=pathlib.Path,required=True);p.add_argument('--output',type=pathlib.Path,required=True);p.add_argument('--allow-preview',action='store_true',help='Verify a public preview without declaring it a stable release')
+    p=argparse.ArgumentParser();p.add_argument('--base-url',required=True);p.add_argument('--destination',type=pathlib.Path,required=True);p.add_argument('--output',type=pathlib.Path,required=True);p.add_argument('--allow-preview',action='store_true',help='Verify a public preview without declaring it a stable release');p.add_argument('--authenticated-metadata',action='store_true',help='Use BUWEI_GITHUB_METADATA_TOKEN for read-only API metadata; asset and source downloads remain anonymous')
     print(json.dumps(verify(p.parse_args())))
