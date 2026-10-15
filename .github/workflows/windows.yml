@@ -10,7 +10,7 @@ concurrency:
 jobs:
   clean-windows:
     runs-on: windows-2025
-    timeout-minutes: 120
+    timeout-minutes: 180
     env:
       CARGO_HOME: ${{ github.workspace }}/.run/cargo-home
       RUSTUP_TOOLCHAIN: 1.98.0-x86_64-pc-windows-msvc
@@ -35,8 +35,10 @@ jobs:
             .run/cargo-home/registry
             .run/cargo-home/git
             native/target
-          key: windows-msvc-v6-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-${{ hashFiles('native/Cargo.lock') }}
+          key: windows-msvc-v7-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-${{ hashFiles('native/Cargo.lock') }}-release
           restore-keys: |
+            windows-msvc-v7-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-${{ hashFiles('native/Cargo.lock') }}-
+            windows-msvc-v7-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-
             windows-msvc-v6-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-
             windows-msvc-v6-
             windows-msvc-v5-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-
@@ -61,15 +63,28 @@ jobs:
           cargo fetch --manifest-path .deps/octosense/.sources/octos/Cargo.toml --locked --target x86_64-pc-windows-msvc
       - name: Check public source and history
         run: python tools/public_scan.py
-      - name: Test and build complete official host
-        id: compile
+      - name: Test complete official host and release tools
+        id: tests
         shell: pwsh
         run: |
           ./tools/Build.ps1 -Tests
-          ./tools/Build.ps1 -Release
-          python -m unittest discover -s tools -p test_release_tools.py
-      - name: Save reusable compilation before runtime validation
-        if: always() && steps.native-cache.outputs.cache-hit != 'true' && steps.compile.outcome != 'skipped'
+          python -m unittest discover -s tools -p 'test_*tools.py'
+      - name: Preserve successful test compilation before the release build
+        if: steps.tests.outcome == 'success' && steps.native-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .deps
+            .run/cargo-home/registry
+            .run/cargo-home/git
+            native/target
+          key: windows-msvc-v7-${{ hashFiles('dependencies.lock.json', 'rust-toolchain.toml', 'tools/Build.ps1') }}-${{ hashFiles('native/Cargo.lock') }}-tests-${{ github.run_id }}
+      - name: Build official kernel and full release host
+        id: compile
+        shell: pwsh
+        run: ./tools/Build.ps1 -Release
+      - name: Save successful release compilation before runtime validation
+        if: steps.native-cache.outputs.cache-hit != 'true' && steps.compile.outcome == 'success'
         uses: actions/cache/save@v4
         with:
           path: |

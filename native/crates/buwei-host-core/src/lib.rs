@@ -28,6 +28,7 @@ pub mod discovery;
 pub mod subscription_budget;
 pub mod interaction;
 pub mod public_directory;
+pub mod performance;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Preferences {

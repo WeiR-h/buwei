@@ -127,6 +127,7 @@ pub(crate) enum Command {
 }
 #[derive(Clone, Default)]
 pub(crate) struct View {
+    pub performance_summary: String,
     pub communities: Vec<(String, String)>,
     pub community_listings: Vec<buwei_host_core::discovery::Listing>,
     pub community_status: String,
@@ -185,6 +186,7 @@ pub(crate) struct View {
     pub generated_note: Option<(String, String, String)>,
     pub model_status: String,
     pub advice: String,
+    pub has_participation_draft: bool,
     pub message: String,
     pub sync_status: String,
     pub organizer: bool,
@@ -202,6 +204,7 @@ pub(crate) struct View {
     pub fault: bool,
 }
 pub(crate) struct Controller {
+    performance: buwei_host_core::performance::CommandMetrics,
     public_directory_preview: Option<public_directory::DirectoryPreview>,
     public_mode: bool,
     community_grant: Option<Grant>,
@@ -304,6 +307,7 @@ impl Controller {
         let journal = Journal::open(data.join("operations.db")).map_err(|_| "回执数据库不可用")?;
         let selected_activity = community::last_selected(&data);
         Ok(Self {
+            performance: Default::default(),
             public_directory_preview: None,
             public_mode: false,
             community_grant: None,
@@ -393,6 +397,7 @@ impl Controller {
         rinx_bridge::record_status(root, Some(&actor), true, false)?;
         let selected_activity = community::last_selected(&data);
         Ok(Self {
+            performance: Default::default(),
             public_directory_preview: None,
             public_mode: false,
             community_grant: None,
@@ -544,6 +549,31 @@ impl Controller {
         })
     }
     pub fn handle(&mut self, command: Command) -> View {
+        use buwei_host_core::performance::CommandKind as Kind;
+        let kind = match &command {
+            Command::Planning(_) | Command::CreateDated(_) | Command::CreateWithAi(_) => Kind::Planning,
+            Command::Discovery(_) => Kind::Discovery,
+            Command::PreviewRosterExport(_) | Command::ConfirmRosterExport(_) => Kind::Roster,
+            Command::Assistance(_) | Command::ShowTodos => Kind::Assistance,
+            Command::SelectActivity(_) | Command::OpenCard { .. } => Kind::Navigation,
+            Command::Refresh => Kind::Read,
+            Command::Authorize | Command::ConfirmAuthorization(_) | Command::Switch | Command::Revoke => Kind::Authorization,
+            Command::SyncActivity | Command::ReconcilePending | Command::Reconcile | Command::Expire => Kind::Sync,
+            Command::Prepare | Command::Execute | Command::PrepareShare(_) | Command::ConfirmShare(_) |
+            Command::PreviewAutomation(_) | Command::ConfirmAutomation { .. } |
+            Command::PauseAutomation | Command::PauseAutomationFor(_) => Kind::Invitation,
+            Command::QuickJoin | Command::JoinCardAndPrepare | Command::Join(_) |
+            Command::ConfirmParticipant(_) | Command::Accept(_) | Command::Cancel => Kind::Participation,
+            Command::GenerateNote | Command::ApplyNote { .. } | Command::Draft { .. } |
+            Command::NewArticle { .. } | Command::PrepareArticle | Command::PublishArticle { .. } |
+            Command::ReconcileArticle => Kind::Article,
+            Command::Ask(_) | Command::SuggestDated { .. } | Command::ApplyDatedSuggestion { .. } |
+            Command::Suggest(_) | Command::Clarify { .. } | Command::ApplySuggestion(_) | Command::Explain => Kind::Model,
+            _ => Kind::Setup,
+        };
+        let reset = matches!(&command, Command::Switch | Command::Revoke);
+        let actor = self.actor();
+        let started = std::time::Instant::now();
         self.assistance_route = None;
         let intention_command = matches!(&command, Command::Assistance(_));
         let outcome = self.apply(command);
@@ -569,7 +599,30 @@ impl Controller {
         let _ = self.refresh_assistance();
         let mut view = self.view();
         view.success = success;
+        if reset || actor != self.actor() {
+            self.performance.clear();
+        } else {
+            self.performance.record(kind, success, started.elapsed());
+        }
+        view.performance_summary = self.performance_summary();
         view
+    }
+    fn performance_summary(&self) -> String {
+        use buwei_host_core::performance::CommandKind as Kind;
+        let report = self.performance.report();
+        if report.commands.is_empty() {
+            return "本次账号会话还没有测量记录。切换账号或撤销授权后清空。".into();
+        }
+        report.commands.iter().map(|s| {
+            let name = match s.kind {
+                Kind::Planning => "活动策划", Kind::Discovery => "发现活动", Kind::Roster => "名单导出",
+                Kind::Assistance => "主动帮助", Kind::Navigation => "切换活动", Kind::Read => "查看记录",
+                Kind::Authorization => "账号授权", Kind::Sync => "同步核验", Kind::Invitation => "邀请与规则",
+                Kind::Participation => "本人报名", Kind::Article => "活动小记", Kind::Model => "AI 建议",
+                Kind::Setup => "活动设置",
+            };
+            format!("{name}：最近 {} 次，中位 {:.0} 毫秒，95% 在 {:.0} 毫秒内，失败 {} 次", s.retained_samples, s.p50_ms, s.p95_ms, s.failures)
+        }).collect::<Vec<_>>().join("\n")
     }
     fn apply(&mut self, command: Command) -> Result<String> {
         // Opening a previously verified local activity has no server side effect.
@@ -1656,10 +1709,12 @@ impl Controller {
         report["roster_export"] =
             json!({"nonce":view.roster_export_nonce,"preview":view.roster_export_preview});
         report["community"] = json!({"rooms":view.communities,"listings":view.community_listings,"operation":view.community_operation,"access_nonce":view.access_nonce,"access_status":view.access_status,"status":view.community_status,"entry_progress":view.entry_progress,"pending_requests":self.discovery_store().and_then(|s|s.requests()).ok()});
+        report["performance"] = serde_json::to_value(self.performance.report()).unwrap_or(Value::Null);
         report
     }
     pub fn view(&self) -> View {
         let mut v = View {
+            performance_summary: self.performance_summary(),
             account: self.actor(),
             message: self.message.clone(),
             authorized: self
@@ -1874,11 +1929,14 @@ impl Controller {
                 n.markdown.clone(),
             )
         });
+        v.has_participation_draft = self.dated_suggestion.is_some() || self.suggestion.is_some();
         v.advice = self
-            .explanation
-            .clone()
+            .dated_suggestion
+            .as_ref()
+            .map(|(_, _, _, draft)| draft.display())
+            .or_else(|| self.explanation.clone())
             .or_else(|| self.suggestion.as_ref().map(|(_, _, _, a, _)| a.display()))
-            .unwrap_or_else(|| "AI 建议尚未生成。手动时段可直接使用。".into());
+            .unwrap_or_else(|| "可描述本次安排，或直接填写时段报名。".into());
         v
     }
 }

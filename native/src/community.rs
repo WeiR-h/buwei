@@ -72,6 +72,20 @@ pub(crate) struct DatedDraft {
     pub explanation: String,
 }
 impl DatedDraft {
+    pub fn display(&self) -> String {
+        let group = self.group.map(|n| format!("{n} 人")).unwrap_or_else(|| "待补充".into());
+        let mut text = format!(
+            "本次报名草稿 · 尚未发送\n最早：{}\n最晚：{}\n同行：{}",
+            self.earliest.as_deref().unwrap_or("待补充"),
+            self.latest.as_deref().unwrap_or("待补充"),
+            group,
+        );
+        if !self.questions.is_empty() {
+            text.push_str("\n请补充：\n");
+            text.push_str(&self.questions.join("\n"));
+        }
+        text
+    }
     pub fn preferences(&self) -> Result<Preferences> {
         if !self.questions.is_empty() {
             return Err("请先补充日期、时段或同行人数".into());

@@ -7,6 +7,8 @@ import argparse,json,os,pathlib,socket,sqlite3,subprocess,time,urllib.request
 from contextlib import closing
 from dual_acceptance import Suite
 from formal_control import Control
+from build_proof import source_fingerprint
+from live_evidence import begin
 
 class Hosts:
     def __init__(self,exe,owner,participant,version,owner_port,participant_port,activity_id=None):
@@ -131,9 +133,19 @@ class FaultSuite(Suite):
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--executable',type=pathlib.Path,required=True);p.add_argument('--owner-profile',type=pathlib.Path,required=True);p.add_argument('--participant-profile',type=pathlib.Path,required=True);p.add_argument('--version',required=True);p.add_argument('--activity-id');p.add_argument('--owner-port',type=int,default=8140);p.add_argument('--participant-port',type=int,default=8141);p.add_argument('--private-trace',type=pathlib.Path,required=True);p.add_argument('--public-evidence',type=pathlib.Path,required=True);a=p.parse_args()
+    measured=begin(a.executable)
+    if measured['build']['native_source_sha256']!=source_fingerprint():
+        raise ValueError('Fault executable differs from the checked-out native source')
     hosts=Hosts(a.executable,a.owner_profile,a.participant_profile,a.version,a.owner_port,a.participant_port,a.activity_id)
-    hosts.start('organizer');hosts.start('participant');suite=FaultSuite(hosts,a.private_trace)
     try:
-        report=suite.run_faults();a.public_evidence.parent.mkdir(parents=True,exist_ok=True);a.public_evidence.write_text(json.dumps(report,indent=2),'utf8')
+        hosts.start('organizer');hosts.start('participant')
+        suite=FaultSuite(hosts,a.private_trace)
+        report=suite.run_faults()
+        if measured['build']['native_source_sha256']!=source_fingerprint():
+            raise ValueError('Native source changed during fault verification')
+        import hashlib
+        report.update(build=measured['build'],started_at_unix=measured['started_at_unix'],finished_at_unix=int(time.time()),private_trace_sha256=hashlib.sha256(a.private_trace.read_bytes()).hexdigest())
+        a.public_evidence.parent.mkdir(parents=True,exist_ok=True)
+        a.public_evidence.write_text(json.dumps(report,indent=2)+'\n','utf8')
     finally:
-        hosts.stop('organizer');hosts.stop('participant')
+        for role in tuple(hosts.processes):hosts.stop(role)

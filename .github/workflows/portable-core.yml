@@ -1,0 +1,40 @@
+name: Reproduce production core
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  production-core:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install fixed Rust
+        run: rustup toolchain install 1.98.0 --profile minimal
+      - name: Reproduce actual production rules and receipts
+        env:
+          RUSTUP_TOOLCHAIN: 1.98.0
+          PYTHONUTF8: '1'
+        run: python tools/verify_portable_core.py --destination .run/portable-core --output .run/portable-core-result.json --benchmark-output .run/journal-benchmark.json
+      - name: Check evidence integrity and privacy
+        env:
+          PYTHONUTF8: '1'
+        run: python -m unittest discover -s tools -p test_verification_tools.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: production-core-${{ matrix.os }}
+          path: |
+            .run/portable-core-result.json
+            .run/journal-benchmark.json
+          if-no-files-found: error

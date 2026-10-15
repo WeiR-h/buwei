@@ -27,9 +27,9 @@
 
 ## 下载
 
-[下载正式 Windows 版本](https://github.com/WeiR-h/buwei/releases/latest)
+[下载 v0.2.12 Windows 验证版](https://github.com/WeiR-h/buwei/releases/tag/v0.2.12) · [正式版](https://github.com/WeiR-h/buwei/releases/latest)
 
-**v0.2.11** 使用官方桌面 RC6，提供统一活动工作台、自然语言策划和按本场身份显示的报名操作。
+**v0.2.12 验证版**使用官方桌面 RC6，直接展示本次报名草稿的日期、时段与同行人数，增加恢复查询优化和可独立复跑的验证记录。
 
 应用使用官方 OctoSense 桌面 RC6 与 Rinx 1.1.0 的固定源码，提供组织者和参与者入口。成员使用自己的 Rinx 身份报名和回复，组织者核验结果后显示最终报名状态。
 
@@ -39,7 +39,9 @@
 
 [活动策划、社群报名与名单导出](docs/COMMUNITY.md)
 
-[110 秒完整操作演示](https://github.com/WeiR-h/buwei/releases/download/v0.2.11/BuWei-v0.2.11-Demo.mp4)：实际双账号完成策划、发布、挑选、报名、自动邀请、接受、名单导出与取消。
+[60 秒连续原生实录](https://github.com/WeiR-h/buwei/releases/download/v0.2.12/BuWei-v0.2.12-demo.mp4)：本机两个真实账号完成自然语言报名、规则邀请、本人接受与组织者最终核验。画面按实际时间连续采集，私密标识已遮盖。
+
+[策划、社群发布与导出流程演示（v0.2.11）](https://github.com/WeiR-h/buwei/releases/download/v0.2.11/BuWei-v0.2.11-Demo.mp4) · [源码、服务与恢复验证记录](docs/VERIFICATION.md)
 
 运行环境：Windows 10/11 x64，微软 Visual C++ v14 x64 运行库。
 发布形式为 Windows 原生宿主扩展。
@@ -68,6 +70,8 @@ python tools/bootstrap.py
 首次构建会获取固定版本的官方依赖。运行与模型配置步骤见使用指南。
 
 核心包含可复用的授权、持久化执行与回执框架，应用源码和必要的构建补丁完整提供。
+
+[独立复验、性能测量与真实服务验证](docs/VERIFICATION.md)
 
 [English](README.en.md) · [版本记录](CHANGELOG.md) · [第三方声明](NOTICE.md) ·
 [问题反馈](https://github.com/WeiR-h/buwei/issues) · [参赛说明](docs/SUBMISSION.md)
