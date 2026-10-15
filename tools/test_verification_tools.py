@@ -1,10 +1,13 @@
 import copy
 import hashlib
 import json
+import os
 import pathlib
 import tempfile
 import tomllib
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import live_evidence
 import verify_portable_core as portable
@@ -30,6 +33,13 @@ def fixture():
 
 
 class VerificationTools(unittest.TestCase):
+    def test_relative_result_directory_is_normalized_for_native_export(self):
+        from planning_community_acceptance import NextStage
+        with tempfile.TemporaryDirectory() as temporary, patch('planning_community_acceptance.Hosts'):
+            args=SimpleNamespace(private_directory=pathlib.Path(os.path.relpath(temporary)),executable=pathlib.Path('fixture.exe'),owner_profile=pathlib.Path('owner'),participant_profile=pathlib.Path('member'),version='0.2.12')
+            suite=NextStage(args)
+            self.assertTrue(suite.out.is_absolute())
+            self.assertEqual(suite.out,pathlib.Path(temporary).resolve())
     def test_continuous_video_refuses_missing_time_or_repeated_timestamps(self):
         self.assertEqual(validate_timeline([n/4 for n in range(41)], 4)["captured_seconds"], 10)
         for samples, fps in (([0, 0], 4), ([0, 1, 10], 4), ([0], 4), ([0, .25], 0)):

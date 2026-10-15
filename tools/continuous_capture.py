@@ -43,7 +43,7 @@ def frame(ui, role, caption, elapsed, font_path):
             box = (max(0, x*sx-2), max(0, y*sy-2), min(picture.width, (x+w)*sx+2), min(picture.height, (y+h)*sy+2))
             if box[0] < box[2] and box[1] < box[3]: draw.rectangle(box, fill="#e7eeea")
     picture = picture.crop((int(12*sx), int(35*sy), int((width-12)*sx), int((height-93)*sy)))
-    picture.thumbnail((1570, 875))
+    picture.thumbnail((1570, 820))
     canvas = Image.new("RGB", (1600, 1000), "#173c32")
     canvas.paste(picture, ((1600-picture.width)//2, 70))
     draw = ImageDraw.Draw(canvas)
@@ -52,7 +52,7 @@ def frame(ui, role, caption, elapsed, font_path):
     draw.text((24, 18), "补位 · 连续原生界面采集 · "+role, font=heading, fill="white")
     draw.text((1340, 22), f"{int(elapsed)//60:02d}:{int(elapsed)%60:02d} 实录", font=small, fill="#d9eadf")
     draw.text((24, 927), "本次活动操作" if PRIVATE.search(caption) else caption, font=heading, fill="white")
-    draw.text((24, 969), "本机两个账号 · 本人界面确认 · 账号与业务编号已遮盖", font=small, fill="#bed8c9")
+    draw.text((24, 969), "真实服务 · 本机双账号受控演示 · 私密标识已遮盖", font=small, fill="#bed8c9")
     return canvas.tobytes()
 
 

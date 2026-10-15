@@ -76,6 +76,14 @@ def verify(destination, output, offline=False, benchmark_output=None):
         benchmark = json.loads(measured.stdout)
         if benchmark.get("passed") is not True or benchmark.get("results_equal") is not True or benchmark.get("network_calls") != 0:
             raise ValueError("Journal benchmark did not verify equal results")
+        owned = subprocess.run(["cargo", "run", "--manifest-path", manifest, "-p", "action-receipts", "--example", "benchmark_owned_history", "--locked", "--offline"], text=True, capture_output=True, encoding="utf-8", errors="replace")
+        if owned.returncode:
+            print(owned.stderr, flush=True)
+            owned.check_returncode()
+        owned_result = json.loads(owned.stdout)
+        if owned_result.get("passed") is not True or owned_result.get("results_equal") is not True or owned_result.get("owned_rows") != 50008:
+            raise ValueError("Single-account history comparison failed")
+        benchmark.update(single_account_history=owned_result, build_profile="development, identical before and after")
     # Detect edits during the check rather than attesting a different source.
     for item in records:
         if hashlib.sha256((ROOT / item["path"]).read_bytes()).hexdigest() != item["sha256"]:

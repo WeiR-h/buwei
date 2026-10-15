@@ -10,7 +10,7 @@ from intent_acceptance import display,selected
 
 class NextStage:
     def __init__(self,args):
-        self.args=args;self.out=args.private_directory;self.out.mkdir(parents=True,exist_ok=True)
+        self.args=args;self.out=args.private_directory.resolve();self.out.mkdir(parents=True,exist_ok=True)
         self.h=Hosts(args.executable,args.owner_profile,args.participant_profile,args.version,8290,8291)
         self.trace=json.loads((self.out/'trace.private.json').read_text('utf8')) if (self.out/'trace.private.json').is_file() else [];self.rounds=[];self.progress={}
     def call(self,c,name,value=None,ok=True,timeout=90):
