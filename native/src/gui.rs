@@ -1118,10 +1118,10 @@ impl BuWeiView {
             .set_visible(cx, !view.organizer && self.participant_controls.register && !self.creating);
         self.view
             .button(cx, ids!(clarify))
-            .set_visible(cx, !view.organizer && !view.advice.is_empty() && !self.creating);
+            .set_visible(cx, !view.organizer && view.has_participation_draft && !self.creating);
         self.view
             .button(cx, ids!(apply_advice))
-            .set_visible(cx, !view.organizer && !view.advice.is_empty() && !self.creating);
+            .set_visible(cx, !view.organizer && view.has_participation_draft && !self.creating);
         self.pages(cx);
         self.view
             .view(cx, ids!(organizer_actions))

@@ -1,0 +1,731 @@
+{
+  "schema": 1,
+  "version": "0.2.12",
+  "recorded_on": "2026-10-15",
+  "kind": "reproducible_source_and_controlled_service_verification",
+  "production_core": {
+    "ci": "https://github.com/WeiR-h/buwei/actions/runs/38682455318",
+    "platforms": [
+      {
+        "platform": "windows-2025",
+        "core": {
+          "source_commit": "81a6c940a27f4b2a957c60a710886bbd4e5148d6",
+          "source_sha256": "a760938e2fc39cd292befb560d3062546d4c5a889876159b491f4348c0a352cb",
+          "lock_sha256": "c1dead9fced486ba770378e16efe1e429b00bda377d115aaee7d4c94a80735f6",
+          "rustc": "rustc 1.98.0 (88d9e12ae 2026-08-18)",
+          "tests_passed": 186,
+          "elapsed_seconds": 88.04,
+          "network_during_tests": false,
+          "model_calls": 0
+        },
+        "journal_benchmark": {
+          "after": {
+            "maximum_ms": 0.505,
+            "p50_ms": 0.40690000000000004,
+            "p95_ms": 0.4663,
+            "samples": 50
+          },
+          "before": {
+            "maximum_ms": 44.0843,
+            "p50_ms": 38.9545,
+            "p95_ms": 41.8356,
+            "samples": 50
+          },
+          "kind": "synthetic_local_journal_queries",
+          "network_calls": 0,
+          "owned_rows": 8,
+          "passed": true,
+          "pending_rows": 3,
+          "results_equal": true,
+          "rows": 50008,
+          "schema": 1,
+          "single_account_history": {
+            "after": {
+              "maximum_ms": 1.856,
+              "p50_ms": 1.7917,
+              "p95_ms": 1.8409,
+              "samples": 50
+            },
+            "before": {
+              "maximum_ms": 47.7661,
+              "p50_ms": 42.2298,
+              "p95_ms": 46.7239,
+              "samples": 50
+            },
+            "kind": "synthetic_single_account_history",
+            "network_calls": 0,
+            "owned_rows": 50008,
+            "passed": true,
+            "pending_rows": 3,
+            "results_equal": true,
+            "rows": 50008,
+            "schema": 1
+          },
+          "build_profile": "development, identical before and after",
+          "source_commit": "81a6c940a27f4b2a957c60a710886bbd4e5148d6",
+          "source_sha256": "a760938e2fc39cd292befb560d3062546d4c5a889876159b491f4348c0a352cb"
+        }
+      },
+      {
+        "platform": "ubuntu-24.04",
+        "core": {
+          "source_commit": "81a6c940a27f4b2a957c60a710886bbd4e5148d6",
+          "source_sha256": "a760938e2fc39cd292befb560d3062546d4c5a889876159b491f4348c0a352cb",
+          "lock_sha256": "c1dead9fced486ba770378e16efe1e429b00bda377d115aaee7d4c94a80735f6",
+          "rustc": "rustc 1.98.0 (88d9e12ae 2026-08-18)",
+          "tests_passed": 186,
+          "elapsed_seconds": 38.353,
+          "network_during_tests": false,
+          "model_calls": 0
+        },
+        "journal_benchmark": {
+          "after": {
+            "maximum_ms": 0.5600040000000001,
+            "p50_ms": 0.5107999999999999,
+            "p95_ms": 0.5416960000000001,
+            "samples": 50
+          },
+          "before": {
+            "maximum_ms": 42.060741,
+            "p50_ms": 40.053095,
+            "p95_ms": 41.262458,
+            "samples": 50
+          },
+          "kind": "synthetic_local_journal_queries",
+          "network_calls": 0,
+          "owned_rows": 8,
+          "passed": true,
+          "pending_rows": 3,
+          "results_equal": true,
+          "rows": 50008,
+          "schema": 1,
+          "single_account_history": {
+            "after": {
+              "maximum_ms": 2.5971840000000004,
+              "p50_ms": 2.155539,
+              "p95_ms": 2.239446,
+              "samples": 50
+            },
+            "before": {
+              "maximum_ms": 39.983202000000006,
+              "p50_ms": 37.681472,
+              "p95_ms": 38.012101,
+              "samples": 50
+            },
+            "kind": "synthetic_single_account_history",
+            "network_calls": 0,
+            "owned_rows": 50008,
+            "passed": true,
+            "pending_rows": 3,
+            "results_equal": true,
+            "rows": 50008,
+            "schema": 1
+          },
+          "build_profile": "development, identical before and after",
+          "source_commit": "81a6c940a27f4b2a957c60a710886bbd4e5148d6",
+          "source_sha256": "a760938e2fc39cd292befb560d3062546d4c5a889876159b491f4348c0a352cb"
+        }
+      }
+    ]
+  },
+  "full_windows": {
+    "ci": "https://github.com/WeiR-h/buwei/actions/runs/38685271128",
+    "source_commit": "d7abf2767df9d4c75cbc4a0278664d948113e27e",
+    "build_passed": true,
+    "full_host_tests": 226,
+    "fresh_runner_download_and_start": {
+      "passed": true,
+      "binary_sha256": "de55170d03021bd3d38d79c9fb1e7e1c93db4849ecc2853640557d243b84b96e",
+      "fresh_profile": true,
+      "system_only_path": true,
+      "model_calls": 0,
+      "actual_native_render": true,
+      "developer_override_disabled": true,
+      "second_writer_refused": true,
+      "quit_acknowledged": true,
+      "renderer": "Windows WARP software rendering"
+    }
+  },
+  "local_tools": {
+    "tests_passed": 55,
+    "model_calls": 0,
+    "source_sha256": {
+      "tools/test_verification_tools.py": "bb9e9f2f85dc166a408e30dfa56fa9ca8b8843db2ebd0b8658eabe4c383e5bd1",
+      "tools/native_ui.py": "5eea70ebdf13cfeb94bc7248578c209d0091a2d9943e0d0c07cf487363cc1994",
+      "tools/continuous_capture.py": "188690440d6a3e3843fae1f64470603731bcc5a9105faab9362ddd9edb78f4ac",
+      "tools/fault_acceptance.py": "6b1325f8d5f809aca73d8f48fc622c02d84238e2b46f4f65144630a3a01d3098",
+      "tools/live_evidence.py": "afd4cc6ad11d1954dc044f683b65df107906c0c2a5cf46d172bff47514ad40b2",
+      "tools/multi_role_acceptance.py": "d484004ce6c953fc88482f6af61bde571d9f7101a710e93a0734a675fdb0cf0b"
+    }
+  },
+  "live_service": {
+    "schema": 1,
+    "version": "0.2.12",
+    "passed": true,
+    "scope": "local_two_account_controlled_run",
+    "judge_verified": false,
+    "independent_user_trial": false,
+    "activity_scope": "two accounts organize and participate in verified activities; fresh room creation is checked separately",
+    "source_commit": "e1790cdf8ee362b9c1417dcd2c29ce21e05932b4",
+    "native_source_sha256": "ac23f74d9a7e4925f643bb41ca90ca78a9b3bfcdcf916c5b421768948f554bb1",
+    "binary_sha256": "d3d366ac1c73080c9892004c223386b331206ada816a52eb3af3544a1417f9a3",
+    "features": [
+      "acceptance"
+    ],
+    "cargo_lock_sha256": "27dad3bcc191a0a6204a9de8bacb62f3462d33710d5c8e38ae5b9f9f180b11c4",
+    "dependencies_lock_sha256": "8923d9079676ffc49bbc581dc05872679114c19aaf0ae9aab475f318d2ff35a3",
+    "started_at_unix": 1792041379,
+    "finished_at_unix": 1792043178,
+    "rounds_per_direction": 5,
+    "distinct_sdk_identities": 2,
+    "distinct_organizers": 2,
+    "verified_operations": 40,
+    "maximum_service_events_per_operation": 1,
+    "model_calls": 0,
+    "events": [
+      {
+        "operation_sha256": "a3a3a5e6456450b135e57371d4237f6dccf8b0d46ece3ef210ffe511b44ee59c",
+        "service_event_count": 1,
+        "server_time_ms": 1792041489302,
+        "locally_collected_at_unix": 1792041603
+      },
+      {
+        "operation_sha256": "0eafa46472fed84a86b346bc0102917521f010f2c9ee33bd3140f08f5e781750",
+        "service_event_count": 1,
+        "server_time_ms": 1792041518960,
+        "locally_collected_at_unix": 1792041603
+      },
+      {
+        "operation_sha256": "37da3b0dc5e718db3c3ef79c39020f05f5dbd81cb8fd9e0df762707565b680b0",
+        "service_event_count": 1,
+        "server_time_ms": 1792041532123,
+        "locally_collected_at_unix": 1792041603
+      },
+      {
+        "operation_sha256": "3ca84cff9210899daa560553d19691d29f5debd5b14b47184c491e4adfe10446",
+        "service_event_count": 1,
+        "server_time_ms": 1792041573011,
+        "locally_collected_at_unix": 1792041603
+      },
+      {
+        "operation_sha256": "c690854f4dfcd4e29427b4740392147b488eaef290117c95f16eaf465e7684c3",
+        "service_event_count": 1,
+        "server_time_ms": 1792041820643,
+        "locally_collected_at_unix": 1792041954
+      },
+      {
+        "operation_sha256": "7ef2a3b68153f63d1690113a5f81bc5e5e4ed94015681b5c251c1b60eb0811fd",
+        "service_event_count": 1,
+        "server_time_ms": 1792041852085,
+        "locally_collected_at_unix": 1792041954
+      },
+      {
+        "operation_sha256": "f429dd45ce411bc6e882f17ab12633d389e7f454bdf219ef6e3cc77efaabdc54",
+        "service_event_count": 1,
+        "server_time_ms": 1792041866001,
+        "locally_collected_at_unix": 1792041954
+      },
+      {
+        "operation_sha256": "47477a1300569d904bee64497a1464256c5eb6bdb7dada577500300eeafe02d4",
+        "service_event_count": 1,
+        "server_time_ms": 1792041909667,
+        "locally_collected_at_unix": 1792041954
+      },
+      {
+        "operation_sha256": "aeaacfa81442a15d47e698ca2a750874672eaa7c5982a78687ceb698c3cd56f4",
+        "service_event_count": 1,
+        "server_time_ms": 1792042176073,
+        "locally_collected_at_unix": 1792042284
+      },
+      {
+        "operation_sha256": "cdfd3347a19f515b8cb2a87c84695baed486d77b60fe198181672269ed5f0b2c",
+        "service_event_count": 1,
+        "server_time_ms": 1792042190594,
+        "locally_collected_at_unix": 1792042284
+      },
+      {
+        "operation_sha256": "872b368e27f2e0e8f42a0d35c82e96ddc056ceaf3d04389812c17f5da944e13c",
+        "service_event_count": 1,
+        "server_time_ms": 1792042207434,
+        "locally_collected_at_unix": 1792042284
+      },
+      {
+        "operation_sha256": "2da2f1d872c64385cd702783bc45e412be3594623581ad0c43f0f096ca06e1eb",
+        "service_event_count": 1,
+        "server_time_ms": 1792042242584,
+        "locally_collected_at_unix": 1792042284
+      },
+      {
+        "operation_sha256": "83d373d251731f732400725bf56e68130617ef77bdb19e222ca8e713e4b17964",
+        "service_event_count": 1,
+        "server_time_ms": 1792042504985,
+        "locally_collected_at_unix": 1792042624
+      },
+      {
+        "operation_sha256": "28715c27eec01a66b7e4ae3f999bc461b706077e6fd6e93efa575b04e338ed71",
+        "service_event_count": 1,
+        "server_time_ms": 1792042517191,
+        "locally_collected_at_unix": 1792042624
+      },
+      {
+        "operation_sha256": "70b9f698534da1703f2019359bbd6fa29830552946812b32cacd8cd4346ed7d3",
+        "service_event_count": 1,
+        "server_time_ms": 1792042532360,
+        "locally_collected_at_unix": 1792042624
+      },
+      {
+        "operation_sha256": "6ae9de02d1959d506302a920d66ee021592532bb1857751fb3684b025a50c5af",
+        "service_event_count": 1,
+        "server_time_ms": 1792042583696,
+        "locally_collected_at_unix": 1792042624
+      },
+      {
+        "operation_sha256": "bc7b51eea99a69d8f639977cc803889121f80b5c68ca261a335d2ec773c8fab6",
+        "service_event_count": 1,
+        "server_time_ms": 1792042823006,
+        "locally_collected_at_unix": 1792042928
+      },
+      {
+        "operation_sha256": "3171f9c559e25bbbbffbdc87da734d3509aa1d62c3463aa10ca4df71a8004ba2",
+        "service_event_count": 1,
+        "server_time_ms": 1792042844377,
+        "locally_collected_at_unix": 1792042928
+      },
+      {
+        "operation_sha256": "b5891fc13a3fc3ca9088f73c529780982163088e2b5b18f9d9d0517616432cb0",
+        "service_event_count": 1,
+        "server_time_ms": 1792042853998,
+        "locally_collected_at_unix": 1792042928
+      },
+      {
+        "operation_sha256": "8ccceb6f9dd2a8688260c0ccb38c73fd5f2356bee226edcfc7dbf533eac7dbb3",
+        "service_event_count": 1,
+        "server_time_ms": 1792042895653,
+        "locally_collected_at_unix": 1792042928
+      },
+      {
+        "operation_sha256": "a4143b2395ef42fb0114bdcb5bdd096b18b0d84ed20429bfeb269758377b1254",
+        "service_event_count": 1,
+        "server_time_ms": 1792041656505,
+        "locally_collected_at_unix": 1792041764
+      },
+      {
+        "operation_sha256": "6ae0684d0daa6225d3b6c6ee40919fdd7a845b69ef132c2090ac8972774559b5",
+        "service_event_count": 1,
+        "server_time_ms": 1792041682663,
+        "locally_collected_at_unix": 1792041764
+      },
+      {
+        "operation_sha256": "2f4b951d99880a53d0e73e082796b995560c70e797e2e0e1d1dc2ee355611af4",
+        "service_event_count": 1,
+        "server_time_ms": 1792041697429,
+        "locally_collected_at_unix": 1792041764
+      },
+      {
+        "operation_sha256": "6fed21b697cb66fe4d9eb20b13811001128378c206f96bc5d8e78b349ba22aea",
+        "service_event_count": 1,
+        "server_time_ms": 1792041735783,
+        "locally_collected_at_unix": 1792041764
+      },
+      {
+        "operation_sha256": "f15ba2a2c1b5a35595a4558483f469a7f310eb118eaa7ebafb53cd33e6e0a1dd",
+        "service_event_count": 1,
+        "server_time_ms": 1792042007554,
+        "locally_collected_at_unix": 1792042119
+      },
+      {
+        "operation_sha256": "3564be1ad08dc8649cd469d8c4a4ffa6b89f3b1a588d6824775f0bba62e9c45e",
+        "service_event_count": 1,
+        "server_time_ms": 1792042034506,
+        "locally_collected_at_unix": 1792042119
+      },
+      {
+        "operation_sha256": "e171692bc2afddfaa7fd3569e34c1cf2fac7f9063e4b46606bc3778f68148aac",
+        "service_event_count": 1,
+        "server_time_ms": 1792042048462,
+        "locally_collected_at_unix": 1792042119
+      },
+      {
+        "operation_sha256": "72c46532e1ae8ca147150e8bad804ce1f5921c5435b47187b106217978caaba8",
+        "service_event_count": 1,
+        "server_time_ms": 1792042087069,
+        "locally_collected_at_unix": 1792042119
+      },
+      {
+        "operation_sha256": "497236a5ca1f54491bc874412a5b5377572a7dd6d6c9ecd1c22e78e70b74ffbb",
+        "service_event_count": 1,
+        "server_time_ms": 1792042335876,
+        "locally_collected_at_unix": 1792042452
+      },
+      {
+        "operation_sha256": "06e2f45b13315d3e692cc460692130cbb5c8c22466664159b2ba43f653c02591",
+        "service_event_count": 1,
+        "server_time_ms": 1792042341215,
+        "locally_collected_at_unix": 1792042452
+      },
+      {
+        "operation_sha256": "7e7f3b0018933c0d35bbbcaa96abde0262eeeadf027442dd58bf479e76cbffad",
+        "service_event_count": 1,
+        "server_time_ms": 1792042372537,
+        "locally_collected_at_unix": 1792042452
+      },
+      {
+        "operation_sha256": "2a6eeefaa432aa870bcc6f5015a82a955196ec0882b83157df45c992173f987b",
+        "service_event_count": 1,
+        "server_time_ms": 1792042416518,
+        "locally_collected_at_unix": 1792042452
+      },
+      {
+        "operation_sha256": "f17ea6327d44735172ef1fee1552144580591a5f54ccff805717f662fc4f5cbb",
+        "service_event_count": 1,
+        "server_time_ms": 1792042672434,
+        "locally_collected_at_unix": 1792042769
+      },
+      {
+        "operation_sha256": "cc2e57f104fcd0af05046c4900199c705a6c3167fcb9ee8d823080b45c308941",
+        "service_event_count": 1,
+        "server_time_ms": 1792042675100,
+        "locally_collected_at_unix": 1792042769
+      },
+      {
+        "operation_sha256": "c9044e77311d8ef58c0a0aa30d23f9dc068048ab97768c3f47e280bf126be5a4",
+        "service_event_count": 1,
+        "server_time_ms": 1792042699490,
+        "locally_collected_at_unix": 1792042769
+      },
+      {
+        "operation_sha256": "542e5ed3c483d7f34ede646396cb42d499aad909460a4ace52457ef209efd49e",
+        "service_event_count": 1,
+        "server_time_ms": 1792042739157,
+        "locally_collected_at_unix": 1792042769
+      },
+      {
+        "operation_sha256": "25083e7bf7c9c513754fb8c432296b04e09c0b90a436ad1f32f0b5df9dc7f7e5",
+        "service_event_count": 1,
+        "server_time_ms": 1792042983873,
+        "locally_collected_at_unix": 1792043101
+      },
+      {
+        "operation_sha256": "0cf4cc87059f407e326cbd3109691fb52a6fd6984b439b620f466a3abaa13e47",
+        "service_event_count": 1,
+        "server_time_ms": 1792042988599,
+        "locally_collected_at_unix": 1792043101
+      },
+      {
+        "operation_sha256": "4e4af26e8f8ce229b5a5e9c41985082c98cdc197ac1d33a974c8ec4a40199a08",
+        "service_event_count": 1,
+        "server_time_ms": 1792043017088,
+        "locally_collected_at_unix": 1792043101
+      },
+      {
+        "operation_sha256": "12286c000152831deaf7edc1540171ec75c1026162e3780cc2499774c9ef6120",
+        "service_event_count": 1,
+        "server_time_ms": 1792043060561,
+        "locally_collected_at_unix": 1792043101
+      }
+    ],
+    "command_timings": [
+      {
+        "kind": "Accept",
+        "samples": 10,
+        "refused": 0,
+        "unknown": 0,
+        "p50_ms": 3426.939,
+        "p95_ms": 6042.131,
+        "maximum_ms": 6042.131
+      },
+      {
+        "kind": "Cancel",
+        "samples": 10,
+        "refused": 0,
+        "unknown": 0,
+        "p50_ms": 2214.827,
+        "p95_ms": 5233.449,
+        "maximum_ms": 5233.449
+      },
+      {
+        "kind": "CollectEvidence",
+        "samples": 10,
+        "refused": 0,
+        "unknown": 0,
+        "p50_ms": 21114.784,
+        "p95_ms": 26140.11,
+        "maximum_ms": 26140.11
+      },
+      {
+        "kind": "ConfirmAutomation",
+        "samples": 10,
+        "refused": 0,
+        "unknown": 0,
+        "p50_ms": 4230.264,
+        "p95_ms": 7452.205,
+        "maximum_ms": 7452.205
+      },
+      {
+        "kind": "ConfirmParticipant",
+        "samples": 30,
+        "refused": 0,
+        "unknown": 0,
+        "p50_ms": 4117.845,
+        "p95_ms": 7040.991,
+        "maximum_ms": 7453.332
+      },
+      {
+        "kind": "ConfirmRosterExport",
+        "samples": 10,
+        "refused": 0,
+        "unknown": 0,
+        "p50_ms": 4234.176,
+        "p95_ms": 7036.968,
+        "maximum_ms": 7036.968
+      },
+      {
+        "kind": "Discovery",
+        "samples": 33,
+        "refused": 1,
+        "unknown": 0,
+        "p50_ms": 4230.194,
+        "p95_ms": 7849.741,
+        "maximum_ms": 7869.385
+      },
+      {
+        "kind": "PreviewAutomation",
+        "samples": 10,
+        "refused": 0,
+        "unknown": 0,
+        "p50_ms": 4228.957,
+        "p95_ms": 8468.592,
+        "maximum_ms": 8468.592
+      },
+      {
+        "kind": "PreviewRosterExport",
+        "samples": 20,
+        "refused": 10,
+        "unknown": 0,
+        "p50_ms": 5436.878,
+        "p95_ms": 9854.068,
+        "maximum_ms": 11474.415
+      },
+      {
+        "kind": "QuickJoin",
+        "samples": 10,
+        "refused": 0,
+        "unknown": 0,
+        "p50_ms": 4428.273,
+        "p95_ms": 7056.546,
+        "maximum_ms": 7056.546
+      },
+      {
+        "kind": "Refresh",
+        "samples": 105,
+        "refused": 0,
+        "unknown": 0,
+        "p50_ms": 3835.121,
+        "p95_ms": 6038.74,
+        "maximum_ms": 7837.552
+      },
+      {
+        "kind": "SelectActivity",
+        "samples": 17,
+        "refused": 0,
+        "unknown": 0,
+        "p50_ms": 3834.603,
+        "p95_ms": 6467.606,
+        "maximum_ms": 6467.606
+      },
+      {
+        "kind": "SuggestDated",
+        "samples": 10,
+        "refused": 0,
+        "unknown": 0,
+        "p50_ms": 3832.909,
+        "p95_ms": 6452.684,
+        "maximum_ms": 6452.684
+      },
+      {
+        "kind": "SyncActivity",
+        "samples": 40,
+        "refused": 0,
+        "unknown": 0,
+        "p50_ms": 6840.628,
+        "p95_ms": 10464.224,
+        "maximum_ms": 12076.975
+      }
+    ],
+    "timing_scope": "end-to-end local command completion, including queue and network waits; all observed outcomes included; not frame rate",
+    "private_input_commitments": {
+      "report_sha256": "05a01260aad599ab2c2f2c7843abc7e8939517b0a1a6d7e8b95b7c00958114dd",
+      "trace_sha256": "c1938caf1db9cedb7d99d2f3dfbd2350dd95cc2eae7133b765c2db61d131f9cb"
+    }
+  },
+  "fault_recovery": {
+    "passed": true,
+    "cases": [
+      {
+        "scene": "invitation",
+        "fault": "lost_ack",
+        "persisted_status_before_recovery": "unknown",
+        "status_after_recovery": "confirmed",
+        "original_operation_retained": true,
+        "native_process_restarted": true,
+        "blind_resends": 0,
+        "locally_collected_at_unix": 1792043441,
+        "events": [
+          {
+            "operation_sha256": "7046e27b4af0581b4fc8bfce54ed737234c55b019841f7407cd9378f8f0fef61",
+            "event_sha256": "1eea54a1f725272a47a15aa2c3b143ec745e07f00eae3f7dc90e04360ce765dd",
+            "event_type": "org.buwei.invitation",
+            "origin_server_ts_ms": 1792043422389,
+            "service_event_count": 1
+          }
+        ]
+      },
+      {
+        "scene": "invitation",
+        "fault": "crash_before_receipt",
+        "persisted_status_before_recovery": "dispatching",
+        "status_after_recovery": "confirmed",
+        "original_operation_retained": true,
+        "native_process_restarted": true,
+        "blind_resends": 0,
+        "locally_collected_at_unix": 1792043604,
+        "events": [
+          {
+            "operation_sha256": "39afad3e5a6210c1925676380a73750342be520058a06d48f2b420a994d77848",
+            "event_sha256": "86811e16edec7ed95a0d28ea0daf897ba2b5aeda9769cc71e136301014f91fa3",
+            "event_type": "org.buwei.invitation",
+            "origin_server_ts_ms": 1792043516298,
+            "service_event_count": 1
+          }
+        ]
+      },
+      {
+        "scene": "participant",
+        "fault": "lost_ack",
+        "persisted_status_before_recovery": "unknown",
+        "status_after_recovery": "confirmed",
+        "original_operation_retained": true,
+        "native_process_restarted": true,
+        "blind_resends": 0,
+        "locally_collected_at_unix": 1792043746,
+        "events": [
+          {
+            "operation_sha256": "527a2bfcb7e2519dbe51606a0baacb9cd019c879f4f1ec27fd44708757132469",
+            "event_sha256": "38d5fdab713b1f25f6b4cf60658bcc4ceb4dcb990614fd7c0f3649b1c83908f2",
+            "event_type": "org.buwei.reply",
+            "origin_server_ts_ms": 1792043727128,
+            "service_event_count": 1
+          }
+        ]
+      },
+      {
+        "scene": "participant",
+        "fault": "crash_before_receipt",
+        "persisted_status_before_recovery": "dispatching",
+        "status_after_recovery": "confirmed",
+        "original_operation_retained": true,
+        "native_process_restarted": true,
+        "blind_resends": 0,
+        "locally_collected_at_unix": 1792043930,
+        "events": [
+          {
+            "operation_sha256": "e66140968d6e955aab4736cac31439c8c5aab1cf30c1c889e5aa7f3b0163206d",
+            "event_sha256": "c32080e61ba6629facc2a1307ecd0763f258b2db43bc5f0049eafae52d1eed79",
+            "event_type": "org.buwei.reply",
+            "origin_server_ts_ms": 1792043831364,
+            "service_event_count": 1
+          }
+        ]
+      },
+      {
+        "scene": "article",
+        "fault": "lost_ack",
+        "persisted_status_before_recovery": "unknown",
+        "status_after_recovery": "confirmed",
+        "original_operation_retained": true,
+        "native_process_restarted": true,
+        "blind_resends": 0,
+        "locally_collected_at_unix": 1792044061,
+        "events": [
+          {
+            "operation_sha256": "c0213ad6242e921f1bcdeee6541d4b53a25cce7bffbac875fe1624d73e524f1e",
+            "event_sha256": "d03af0f7a82300eb690579212775f11139f0cadc6f4003ba8577f10570e0c731",
+            "event_type": "m.room.message",
+            "origin_server_ts_ms": 1792044034602,
+            "service_event_count": 1
+          }
+        ]
+      },
+      {
+        "scene": "article",
+        "fault": "crash_before_receipt",
+        "persisted_status_before_recovery": "dispatching",
+        "status_after_recovery": "confirmed",
+        "original_operation_retained": true,
+        "native_process_restarted": true,
+        "blind_resends": 0,
+        "locally_collected_at_unix": 1792044182,
+        "events": [
+          {
+            "operation_sha256": "eeb12f717509068a8a4e36cef1cc46fe8dfb4924460a45c380bba606f7189336",
+            "event_sha256": "bd0dbd9bc28be8794b0054d4cb3b30ea7fc75bb5229575d32f8297516b947312",
+            "event_type": "m.room.message",
+            "origin_server_ts_ms": 1792044089903,
+            "service_event_count": 1
+          }
+        ]
+      }
+    ],
+    "scope": "actual SDK sends and service event verification; deliberate receipt loss or native abort in opt-in acceptance build; network cable was not disconnected",
+    "build": {
+      "source_commit": "e1790cdf8ee362b9c1417dcd2c29ce21e05932b4",
+      "native_source_sha256": "ac23f74d9a7e4925f643bb41ca90ca78a9b3bfcdcf916c5b421768948f554bb1",
+      "binary_sha256": "d3d366ac1c73080c9892004c223386b331206ada816a52eb3af3544a1417f9a3",
+      "cargo_lock_sha256": "27dad3bcc191a0a6204a9de8bacb62f3462d33710d5c8e38ae5b9f9f180b11c4",
+      "dependencies_lock_sha256": "8923d9079676ffc49bbc581dc05872679114c19aaf0ae9aab475f318d2ff35a3",
+      "features": [
+        "acceptance"
+      ]
+    },
+    "started_at_unix": 1792043373,
+    "finished_at_unix": 1792044183,
+    "private_trace_sha256": "c2752bba1ee962e24d462991989c1afc5c10670855b86cd380679a2a8b4f60f9"
+  },
+  "upstream": [
+    {
+      "project": "OctoSense",
+      "pr": "https://github.com/OctoSense-org/OctoSense/pull/543",
+      "state": "ready_for_review",
+      "ci": "https://github.com/WeiR-h/OctoSense/actions/runs/38682068687",
+      "coverage": "34 production receipt tests and both journal benchmarks on Windows and Linux"
+    },
+    {
+      "project": "Makepad",
+      "pr": "https://github.com/OctoSense-org/makepad/pull/127",
+      "state": "ready_for_review",
+      "ci": "https://github.com/WeiR-h/makepad/actions/runs/38686070603",
+      "coverage": "241 existing tests, Windows compilation and actual WARP native example render"
+    },
+    {
+      "project": "Rinx",
+      "pr": "https://github.com/hagency-org/Rinx/pull/89",
+      "state": "draft",
+      "ci": "https://github.com/WeiR-h/Rinx/actions/runs/38676331761",
+      "coverage": "35 portable card contract tests on Windows and Linux and full Windows client compilation"
+    },
+    {
+      "project": "OctoSense",
+      "pr": "https://github.com/OctoSense-org/OctoSense/pull/468",
+      "state": "draft",
+      "ci": "https://github.com/WeiR-h/OctoSense/actions/runs/38676338172",
+      "coverage": "10 contract tests, macOS compilation and native shell tests; scripted adapter remains separate from real module routing"
+    }
+  ],
+  "scope": {
+    "judge_hands_on": false,
+    "independent_user_trial": false,
+    "upstream_merged": false,
+    "official_score_changed": false,
+    "performance": "Journal figures use synthetic local SQLite history in identical development builds; live command timings include the actual network."
+  }
+}

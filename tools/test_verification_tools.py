@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import live_evidence
 import verify_portable_core as portable
-from continuous_capture import validate_timeline
+from continuous_capture import private_regions, validate_timeline
 
 
 def fixture():
@@ -33,6 +33,25 @@ def fixture():
 
 
 class VerificationTools(unittest.TestCase):
+    def test_visible_bottom_sidebar_control_does_not_scroll_unrelated_page(self):
+        from native_ui import NativeUI
+        ui=NativeUI(12345)
+        with patch.object(ui,'element',return_value=({'r':[20,803,180,40]},{'i':0,'sz':[1400,900]})), patch.object(ui,'get') as request, patch.object(ui,'scroll') as scroll, patch('native_ui.time.sleep'):
+            ui.click('nav_help')
+            scroll.assert_not_called()
+            request.assert_called_once_with('click',w=0,x=110.0,y=823.0,wait=1)
+    def test_private_field_appearing_during_capture_is_covered(self):
+        before=[dict(i='status',w=1,ty='Label',t='等待结果',r=[10,20,200,30])]
+        after=[dict(i='status',w=1,ty='Label',t='@member:example.org',r=[10,20,200,30]),
+               dict(i='hidden',w=1,v=0,ty='Label',t='@hidden:example.org',r=[0,0,500,500]),
+               dict(i='other',w=2,ty='Label',t='@other:example.org',r=[0,0,500,500])]
+        self.assertEqual(private_regions(before,after,1),[(10,20,200,30)])
+    def test_reused_activities_do_not_become_a_fresh_creation_claim(self):
+        report,binding,trace=fixture()
+        report.pop('both_accounts_created_and_participated')
+        public=live_evidence.summarize(report,binding,trace)
+        self.assertIn('fresh room creation is checked separately',public['activity_scope'])
+        self.assertNotIn('both_accounts_created_and_participated',public)
     def test_relative_result_directory_is_normalized_for_native_export(self):
         from planning_community_acceptance import NextStage
         with tempfile.TemporaryDirectory(dir=".") as temporary, patch('planning_community_acceptance.Hosts'):

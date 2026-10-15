@@ -24,8 +24,15 @@ def validate_timeline(samples, fps):
     encoded = (len(samples) - 1) / fps
     gap = max(b-a for a, b in zip(samples, samples[1:]))
     if abs(encoded-duration) > max(.75, duration*.03) or gap > max(1.5, 3/fps):
-        raise ValueError("Capture gaps cannot be presented as continuous real-time video")
+        raise ValueError(f"Capture gaps cannot be presented as continuous real-time video: captured={duration:.3f}s encoded={encoded:.3f}s maximum_gap={gap:.3f}s")
     return dict(captured_seconds=round(duration, 3), maximum_capture_gap_seconds=round(gap, 3), frames=len(samples), fps=fps)
+
+
+def private_regions(before, after, window_id):
+    # Include newly rendered fields if the application updates during the grab.
+    return sorted({tuple(rect) for widget in before+after
+                   if widget.get("w")==window_id and widget.get("v",1)!=0
+                   for rect in redaction_targets(widget)})
 
 
 def frame(ui, role, caption, elapsed, font_path):
@@ -36,12 +43,10 @@ def frame(ui, role, caption, elapsed, font_path):
     width, height = window["sz"]
     sx, sy = picture.width/width, picture.height/height
     draw = ImageDraw.Draw(picture)
-    for widget in tree:
-        if widget.get("w") != window["i"]: continue
-        for x, y, w, h in redaction_targets(widget):
-            if y+h <= 0 or y >= height: continue
-            box = (max(0, x*sx-2), max(0, y*sy-2), min(picture.width, (x+w)*sx+2), min(picture.height, (y+h)*sy+2))
-            if box[0] < box[2] and box[1] < box[3]: draw.rectangle(box, fill="#e7eeea")
+    for x, y, w, h in private_regions(tree, ui.tree(), window["i"]):
+        if y+h <= 0 or y >= height: continue
+        box = (max(0, x*sx-2), max(0, y*sy-2), min(picture.width, (x+w)*sx+2), min(picture.height, (y+h)*sy+2))
+        if box[0] < box[2] and box[1] < box[3]: draw.rectangle(box, fill="#e7eeea")
     picture = picture.crop((int(12*sx), int(35*sy), int((width-12)*sx), int((height-93)*sy)))
     picture.thumbnail((1570, 820))
     canvas = Image.new("RGB", (1600, 1000), "#173c32")

@@ -186,6 +186,7 @@ pub(crate) struct View {
     pub generated_note: Option<(String, String, String)>,
     pub model_status: String,
     pub advice: String,
+    pub has_participation_draft: bool,
     pub message: String,
     pub sync_status: String,
     pub organizer: bool,
@@ -1928,11 +1929,14 @@ impl Controller {
                 n.markdown.clone(),
             )
         });
+        v.has_participation_draft = self.dated_suggestion.is_some() || self.suggestion.is_some();
         v.advice = self
-            .explanation
-            .clone()
+            .dated_suggestion
+            .as_ref()
+            .map(|(_, _, _, draft)| draft.display())
+            .or_else(|| self.explanation.clone())
             .or_else(|| self.suggestion.as_ref().map(|(_, _, _, a, _)| a.display()))
-            .unwrap_or_else(|| "AI 建议尚未生成。手动时段可直接使用。".into());
+            .unwrap_or_else(|| "可描述本次安排，或直接填写时段报名。".into());
         v
     }
 }

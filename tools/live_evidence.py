@@ -69,7 +69,7 @@ def summarize(report, binding, trace):
             raise ValueError("Private input commitment is invalid")
     if not re.fullmatch(r"\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?", report.get("version", "")):
         raise ValueError("Explicit application version required")
-    required = ("passed", "both_accounts_created_and_participated", "activity_roles_and_roster_permissions_verified", "private_scope_into_public_directory_rejected", "long_term_preferences_unchanged", "all_service_event_counts_one")
+    required = ("passed", "activity_roles_and_roster_permissions_verified", "private_scope_into_public_directory_rejected", "long_term_preferences_unchanged", "all_service_event_counts_one")
     if any(report.get(key) is not True for key in required) or report.get("real_rounds") != 5 or report.get("actual_sdk_identities") != 2 or report.get("model_calls") != 0:
         raise ValueError("The declared two-account five-round checks did not complete")
     if report.get("controlled_test") is not True or report.get("actual_user_trial") is not False or report.get("cross_machine_trial_completed") is not False or report.get("distinct_organizers") != 2:
@@ -111,6 +111,7 @@ def summarize(report, binding, trace):
     return {
         "schema": 1, "version": report["version"], "passed": True, "scope": "local_two_account_controlled_run",
         "judge_verified": False, "independent_user_trial": False,
+        "activity_scope": "two accounts organize and participate in verified activities; fresh room creation is checked separately",
         "source_commit": proof["source_commit"], "native_source_sha256": proof["native_source_sha256"],
         "binary_sha256": proof["binary_sha256"], "features": ["acceptance"],
         "cargo_lock_sha256": proof["cargo_lock_sha256"], "dependencies_lock_sha256": proof["dependencies_lock_sha256"],

@@ -40,10 +40,14 @@ class NativeUI:
             x,y,w,h=item['r']
             # Keep clicks inside the main work area. Read a new widget tree
             # after every scroll instead of reusing stale coordinates.
-            minimum=35 if identifier.startswith('nav_') or identifier=='new_activity' else 90
-            if y>=minimum and y+h<=window['sz'][1]-100:
+            sidebar=identifier.startswith('nav_') or identifier=='new_activity'
+            minimum=35 if sidebar else 90
+            bottom=window['sz'][1]-(35 if sidebar else 60)
+            if y>=minimum and y+h<=bottom:
                 self.get('click',w=window['i'],x=x+w/2,y=y+h/2,wait=1);time.sleep(.3);return
-            self.scroll(350 if y+h>window['sz'][1]-70 else -350)
+            if sidebar:
+                raise RuntimeError('Sidebar widget is outside its observed window: '+identifier)
+            self.scroll(350 if y+h>bottom else -350)
         raise RuntimeError('Widget cannot be brought into the current viewport: '+identifier)
     def fill(self,identifier,value):
         self.click(identifier);window=self.window()

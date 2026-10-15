@@ -29,6 +29,7 @@ binding=begin(args.executable)
 if binding['build']['native_source_sha256']!=source_fingerprint():raise ValueError('Build differs from the checked-out native source')
 s=NextStage(args)
 s.run_id=binding['run_id']
+created_in_this_run=set()
 
 def bind(c,r):
     if r.get('activity'):s.bind(c,r['activity']['room'])
@@ -38,7 +39,9 @@ def plan(c,basics):
     assert r['planning']['creation_nonce']
     r=bind(c,s.p(c,'ConfirmCreate',dict(nonce=r['planning']['creation_nonce'],basics=basics)))
     assert r['roles']['organizer'] and r['roles']['can_create']
-    return r['activity']['metadata']['activity_id']
+    identifier=r['activity']['metadata']['activity_id']
+    created_in_this_run.add(identifier)
+    return identifier
 def person(a,account):return next((p for p in a['people'] if p['account']==account),{})
 def publish(c,identifier):
     s.select(c,identifier)
@@ -136,7 +139,7 @@ try:
     s.select(s.o,reading)
     r=s.d(s.o,'PreviewPublish',dict(community=s.group,withdrawn=False),ok=False)
     assert not r['success']
-    report=dict(version=args.version,run_id=s.run_id,passed=True,real_rounds=5,actual_sdk_identities=2,distinct_organizers=2,both_accounts_created_and_participated=True,public_alias_join_without_invitation=True,both_public_activities_visible=True,activity_roles_and_roster_permissions_verified=True,private_scope_into_public_directory_rejected=True,explicit_natural_language_understood_without_model=True,long_term_preferences_unchanged=True,all_service_event_counts_one=True,events=evidence_a+evidence_b,model_calls=0,controlled_test=True,actual_user_trial=False,cross_machine_trial_completed=False,core_creation_confirmation_actions=dict(before=3,after=2),core_join_and_signup_actions=dict(before=3,after=2),measurement_scope='Host commands corresponding to the UI buttons; selection, authority setup and seat acceptance reported separately; no end-to-end 30% claim')
+    report=dict(version=args.version,run_id=s.run_id,passed=True,real_rounds=5,actual_sdk_identities=2,distinct_organizers=2,activity_ownership_and_participation_verified=True,activities_created_in_this_run=len(created_in_this_run),both_public_activities_visible=True,activity_roles_and_roster_permissions_verified=True,private_scope_into_public_directory_rejected=True,explicit_natural_language_understood_without_model=True,long_term_preferences_unchanged=True,all_service_event_counts_one=True,events=evidence_a+evidence_b,model_calls=0,controlled_test=True,actual_user_trial=False,cross_machine_trial_completed=False,measurement_scope='Actual host command completion; existing activities may be reused; activity creation is counted separately; no end-to-end 30% claim')
     (s.out/'acceptance.local.json').write_text(json.dumps(report,indent=2),'utf8')
     if source_fingerprint()!=binding['build']['native_source_sha256']:raise ValueError('Native source changed during the run')
     finish(binding,args.executable,s.out)
