@@ -387,6 +387,9 @@ script_mod! {
                     configure_model:=Action{text:"填写或更新本机 Kimi Code 密钥"}
                     Small{text:"活动助手可以理解日期和报名意愿。必要信息会先显示为可编辑草稿，由本人核对确认。"}
                     fault:=Action{text:"高级诊断" visible:false}
+                    Heading{text:"运行测量"}
+                    Small{text:"仅保留当前账号会话各功能最近 128 次处理耗时，包括网络等待；不记录需求原文、账号、房间或密钥。这里的耗时不代表画面帧率。"}
+                    performance_summary:=Small{text:"本次会话还没有测量记录。"}
                 }
         }
     }
@@ -1086,6 +1089,7 @@ impl BuWeiView {
         self.view
             .label(cx, ids!(model_status))
             .set_text(cx, &view.model_status);
+        self.view.label(cx, ids!(performance_summary)).set_text(cx, &view.performance_summary);
         self.view
             .label(cx, ids!(authorization))
             .set_visible(cx, view.consent_id.is_some());

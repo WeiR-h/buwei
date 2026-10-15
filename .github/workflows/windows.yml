@@ -67,7 +67,7 @@ jobs:
         run: |
           ./tools/Build.ps1 -Tests
           ./tools/Build.ps1 -Release
-          python -m unittest discover -s tools -p test_release_tools.py
+          python -m unittest discover -s tools -p 'test_*tools.py'
       - name: Save reusable compilation before runtime validation
         if: always() && steps.native-cache.outputs.cache-hit != 'true' && steps.compile.outcome != 'skipped'
         uses: actions/cache/save@v4

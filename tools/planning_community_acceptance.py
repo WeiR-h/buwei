@@ -14,8 +14,13 @@ class NextStage:
         self.h=Hosts(args.executable,args.owner_profile,args.participant_profile,args.version,8290,8291)
         self.trace=json.loads((self.out/'trace.private.json').read_text('utf8')) if (self.out/'trace.private.json').is_file() else [];self.rounds=[];self.progress={}
     def call(self,c,name,value=None,ok=True,timeout=90):
-        r=c.command(name,value,timeout=timeout)
-        self.trace.append(dict(command=name,collected_at_unix=int(time.time()),result=r))
+        started=time.perf_counter()
+        try:r=c.command(name,value,timeout=timeout)
+        except Exception:
+            self.trace.append(dict(command=name,collected_at_unix=int(time.time()),elapsed_ms=(time.perf_counter()-started)*1000,outcome='unknown',run_id=getattr(self,'run_id',None)))
+            (self.out/'trace.private.json').write_text(json.dumps(self.trace,ensure_ascii=False),'utf8')
+            raise
+        self.trace.append(dict(command=name,collected_at_unix=int(time.time()),elapsed_ms=(time.perf_counter()-started)*1000,outcome='success' if r.get('success') is True else 'refused',run_id=getattr(self,'run_id',None),result=r))
         (self.out/'trace.private.json').write_text(json.dumps(self.trace,ensure_ascii=False),'utf8')
         if ok and r.get('success') is not True:raise AssertionError(name+': '+r.get('message',''))
         return r

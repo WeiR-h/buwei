@@ -43,3 +43,5 @@ python tools/bootstrap.py
 ```
 
 Pinned official dependencies, source, tests and required host patches are included in this repository. AI configuration belongs to the native host and remains on the user's device.
+
+[Reproduce production rules, journal performance and real SDK checks](docs/VERIFICATION.md). The portable Windows/Linux checks need no account or model credentials; live-service evidence is labelled separately from independent user trials and judging.

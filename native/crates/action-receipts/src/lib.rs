@@ -228,7 +228,10 @@ impl Journal {
                 "unsupported journal schema; original file preserved".into(),
             ));
         }
-        db.execute_batch("CREATE TABLE IF NOT EXISTS operations(id TEXT PRIMARY KEY, app TEXT NOT NULL, account TEXT NOT NULL, status TEXT NOT NULL, body TEXT NOT NULL); PRAGMA user_version=1;")?;
+        db.execute_batch("CREATE TABLE IF NOT EXISTS operations(id TEXT PRIMARY KEY, app TEXT NOT NULL, account TEXT NOT NULL, status TEXT NOT NULL, body TEXT NOT NULL);
+            CREATE INDEX IF NOT EXISTS operations_scope ON operations(app, account);
+            CREATE INDEX IF NOT EXISTS operations_pending_scope ON operations(app, account, status);
+            PRAGMA user_version=1;")?;
         Ok(Self { db })
     }
     fn body(op: &Operation) -> Result<String> {

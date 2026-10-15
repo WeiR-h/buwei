@@ -69,5 +69,7 @@ python tools/bootstrap.py
 
 核心包含可复用的授权、持久化执行与回执框架，应用源码和必要的构建补丁完整提供。
 
+[独立复验、性能测量与真实服务验证](docs/VERIFICATION.md)
+
 [English](README.en.md) · [版本记录](CHANGELOG.md) · [第三方声明](NOTICE.md) ·
 [问题反馈](https://github.com/WeiR-h/buwei/issues) · [参赛说明](docs/SUBMISSION.md)

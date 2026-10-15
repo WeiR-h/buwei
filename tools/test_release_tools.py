@@ -130,10 +130,11 @@ class ReleaseTools(unittest.TestCase):
                 with self.assertRaises(ValueError):deny_optional_rinx_agent(pathlib.Path(tmp),version)
             self.assertEqual(list(pathlib.Path(tmp).iterdir()),[])
     def test_build_proof_distinguishes_acceptance_from_formal_host(self):
-        replies=['commit','rustc 1.98.0','host: x86_64-unknown-linux-gnu\n']
+        replies=['commit','rustc 1.98.0','host: x86_64-unknown-linux-gnu\n','']
         with patch.object(build_proof.subprocess,'check_output',side_effect=replies*2),patch.object(build_proof,'source_fingerprint',return_value='source'),patch.object(build_proof,'digest',return_value='lock'):
             formal=build_proof.snapshot();acceptance=build_proof.snapshot('acceptance')
         self.assertEqual(formal['features'],['full-host']);self.assertEqual(acceptance['features'],['acceptance'])
+        self.assertTrue(formal['native_source_worktree_clean'])
         self.assertEqual({k:v for k,v in formal.items() if k!='features'},{k:v for k,v in acceptance.items() if k!='features'})
         with self.assertRaises(ValueError):build_proof.snapshot('desktop')
         with tempfile.TemporaryDirectory() as tmp:
@@ -141,6 +142,10 @@ class ReleaseTools(unittest.TestCase):
             pathlib.Path(str(binary)+'.build.json').write_text(json.dumps(dict(acceptance,passed=True)),'utf8')
             with self.assertRaisesRegex(RuntimeError,'measured full-host'):package.stage(binary,root/'formal-package')
             self.assertFalse((root/'formal-package').exists())
+    def test_build_proof_discloses_uncommitted_native_source(self):
+        replies=['commit','rustc 1.98.0','host: x86_64-unknown-linux-gnu\n',' M native/src/controller.rs\n']
+        with patch.object(build_proof.subprocess,'check_output',side_effect=replies),patch.object(build_proof,'source_fingerprint',return_value='source'),patch.object(build_proof,'digest',return_value='lock'):
+            self.assertFalse(build_proof.snapshot()['native_source_worktree_clean'])
     def test_shutdown_waits_for_original_busy_command_and_requires_normal_exit(self):
         def error(message='timeout (app busy or not running its event loop)',code=404):
             return urllib.error.HTTPError('http://localhost/quit',code,'failed',{},io.BytesIO(json.dumps({'err':message}).encode()))

@@ -26,7 +26,8 @@ def snapshot(features='full-host'):
         compiler['visual_studio']=subprocess.check_output(args+['-property','installationVersion'],text=True).strip()
         install=pathlib.Path(subprocess.check_output(args+['-property','installationPath'],text=True).strip())
         compiler['msvc_tools']=(install/'VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt').read_text('utf8').strip()
-    return {'source_commit':commit,'native_source_sha256':source_fingerprint(),'dependencies_lock_sha256':digest(ROOT/'dependencies.lock.json'),'cargo_lock_sha256':digest(ROOT/'native/Cargo.lock'),'rustc':rustc,'rust_host':host.split('host: ')[1].splitlines()[0],'compiler':compiler,'features':[features]}
+    clean=commit is not None and not subprocess.check_output(['git','-C',str(ROOT),'status','--porcelain','--untracked-files=all','--','native'],text=True).strip()
+    return {'source_commit':commit,'native_source_worktree_clean':clean,'native_source_sha256':source_fingerprint(),'dependencies_lock_sha256':digest(ROOT/'dependencies.lock.json'),'cargo_lock_sha256':digest(ROOT/'native/Cargo.lock'),'rustc':rustc,'rust_host':host.split('host: ')[1].splitlines()[0],'compiler':compiler,'features':[features]}
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--start',type=pathlib.Path);p.add_argument('--finish',type=pathlib.Path);p.add_argument('--binary',type=pathlib.Path);p.add_argument('--output',type=pathlib.Path);p.add_argument('--features',choices=['full-host','acceptance'],default='full-host');a=p.parse_args()
     if a.start:a.start.parent.mkdir(parents=True,exist_ok=True);a.start.write_text(json.dumps(snapshot(a.features),indent=2),'utf8')
