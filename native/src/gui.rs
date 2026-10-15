@@ -162,10 +162,10 @@ script_mod! {
                                 template_search_apply:=Action{text:"搜索"} template_search_clear:=Action{text:"全部"}
                             }
                             View{width:Fill height:Fit flow:Right spacing:8
-                                template_option_0:=Action{width:Fill} template_option_1:=Action{width:Fill} template_option_2:=Action{width:Fill}
+                                template_option_0:=Action{width:Fill height:66 align:Align{x:0.0 y:0.5}} template_option_1:=Action{width:Fill height:66 align:Align{x:0.0 y:0.5}} template_option_2:=Action{width:Fill height:66 align:Align{x:0.0 y:0.5}}
                             }
                             View{width:Fill height:Fit flow:Right spacing:8
-                                template_option_3:=Action{width:Fill} template_option_4:=Action{width:Fill} template_option_5:=Action{width:Fill}
+                                template_option_3:=Action{width:Fill height:66 align:Align{x:0.0 y:0.5}} template_option_4:=Action{width:Fill height:66 align:Align{x:0.0 y:0.5}} template_option_5:=Action{width:Fill height:66 align:Align{x:0.0 y:0.5}}
                             }
                             template_results:=Small{}
                             template_pagination:=View{width:Fill height:Fit flow:Right spacing:8
@@ -1673,13 +1673,20 @@ impl Widget for BuWeiView {
                     .set_visible(cx, true);
                 return;
             }
-            if clicked!(templates_toggle) || clicked!(template_search_apply)
+            if let Some(query) = self.view.text_input(cx, ids!(template_search)).changed(actions) {
+                self.template_query = query;
+                self.template_page = 0;
+                self.display_templates(cx);
+                self.view.redraw(cx);
+            }
+            let template_search_entered = self.view.text_input(cx, ids!(template_search)).returned(actions).is_some();
+            if clicked!(templates_toggle) || clicked!(template_search_apply) || template_search_entered
                 || clicked!(template_search_clear) || clicked!(template_prev) || clicked!(template_next)
             {
                 if clicked!(templates_toggle) {
                     self.template_library_open = !self.template_library_open;
                 }
-                if clicked!(template_search_apply) || clicked!(template_search_clear) {
+                if clicked!(template_search_apply) || template_search_entered || clicked!(template_search_clear) {
                     self.template_query = if clicked!(template_search_clear) { String::new() }
                         else { text!(template_search) };
                     self.template_page = 0;
