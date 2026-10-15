@@ -6,6 +6,29 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
+#[test]
+fn registration_confirmation_requires_the_complete_unchanged_preview() {
+    let preferences = Preferences { earliest: 19, latest: 21, group: 2 };
+    let intent = Intent::Join { preferences: preferences.clone() };
+    assert!(intent.check_confirmation_inputs(Some(&preferences)).is_ok());
+    assert!(intent.check_confirmation_inputs(None).is_err());
+    for edited in [Preferences { group: 1, ..preferences.clone() },
+                   Preferences { latest: 20, ..preferences.clone() }] {
+        assert!(intent.check_confirmation_inputs(Some(&edited)).is_err());
+    }
+}
+
+#[test]
+fn restored_reply_and_cancellation_do_not_require_hidden_registration_fields() {
+    for intent in [Intent::Cancel,
+                   Intent::Reply { invitation_id: "original-invitation".into(), invitation_event: "$verified".into(), accept: true },
+                   Intent::Reply { invitation_id: "original-invitation".into(), invitation_event: "$verified".into(), accept: false }] {
+        assert!(intent.check_confirmation_inputs(None).is_ok());
+        // Older clients can still submit their existing registration fields.
+        assert!(intent.check_confirmation_inputs(Some(&Preferences { earliest: 19, latest: 21, group: 2 })).is_ok());
+    }
+}
+
 fn activity() -> Activity {
     Activity::new(
         "@owner:server".into(),

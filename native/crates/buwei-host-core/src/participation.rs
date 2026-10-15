@@ -18,6 +18,17 @@ pub enum Intent {
     Cancel,
 }
 impl Intent {
+    /// Registration must match the edited preview. Replies and cancellations
+    /// have no date fields, including immediately after restoring a session.
+    pub fn check_confirmation_inputs(&self, inputs: Option<&Preferences>) -> Result<()> {
+        if let Self::Join { preferences } = self {
+            if inputs != Some(preferences) {
+                return Err("时段或人数已修改，旧确认失效，请重新预览".into());
+            }
+        }
+        Ok(())
+    }
+
     pub fn validate(&self, activity: &Activity, actor: &str, clock: u64) -> Result<()> {
         if activity.metadata.as_ref().is_some_and(|m| m.archived)
             || activity.metadata.is_some() && clock >= activity.end

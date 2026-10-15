@@ -476,6 +476,8 @@ pub struct BuWeiView {
     #[rust]
     participant_controls: ParticipantControls,
     #[rust]
+    participant_join_preview: bool,
+    #[rust]
     brand_loaded: bool,
     #[rust]
     assistant_expanded: bool,
@@ -581,6 +583,7 @@ impl BuWeiView {
         self.authorized = view.authorized;
         self.has_activity = !view.activity_identity.is_empty();
         self.participant_controls = view.participant_controls;
+        self.participant_join_preview = view.participant_inputs.is_some();
         if !self.brand_loaded {
             self.brand_loaded = self.view.image(cx, ids!(brand_mark))
                 .load_png_from_data(cx, include_bytes!("../../assets/icon.png")).is_ok();
@@ -2282,10 +2285,14 @@ impl Widget for BuWeiView {
                             group: parse(text!(group))?,
                         }))
                     } else if clicked!(participant_confirm) {
-                        Some(Command::ConfirmParticipant(Preferences {
-                            earliest: time(text!(earliest))?,
-                            latest: time(text!(latest))?,
-                            group: parse(text!(group))?,
+                        Some(Command::ConfirmParticipant(if self.participant_join_preview {
+                            Some(Preferences {
+                                earliest: time(text!(earliest))?,
+                                latest: time(text!(latest))?,
+                                group: parse(text!(group))?,
+                            })
+                        } else {
+                            None
                         }))
                     } else if clicked!(pending_reconcile) {
                         Some(Command::ReconcilePending)

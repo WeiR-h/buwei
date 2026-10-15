@@ -65,7 +65,7 @@ pub(crate) enum Command {
         end: u8,
     },
     Join(Preferences),
-    ConfirmParticipant(Preferences),
+    ConfirmParticipant(Option<Preferences>),
     ReconcilePending,
     Prepare,
     Execute,
@@ -1138,11 +1138,7 @@ impl Controller {
                     .ok_or("请先预览本人操作")?
                     .clone();
                 let intent = buwei_host_core::participation::Intent::parse(&op.action)?;
-                if let buwei_host_core::participation::Intent::Join { preferences } = intent {
-                    if preferences != inputs {
-                        return Err("时段或人数已修改，旧确认失效，请重新预览".into());
-                    }
-                }
+                intent.check_confirmation_inputs(inputs.as_ref())?;
                 let adapter = self.participant_adapter()?;
                 if op.status == Status::Prepared {
                     self.journal
