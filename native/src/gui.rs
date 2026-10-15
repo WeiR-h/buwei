@@ -682,6 +682,11 @@ impl BuWeiView {
         self.view
             .button(cx, ids!(discovery_join))
             .set_visible(cx, !view.card_status.is_empty());
+        self.view.button(cx, ids!(discovery_current)).set_text(cx,
+            if view.organizer { "查看当前活动" }
+            else if self.participant_controls.register { "打开本场并准备报名" }
+            else if self.participant_controls.reply { "查看我的邀请" }
+            else { "查看我的报名" });
         self.roster_nonce = view.roster_export_nonce.clone();
         self.view
             .view(cx, ids!(roster_export))
@@ -1488,7 +1493,7 @@ impl Widget for BuWeiView {
                 self.pages(cx);
                 if clicked!(discovery_join) {
                     self.send(cx, Command::JoinCardAndPrepare);
-                } else if !self.current_organizer {
+                } else if !self.current_organizer && self.participant_controls.register {
                     self.send(cx,Command::QuickJoin);
                 }
                 return;
