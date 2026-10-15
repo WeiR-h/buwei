@@ -44,11 +44,12 @@ pub fn verify_current(rt: &Runtime, c: &Client) -> Result<()> {
             tokio::time::timeout(
                 // Only this read-only identity GET retries transient failures. Business
                 // sends keep their durable transaction IDs and explicit reconciliation.
-                Duration::from_secs(22),
+                // In this pinned SDK, retry_limit counts total attempts (first included).
+                Duration::from_secs(30),
                 c.send(matrix_sdk::ruma::api::client::account::whoami::v3::Request::new())
                     .with_request_config(
                         RequestConfig::new()
-                            .retry_limit(1)
+                            .retry_limit(3)
                             .timeout(Duration::from_secs(8)),
                     ),
             )
