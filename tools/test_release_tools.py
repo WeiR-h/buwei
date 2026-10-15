@@ -293,7 +293,7 @@ class ReleaseTools(unittest.TestCase):
         with self.assertRaises(ValueError):formal_checksums(current,'0.2.3')
         self.assertEqual(len(formal_checksums(current+'c'*64+'  PRIVACY.md\n','0.2.3')),3)
 
-    def test_new_release_keeps_exact_three_assets_and_bundled_privacy(self):
+    def test_frozen_v0211_keeps_exact_three_assets_and_bundled_privacy(self):
         runtime,demo,sums,attachment=asset_format('0.2.11')
         self.assertFalse(attachment)
         lines='a'*64+'  '+runtime+'\n'+'b'*64+'  '+demo+'\n'
@@ -302,6 +302,15 @@ class ReleaseTools(unittest.TestCase):
         check_release_metadata(release,{runtime,demo,sums})
         for invalid in (lines+'c'*64+'  PRIVACY.md\n',lines.replace('Demo','demo'),lines.splitlines()[0]+'\n'):
             with self.assertRaises(ValueError):formal_checksums(invalid,'0.2.11')
+    def test_v0212_preview_keeps_staged_privacy_and_rejects_mixed_asset_names(self):
+        lines='a'*64+'  BuWei-v0.2.12-windows-x64.zip\n'+'b'*64+'  BuWei-v0.2.12-demo.mp4\n'+'c'*64+'  PRIVACY.md\n'
+        hashes=formal_checksums(lines,'0.2.12')
+        expected=set(hashes)|{'SHA256SUMS.txt'}
+        release={'draft':False,'prerelease':True,'assets':[{'name':name} for name in expected]}
+        with self.assertRaises(ValueError):check_release_metadata(release,expected)
+        check_release_metadata(release,expected,allow_preview=True)
+        for invalid in (lines.replace('windows-x64','Windows-x64'),lines.replace('-demo','-Demo'),'\n'.join(lines.splitlines()[:2])+'\n',lines+'d'*64+'  development.json\n'):
+            with self.assertRaises(ValueError):formal_checksums(invalid,'0.2.12')
     def test_startup_capture_selects_visible_app_and_rejects_hidden_labels(self):
         windows={'w':[{'i':0,'sz':[1024,720]},{'i':1,'sz':[1400,900]}]}
         labels=[{'w':1,'ty':'Label','r':[30,100+n*25,400,20],'t':t} for n,t in enumerate(['补位','v0.2.0','未授权'])]

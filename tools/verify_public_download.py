@@ -6,7 +6,9 @@ from build_proof import source_fingerprint
 import build_proof
 
 def asset_format(version):
-    if tuple(int(p) for p in version.split('.')) >= (0,2,11):
+    # Preserve v0.2.11's frozen three-asset release. v0.2.12 uses the
+    # stager's four-asset format, including a standalone privacy notice.
+    if tuple(int(p) for p in version.split('.')) == (0,2,11):
         return (f'BuWei-v{version}-Windows-x64.zip',f'BuWei-v{version}-Demo.mp4',f'SHA256SUMS-v{version}.txt',False)
     return (f'BuWei-v{version}-windows-x64.zip',f'BuWei-v{version}-demo.mp4','SHA256SUMS.txt',tuple(int(p) for p in version.split('.')) >= (0,2,3))
 
