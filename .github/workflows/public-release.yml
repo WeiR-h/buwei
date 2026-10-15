@@ -1,0 +1,39 @@
+name: Verify public Windows release
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Fixed public tag, including an explicitly labelled preview'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  public-download:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download without credentials, verify fixed source and start native runtime
+        shell: pwsh
+        env:
+          BUWEI_PUBLIC_TAG: ${{ inputs.release_tag }}
+          MAKEPAD_FORCE_SOFTWARE_GPU: '1'
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $buweiPublicUrl = 'https://github.com/WeiR-h/buwei/releases/download/' + $env:BUWEI_PUBLIC_TAG
+          python tools/verify_public_download.py --base-url $buweiPublicUrl --destination .run/public-download --output .run/public-release-check.json --allow-preview
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-release-verification
+          path: |
+            .run/public-release-check.json
+            .run/public-download/runtime-evidence/startup.json
+            .run/public-download/runtime-evidence/startup.png
+          if-no-files-found: warn
