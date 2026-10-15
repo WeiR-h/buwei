@@ -129,13 +129,13 @@
     ]
   },
   "full_windows": {
-    "ci": "https://github.com/WeiR-h/buwei/actions/runs/38685271128",
-    "source_commit": "d7abf2767df9d4c75cbc4a0278664d948113e27e",
+    "ci": "https://github.com/WeiR-h/buwei/actions/runs/38714916433",
+    "source_commit": "7387d6ffa2d61af7bcd79ecca60ece2852a72bc8",
     "build_passed": true,
     "full_host_tests": 226,
     "fresh_runner_download_and_start": {
       "passed": true,
-      "binary_sha256": "de55170d03021bd3d38d79c9fb1e7e1c93db4849ecc2853640557d243b84b96e",
+      "binary_sha256": "eccd1ad74183077253262c9d06028a82a3af1dd3329e46dc2a4c91ed2ab4e323",
       "fresh_profile": true,
       "system_only_path": true,
       "model_calls": 0,
@@ -144,7 +144,8 @@
       "second_writer_refused": true,
       "quit_acknowledged": true,
       "renderer": "Windows WARP software rendering"
-    }
+    },
+    "native_source_sha256": "0433e8e8e8a9ab6b45865c8712aba53754704ddae9b89fc781b62266890e904d"
   },
   "local_tools": {
     "tests_passed": 55,
@@ -152,7 +153,7 @@
     "source_sha256": {
       "tools/test_verification_tools.py": "bb9e9f2f85dc166a408e30dfa56fa9ca8b8843db2ebd0b8658eabe4c383e5bd1",
       "tools/native_ui.py": "5eea70ebdf13cfeb94bc7248578c209d0091a2d9943e0d0c07cf487363cc1994",
-      "tools/continuous_capture.py": "188690440d6a3e3843fae1f64470603731bcc5a9105faab9362ddd9edb78f4ac",
+      "tools/continuous_capture.py": "af03a9766b6b1e8ee1f79e37198d80ccc7152eaae4d08daa429482043a8dc224",
       "tools/fault_acceptance.py": "6b1325f8d5f809aca73d8f48fc622c02d84238e2b46f4f65144630a3a01d3098",
       "tools/live_evidence.py": "afd4cc6ad11d1954dc044f683b65df107906c0c2a5cf46d172bff47514ad40b2",
       "tools/multi_role_acceptance.py": "d484004ce6c953fc88482f6af61bde571d9f7101a710e93a0734a675fdb0cf0b"
@@ -726,6 +727,42 @@
     "independent_user_trial": false,
     "upstream_merged": false,
     "official_score_changed": false,
-    "performance": "Journal figures use synthetic local SQLite history in identical development builds; live command timings include the actual network."
-  }
+    "performance": "Journal figures use synthetic local SQLite history in identical development builds; live command timings include the actual network.",
+    "stable_release_gate_passed": false
+  },
+  "native_gui_flow": {
+    "version": "0.2.12",
+    "passed": true,
+    "video_sha256": "704451ddfd9c7080267899e211b0aaa17d1b8a25e2cb3ffde66849c70e4ac310",
+    "duration_seconds": 60.0,
+    "continuous": true,
+    "real_time": true,
+    "frames": 60,
+    "fps": 1,
+    "maximum_capture_gap_seconds": 1.406,
+    "frame_chain_sha256": "a8efc3b49360f1f9fb7bf24b825bfb35f92ad0b5a45dc52366b91643c78a99e2",
+    "source_commit": "7387d6ffa2d61af7bcd79ecca60ece2852a72bc8",
+    "native_source_sha256": "0433e8e8e8a9ab6b45865c8712aba53754704ddae9b89fc781b62266890e904d",
+    "binary_sha256": "75d946529c33efddb232bf7a1f3cfaeb81d92a407e36a942aa4015a0f0b208d2",
+    "features": [
+      "full-host"
+    ],
+    "acceptance_api_enabled": false,
+    "controlled_local_accounts": 2,
+    "model_calls": 0,
+    "business_actions_from_recorder": 0,
+    "redacted_before_encoding": true,
+    "all_frames_decoded": true,
+    "all_frames_visually_reviewed": true,
+    "playback_speed": 1,
+    "milestones": [
+      "explicit_two_person_draft_visible",
+      "precise_signup_confirmed",
+      "automatic_invitation_delivered",
+      "participant_acceptance_confirmed",
+      "organizer_verified_two_places"
+    ],
+    "scope": "actual full-host native GUI on two local SDK accounts; reused verified activity; manual GUI confirmation was driven through the opt-in native controls"
+  },
+  "release_channel": "preview"
 }

@@ -14,9 +14,9 @@ Participants use their own Rinx identities. Verified server receipts distinguish
 - Follow suggestions through persistent tasks. Editing or pausing a goal invalidates its unexecuted previews while preserving existing receipts.
 - Use AI beside each task for editable activity drafts, sign-up clarification and summaries grounded in verified records.
 
-[Download for Windows](https://github.com/WeiR-h/buwei/releases/latest) · [Chinese guide](docs/FIRST-RUN.md) · [Privacy](docs/PRIVACY.md) · [Support](https://github.com/WeiR-h/buwei/issues)
+[Download v0.2.12 Windows preview](https://github.com/WeiR-h/buwei/releases/tag/v0.2.12) · [Stable release](https://github.com/WeiR-h/buwei/releases/latest) · [Chinese guide](docs/FIRST-RUN.md) · [Privacy](docs/PRIVACY.md) · [Support](https://github.com/WeiR-h/buwei/issues)
 
-**v0.2.11** uses the official desktop RC6 host, a clearer activity workspace, focused planning and contextual registration controls. Each account can organize its own activities and join other people's activities.
+**v0.2.12 preview** uses the official desktop RC6 host and displays the exact dates, availability and party size in each sign-up draft. It adds faster journal recovery queries and independently reproducible verification records. Each account can organize its own activities and join other people's activities.
 
 Organizers can describe an activity, edit its plan, confirm creation, and separately confirm community publication. Members select a published activity, request room access, and confirm their own registration. CSV exports use a verified organizer snapshot and protect text from spreadsheet formula interpretation. See the [community guide](docs/COMMUNITY.md).
 
@@ -24,7 +24,7 @@ BuWei uses pinned official OctoSense desktop RC6 and Rinx 1.1.0 sources and ship
 
 Optional Windows tray duty continues synchronization while the computer and application run with valid authorization. Explicit feedback updates only the chosen scope. Recurring activity drafts require fresh confirmation of their date, location and capacity. [Goals and assistance](docs/INTENTIONS.md) · [Submission and historical versions](docs/SUBMISSION.md).
 
-[Watch the 110-second walkthrough](https://github.com/WeiR-h/buwei/releases/download/v0.2.11/BuWei-v0.2.11-Demo.mp4): two actual Rinx identities complete planning, publication, activity selection, registration, automatic invitation, acceptance, roster export and cancellation. Runtime requirements: Windows 10/11 x64 and the Microsoft Visual C++ v14 x64 runtime.
+[Watch the 60-second continuous native recording](https://github.com/WeiR-h/buwei/releases/download/v0.2.12/BuWei-v0.2.12-demo.mp4): two real local Rinx accounts complete a natural-language sign-up, rule-based invitation, personal acceptance and final organizer verification. Capture preserves elapsed time and covers private identifiers. [Planning, community publication and export walkthrough (v0.2.11)](https://github.com/WeiR-h/buwei/releases/download/v0.2.11/BuWei-v0.2.11-Demo.mp4). Runtime requirements: Windows 10/11 x64 and the Microsoft Visual C++ v14 x64 runtime.
 
 ## Three steps to start
 

@@ -39,7 +39,10 @@ def frame(ui, role, caption, elapsed, font_path):
     from PIL import Image, ImageDraw, ImageFont
     tree = ui.tree()
     window = ui.window(tree)
-    picture = Image.open(io.BytesIO(ui.get("g", w=window["i"], raw=1))).convert("RGB")
+    # Bound native PNG work to the delivered video's width. Capturing a high-DPI
+    # window at full resolution only to shrink it can stall the capture cadence.
+    scale = min(1.0, 1600 / window.get("px", window["sz"])[0])
+    picture = Image.open(io.BytesIO(ui.get("g", w=window["i"], scale=scale, raw=1))).convert("RGB")
     width, height = window["sz"]
     sx, sy = picture.width/width, picture.height/height
     draw = ImageDraw.Draw(picture)
@@ -73,7 +76,7 @@ def record(args):
     for client in clients.values(): client.window()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.metadata.parent.mkdir(parents=True, exist_ok=True)
-    command = [str(args.ffmpeg), "-hide_banner", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "1600x1000", "-framerate", str(args.fps), "-i", "pipe:0", "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(args.output)]
+    command = [str(args.ffmpeg), "-hide_banner", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "1600x1000", "-framerate", str(args.fps), "-i", "pipe:0", "-an", "-c:v", "libx264", "-threads", "2", "-preset", "ultrafast", "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(args.output)]
     process = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     started = time.monotonic()
     samples = []
