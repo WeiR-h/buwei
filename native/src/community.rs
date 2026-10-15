@@ -195,17 +195,17 @@ impl Controller {
     pub(super) fn apply_community(&mut self, c: Command) -> Result<String> {
         match c {
             Command::UseTemplate(kind) => {
-                let (title, capacity, description) = calendar::template(&kind);
-                self.create_form = Some(ActivityForm {
-                    title: title.into(),
-                    capacity,
-                    start: String::new(),
-                    end: String::new(),
-                    template: kind,
-                    location: String::new(),
-                    description: description.into(),
-                });
-                Ok("活动模板已填入，请设置日期和地点。".into())
+                self.g("create")?;
+                let mut draft = buwei_host_core::planning::ActivityPlanDraft::from_template(
+                    &self.actor(), &kind, now(),
+                )?;
+                self.plan_store()?.save(&mut draft, None)?;
+                self.create_form = Some(draft.basics.clone().into());
+                self.selected_plan = Some(draft.id.clone());
+                self.plan_creation_preview = None;
+                std::fs::write(self.data.join("selected-plan.txt"), &draft.id)
+                    .map_err(|_| "策划已保存，选择记录不可保存")?;
+                Ok("模板策划稿已保存，原草稿保留。请确认日期、地点、人数和活动安排。".into())
             }
             Command::CreateDated(form) => {
                 self.g("create")?;
@@ -572,7 +572,7 @@ impl Controller {
             .iter()
             .map(|a| {
                 format!(
-                    "{} · {} · {}\n{} · 已确认 {}/{}",
+                    "{} · {} · {}\n{} · {} · 已确认 {}/{}",
                     a.title,
                     if a.owner==self.actor(){"我组织"}else{"我参加"},
                     if a.metadata.as_ref().is_some_and(|m| m.archived) || now() >= a.end {
@@ -583,6 +583,7 @@ impl Controller {
                         "待举办"
                     },
                     calendar::display(a.start),
+                    a.metadata.as_ref().map(|m| buwei_host_core::activity_types::name(&m.template)).unwrap_or("历史活动"),
                     a.confirmed(),
                     a.capacity
                 )
@@ -649,8 +650,9 @@ impl Controller {
             v.dated = a.metadata.is_some();
             if let Some(m) = &a.metadata {
                 v.activity = format!(
-                    "{}\n{} 至 {} · 北京时间\n地点：{}\n{}\n已确认 {} · 为候补保留 {} · 剩余 {} / {}",
+                    "{} · {}\n{} 至 {} · 北京时间\n地点：{}\n{}\n已确认 {} · 为候补保留 {} · 剩余 {} / {}",
                     a.title,
+                    buwei_host_core::activity_types::name(&m.template),
                     calendar::display(a.start),
                     calendar::display(a.end),
                     m.location,

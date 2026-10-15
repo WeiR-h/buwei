@@ -41,6 +41,10 @@ pub fn list(a: &Activity) -> Vec<Fact> {
     ];
     if let Some(m) = &a.metadata {
         facts.push(Fact {
+            id: "activity_type".into(),
+            text: format!("活动类型：{}。", crate::activity_types::name(&m.template)),
+        });
+        facts.push(Fact {
             id: "location".into(),
             text: format!("活动地点：{}。", m.location),
         });

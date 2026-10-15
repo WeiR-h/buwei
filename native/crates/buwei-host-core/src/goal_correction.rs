@@ -43,16 +43,7 @@ pub fn corrected_input(
         let has_cue = |cues: &[&str]| cues.iter().any(|s| change.evidence.contains(s));
         match change.field.as_str() {
             "template" => {
-                if !has_cue(&[
-                    "读书",
-                    "羽毛球",
-                    "桌游",
-                    "reading",
-                    "badminton",
-                    "boardgame",
-                    "不限",
-                    "自定义",
-                ]) {
+                if !crate::activity_types::evidence_supports(&change.value, &change.evidence) {
                     return Err("请明确活动类型变化".into());
                 }
                 after.template = change.value.clone();

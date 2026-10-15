@@ -136,10 +136,7 @@ impl Metadata {
         }
         if self.activity_id.len() != 32
             || !self.activity_id.bytes().all(|b| b.is_ascii_hexdigit())
-            || !matches!(
-                self.template.as_str(),
-                "badminton" | "boardgame" | "reading" | "custom"
-            )
+            || !crate::activity_types::valid(&self.template)
             || self.location.trim().is_empty()
             || self.location.chars().count() > 120
             || self.description.chars().count() > 1200
@@ -151,10 +148,6 @@ impl Metadata {
     }
 }
 pub fn template(kind: &str) -> (&'static str, u8, &'static str) {
-    match kind {
-        "badminton" => ("羽毛球活动", 6, "请提前到场，自备球拍。"),
-        "boardgame" => ("桌游活动", 6, "请在报名时填写同行人数。"),
-        "reading" => ("读书会", 12, "请准备一句想分享的阅读感受。"),
-        _ => ("社群活动", 6, ""),
-    }
+    let t = crate::activity_types::get(kind).unwrap_or_else(|| crate::activity_types::get("custom").unwrap());
+    (t.title, t.capacity, t.description)
 }

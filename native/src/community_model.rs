@@ -30,8 +30,8 @@ pub(crate) fn plan_request(
         return Err("请填写活动需求，最多 4000 字节".into());
     }
     Ok(request(
-        "把本人自然语言需求整理为活动策划提案。updates 只写本次明确提出或更正的基础字段；未提字段保持已有值，不填推测日期、地点、容量或结束时间。每个 update.source 必须逐字引用本次 user_intake 的片段；capacity 的 value 为0至30的数字字符串，未知留空字段或不更新；template 只能 badminton/boardgame/reading/custom。北京时间 YYYY-MM-DD HH:MM，参考日期由 input 给出。可按用户明确类型拟一个标题。agenda/preparation/recruitment/reminders 是建议，不能声称已预约场地、已报名、已发送、实际到场或已启用提醒。不确定的必需基础信息由应用追问，不额外追问选填流程。修改已有策划时，仅改变本人明确提及字段。活动创建、分享、报名均由本人另行确认。",
-        json!({"reference_beijing":buwei_host_core::calendar::display(now()),"user_intake":text,"previous_basics":previous.map(|p|&p.basics),"previous_suggestions":previous.map(|p|json!({"agenda":p.agenda,"preparation":p.preparation,"recruitment":p.recruitment,"reminders":p.reminders}))}),
+        "把本人自然语言需求整理为活动策划提案。updates 只写本次明确提出或更正的基础字段；未提字段保持已有值，不填推测日期、地点、容量或结束时间。每个 update.source 必须逐字引用本次 user_intake 的片段；capacity 的 value 为0至30的数字字符串，未知留空字段或不更新；template 使用 activity_types 中最具体的类型 id，目录以外的类型使用 custom；不能用分类名称代替 id。北京时间 YYYY-MM-DD HH:MM，参考日期由 input 给出。可按用户明确类型拟一个标题。agenda/preparation/recruitment/reminders 是建议，应贴合活动类型，不能声称已预约场地、已订票、已报名、已发送、实际到场或已启用提醒。不确定的必需基础信息由应用追问，不额外追问选填流程。修改已有策划时，仅改变本人明确提及字段。活动创建、分享、报名均由本人另行确认。",
+        json!({"reference_beijing":buwei_host_core::calendar::display(now()),"activity_types":buwei_host_core::activity_types::model_catalog(),"user_intake":text,"previous_basics":previous.map(|p|&p.basics),"previous_suggestions":previous.map(|p|json!({"agenda":p.agenda,"preparation":p.preparation,"recruitment":p.recruitment,"reminders":p.reminders}))}),
         plan_properties(),
         &[
             "updates",
@@ -138,9 +138,9 @@ pub(crate) fn create_request(requirement: &str) -> Result<Request> {
         return Err("请填写活动安排")?;
     }
     Ok(request(
-        "形成待本人确认的社群活动草稿。输出北京时间 YYYY-MM-DD HH:MM。只填用户明确给出的日期、起止、地点、容量和说明；未知字符串为空，未知容量为0，缺少信息列入最多3个问题。今晚七点半为19:30；下周六根据基准日期确定；未给结束时间不要猜测。template 仅 badminton/boardgame/reading/custom。人数上限30。输出不创建房间、不分享、不替人报名。",
-        json!({"reference_beijing":buwei_host_core::calendar::display(now()),"user_intake":requirement,"field_rules":"必要字段只有活动开始日期时间、结束日期时间、地点、容量。questions 仅追问这些必要字段的缺失、矛盾或越界。活动标题可用明确的活动类别作为标题：羽毛球活动、桌游活动、读书会；若用户给出标题则沿用。description 是可选说明，未提供留空，不为说明、主题、流程或联系方式增加追问。容量超过30须追问，不可压成30；用户明确更正覆盖早先值。"}),
-        json!({"title":string(),"start":string(),"end":string(),"location":string(),"description":string(),"template":{"enum":["badminton","boardgame","reading","custom"]},"capacity":{"enum":(0..=30).collect::<Vec<_>>()},"questions":{"type":"array","maxItems":3,"items":string()}}),
+        "形成待本人确认的社群活动草稿。输出北京时间 YYYY-MM-DD HH:MM。只填用户明确给出的日期、起止、地点、容量和说明；未知字符串为空，未知容量为0，缺少信息列入最多3个问题。今晚七点半为19:30；下周六根据基准日期确定；未给结束时间不要猜测。template 使用 activity_types 中最具体的 id，目录以外使用 custom。人数上限30。输出不创建房间、不分享、不订票、不替人报名。",
+        json!({"reference_beijing":buwei_host_core::calendar::display(now()),"activity_types":buwei_host_core::activity_types::model_catalog(),"user_intake":requirement,"field_rules":"必要字段只有活动开始日期时间、结束日期时间、地点、容量。questions 仅追问这些必要字段的缺失、矛盾或越界。活动标题可用明确的活动类别作为标题，若用户给出标题则沿用。description 是可选说明，未提供留空，不为说明、主题、流程或联系方式增加追问。容量超过30须追问，不可压成30；用户明确更正覆盖早先值。"}),
+        json!({"title":string(),"start":string(),"end":string(),"location":string(),"description":string(),"template":{"enum":buwei_host_core::activity_types::ids()},"capacity":{"enum":(0..=30).collect::<Vec<_>>()},"questions":{"type":"array","maxItems":3,"items":string()}}),
         &[
             "title",
             "start",
@@ -235,6 +235,18 @@ pub(crate) fn grounded_note(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn creation_and_planning_use_the_same_activity_catalog() {
+        let plan = plan_request("明天组织徒步", None).unwrap();
+        let create = create_request("明天组织徒步").unwrap();
+        let types = buwei_host_core::activity_types::ids();
+        assert_eq!(create.schema["properties"]["template"]["enum"], json!(types));
+        for r in [plan, create] {
+            assert_eq!(r.input["activity_types"], buwei_host_core::activity_types::model_catalog());
+            assert!(r.input.get("account").is_none());
+            assert!(r.input.get("api_key").is_none());
+        }
+    }
     #[test]
     fn missing_fields_are_asked_even_when_the_model_omits_questions() {
         let v = json!({"earliest":"2030-05-10 19:30","latest":"","group":2,"questions":[],"explanation":"结束时间未确定"});

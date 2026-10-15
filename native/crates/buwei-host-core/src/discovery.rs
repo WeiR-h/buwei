@@ -58,10 +58,7 @@ impl Announcement {
             || self.title.trim().is_empty()
             || self.title.chars().count() > 80
             || self.location.chars().count() > 200
-            || !matches!(
-                self.template.as_str(),
-                "badminton" | "boardgame" | "reading" | "custom"
-            )
+            || !crate::activity_types::valid(&self.template)
             || !(1..=30).contains(&self.capacity)
             || self.free > self.capacity
             || self.revision == 0
@@ -135,10 +132,7 @@ impl Filter {
             && (!self.available_only || l.announcement.free > 0)
     }
     pub fn validate(&self) -> Result<()> {
-        if !matches!(
-            self.template.as_str(),
-            "" | "any" | "badminton" | "boardgame" | "reading" | "custom"
-        ) {
+        if !self.template.is_empty() && !crate::activity_types::preference_valid(&self.template) {
             return Err("筛选活动类型不合法".into());
         }
         if !self.date.is_empty() {

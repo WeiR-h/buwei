@@ -143,14 +143,7 @@ pub(crate) enum IntentCommand {
     RevokeAnalysis,
 }
 pub(crate) fn parse_template(value: &str) -> Result<String> {
-    match value.trim() {
-        "羽毛球" | "badminton" => Ok("badminton".into()),
-        "桌游" | "boardgame" => Ok("boardgame".into()),
-        "读书会" | "reading" => Ok("reading".into()),
-        "自定义" | "custom" => Ok("custom".into()),
-        "不限" | "不限类型" | "any" => Ok("any".into()),
-        _ => Err("请选择羽毛球、桌游、读书会、自定义或不限类型".into()),
-    }
+    buwei_host_core::activity_types::parse(value)
 }
 impl GoalForm {
     pub fn participation_fields_match(

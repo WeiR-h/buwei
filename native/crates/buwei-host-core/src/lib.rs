@@ -12,6 +12,7 @@ pub mod assistance;
 pub mod assistance_tasks;
 pub mod automation;
 pub mod calendar;
+pub mod activity_types;
 pub mod catalog;
 pub mod facts;
 pub mod goal_correction;

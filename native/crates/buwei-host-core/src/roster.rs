@@ -48,7 +48,7 @@ pub fn csv(a: &Activity, actor: &str, exported_at: u64, verified_at: u64) -> Res
         .ok_or("历史活动请从旧版导出")?
         .activity_id
         .clone();
-    let mut out="\u{feff}活动编号,活动名称,导出北京时间,核验北京时间,报名序号,显示名,Matrix身份,同行人数,最早可用,最晚可用,报名状态\r\n".to_owned();
+    let mut out="\u{feff}活动编号,活动名称,导出北京时间,核验北京时间,报名序号,显示名,Matrix身份,同行人数,最早可用,最晚可用,报名状态,活动类型\r\n".to_owned();
     for p in a.ordered_people() {
         let fields = [
             id.clone(),
@@ -62,6 +62,7 @@ pub fn csv(a: &Activity, actor: &str, exported_at: u64, verified_at: u64) -> Res
             calendar::display(p.preferences.earliest),
             calendar::display(p.preferences.latest),
             status(a, &p.account).into(),
+            crate::activity_types::name(&a.metadata.as_ref().unwrap().template).into(),
         ];
         out.push_str(&fields.iter().map(|s| cell(s)).collect::<Vec<_>>().join(","));
         out.push_str("\r\n");

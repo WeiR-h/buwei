@@ -204,7 +204,7 @@ impl Default for PersonalPreferences {
     }
 }
 fn template_valid(s: &str) -> bool {
-    matches!(s, "badminton" | "boardgame" | "reading" | "custom" | "any")
+    crate::activity_types::preference_valid(s)
 }
 impl PersonalPreferences {
     pub fn validate(&self) -> Result<()> {
@@ -546,13 +546,7 @@ impl IntentStore {
 }
 
 pub fn template_name(template: &str) -> &str {
-    match template {
-        "badminton" => "羽毛球",
-        "boardgame" => "桌游",
-        "reading" => "读书会",
-        "any" => "不限类型",
-        _ => "自定义活动",
-    }
+    crate::activity_types::name(template)
 }
 pub fn goal_text(g: &ActivityGoal) -> String {
     let details = match g.input.kind {

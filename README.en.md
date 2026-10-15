@@ -1,12 +1,13 @@
 # BuWei
 
-BuWei helps community organizers follow sign-ups, waiting lists, invitations and last-minute replacements for badminton, board games and reading groups. Organizers and members save their goals; BuWei notices relevant changes, prepares the next step and follows verified results.
+BuWei helps community organizers follow sign-ups, waiting lists, invitations and last-minute replacements for sports, outdoor activities, cultural events, learning groups, meals and volunteering. Organizers and members save their goals; BuWei notices relevant changes, prepares the next step and follows verified results.
 
 Author: **WeiR-h** · Team: **生生不息** · Apache-2.0
 
 Participants use their own Rinx identities. Verified server receipts distinguish an invitation from an accepted place, and preserve operation IDs for recovery.
 
 - Manage up to five dated activities, each with 30 places and 30 active registrations.
+- Search 18 activity templates with editable agendas and preparation lists, including running, hiking, cycling, ball games, reading, meals, workshops and family activities, or choose a custom activity. The same types work in goals, recommendations, discovery and exports. [Activity guide](docs/ACTIVITY-TYPES.md).
 - Accept parties of 1–8 people together, including activities that cross midnight.
 - Share an activity card through Rinx and let members sign up using their own identities.
 - Approve activity-specific replacement rules to invite eligible waiting members automatically while the app is open.
@@ -14,9 +15,9 @@ Participants use their own Rinx identities. Verified server receipts distinguish
 - Follow suggestions through persistent tasks. Editing or pausing a goal invalidates its unexecuted previews while preserving existing receipts.
 - Use AI beside each task for editable activity drafts, sign-up clarification and summaries grounded in verified records.
 
-[Download v0.2.12 Windows preview](https://github.com/WeiR-h/buwei/releases/tag/v0.2.12) · [Stable release](https://github.com/WeiR-h/buwei/releases/latest) · [Chinese guide](docs/FIRST-RUN.md) · [Privacy](docs/PRIVACY.md) · [Support](https://github.com/WeiR-h/buwei/issues)
+[Download v0.2.13 activity preview](https://github.com/WeiR-h/buwei/releases/tag/v0.2.13) · [Stable release](https://github.com/WeiR-h/buwei/releases/latest) · [Chinese guide](docs/FIRST-RUN.md) · [Privacy](docs/PRIVACY.md) · [Support](https://github.com/WeiR-h/buwei/issues)
 
-**v0.2.12 preview** uses the official desktop RC6 host and displays the exact dates, availability and party size in each sign-up draft. It adds faster journal recovery queries and independently reproducible verification records. Each account can organize its own activities and join other people's activities.
+**v0.2.13 activity preview** uses the official desktop RC6 host and adds 18 searchable templates with editable agendas, preparation lists and participation notes. The shared catalog connects planning, recommendations, discovery and CSV exports. Each account can organize its own activities and join other people's activities.
 
 Organizers can describe an activity, edit its plan, confirm creation, and separately confirm community publication. Members select a published activity, request room access, and confirm their own registration. CSV exports use a verified organizer snapshot and protect text from spreadsheet formula interpretation. See the [community guide](docs/COMMUNITY.md).
 

@@ -32,10 +32,7 @@ impl ActivityBasics {
             || self.location.chars().count() > 200
             || self.description.len() > 4000
             || self.capacity > 30
-            || !matches!(
-                self.template.as_str(),
-                "" | "badminton" | "boardgame" | "reading" | "custom"
-            )
+            || (!self.template.is_empty() && !crate::activity_types::valid(&self.template))
         {
             return Err("活动草稿字段超出范围".into());
         }
@@ -59,7 +56,7 @@ impl ActivityBasics {
             q.push("这场活动叫什么名字？".into());
         }
         if self.template.is_empty() {
-            q.push("准备举办哪类活动：羽毛球、桌游、读书会，还是其他？".into());
+            q.push("准备举办哪类活动？可从活动库选择，或使用自定义活动。".into());
         }
         match (self.start.is_empty(), self.end.is_empty()) {
             (true, true) => q.push("活动哪天几点开始、哪天几点结束？".into()),
@@ -134,6 +131,18 @@ pub struct ActivityPlanDraft {
     pub publication_operations: Vec<String>,
 }
 impl ActivityPlanDraft {
+    pub fn from_template(account: &str, kind: &str, clock: u64) -> Result<Self> {
+        let t = crate::activity_types::get(kind).ok_or("请选择活动库中的类型")?;
+        let mut draft = Self::new(account, &format!("本人选用{}模板", t.name), clock)?;
+        draft.basics = ActivityBasics {
+            title: t.title.into(), template: t.id.into(), capacity: t.capacity,
+            description: t.description.into(), ..Default::default()
+        };
+        draft.agenda = t.agenda.iter().map(|s| s.to_string()).collect();
+        draft.preparation = t.preparation.iter().map(|s| s.to_string()).collect();
+        draft.reminders = vec!["建议在活动前确认人数与安排；提醒尚未启用。".into()];
+        Ok(draft)
+    }
     pub fn new(account: &str, text: &str, clock: u64) -> Result<Self> {
         if !crate::account_valid(account) || text.trim().is_empty() || text.len() > 4000 {
             return Err("策划需求或本人账号不合法".into());
@@ -178,7 +187,12 @@ impl ActivityPlanDraft {
             }
             match u.field.as_str() {
                 "title" => next.basics.title = u.value,
-                "template" => next.basics.template = u.value,
+                "template" => {
+                    if u.value != "custom" && !crate::activity_types::evidence_supports(&u.value, &u.source) {
+                        return Err("活动类型与本次原话不符，请核对类型".into());
+                    }
+                    next.basics.template = u.value;
+                }
                 "start" => next.basics.start = u.value,
                 "end" => next.basics.end = u.value,
                 "location" => next.basics.location = u.value,
@@ -242,7 +256,7 @@ impl ActivityPlanDraft {
             }
         };
         format!(
-            "进度：{}\n原需求：{}\n基础信息（请本人核对）：{} · {} 人\n{} 至 {} · 地点：{}\n{}\n\n流程建议：\n{}\n准备建议：\n{}\n招募文案建议：\n{}\n提醒建议（尚未启用）：\n{}\n{}",
+            "进度：{}\n原需求：{}\n基础信息（请本人核对）：{} · {} · {} 人\n{} 至 {} · 地点：{}\n{}\n\n流程建议：\n{}\n准备建议：\n{}\n招募文案建议：\n{}\n提醒建议（尚未启用）：\n{}\n{}",
             match self.status {
                 PlanStatus::Draft => "策划待本人确认",
                 PlanStatus::Creating => "创建结果待核实，沿原编号恢复",
@@ -251,6 +265,7 @@ impl ActivityPlanDraft {
             },
             self.goal,
             b.title,
+            crate::activity_types::name(&b.template),
             b.capacity,
             b.start,
             b.end,

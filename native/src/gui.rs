@@ -151,6 +151,27 @@ script_mod! {
                         Heading{text:"活动策划草稿"}
                         View{width:Fill height:Fit flow:Right spacing:8
                             template_badminton:=Action{text:"羽毛球"} template_boardgame:=Action{text:"桌游"} template_reading:=Action{text:"读书会"}
+                            templates_toggle:=Action{text:"更多活动类型…"}
+                        }
+                        template_current:=Small{text:"当前类型：自定义活动"}
+                        template_library:=Panel{visible:false
+                            Heading{text:"选一个合适的活动起点"}
+                            Small{text:"运动健身 · 户外出行 · 文娱休闲 · 学习交流 · 聚会生活 · 社群共建"}
+                            View{width:Fill height:Fit flow:Right spacing:8
+                                template_search:=Input{width:Fill empty_text:"搜索活动或分类，例如：跑步、户外、聚餐"}
+                                template_search_apply:=Action{text:"搜索"} template_search_clear:=Action{text:"全部"}
+                            }
+                            View{width:Fill height:Fit flow:Right spacing:8
+                                template_option_0:=Action{width:Fill} template_option_1:=Action{width:Fill} template_option_2:=Action{width:Fill}
+                            }
+                            View{width:Fill height:Fit flow:Right spacing:8
+                                template_option_3:=Action{width:Fill} template_option_4:=Action{width:Fill} template_option_5:=Action{width:Fill}
+                            }
+                            template_results:=Small{}
+                            template_pagination:=View{width:Fill height:Fit flow:Right spacing:8
+                                template_prev:=Action{text:"上一页"} template_next:=Action{text:"下一页"}
+                            }
+                            Small{text:"选择模板会保存一份新策划稿，原草稿保留。人数与流程均可调整；日期、地点需你确认。"}
                         }
                         Small{text:"活动名称"} title:=Input{text:"社群活动" empty_text:"给这场活动起一个名字"}
                         Small{text:"地点"} location:=Input{empty_text:"地点未定时，先在策划稿中说明"}
@@ -225,7 +246,7 @@ script_mod! {
                     community_selected:=Small{text:"范围由你选择；仅读取选定社群的活动卡片与加入申请。"}
                     community_status:=Small{}
                     View{width:Fill height:Fit flow:Right spacing:8
-                        filter_template:=Input{width:180 empty_text:"类型（可留空）"} filter_date:=Input{width:160 empty_text:"日期（可留空）"}
+                        filter_template:=Input{width:180 empty_text:"如：徒步 / 聚餐 / 不限"} filter_date:=Input{width:160 empty_text:"日期（可留空）"}
                         filter_apply:=Action{text:"筛选"} filter_available:=Action{text:"只看发布时有空位"}
                     }
                     listing_0:=CardAction{height:110 visible:false} listing_1:=CardAction{height:110 visible:false} listing_2:=CardAction{height:110 visible:false}
@@ -262,7 +283,7 @@ script_mod! {
                         Heading{text:"核对并保存目标"}
                         goal_sources:=Small{}
                         goal_title:=Input{empty_text:"想完成什么"}
-                        goal_template:=Input{empty_text:"羽毛球 / 桌游 / 读书会 / 不限类型"}
+                        goal_template:=Input{empty_text:"活动类型，如：跑步、徒步、聚餐，或不限类型"}
                         goal_schedule:=View{width:Fill height:Fit flow:Right spacing:8
                             goal_weekly:=Action{text:"使用我确认的每周安排"} goal_specific:=Action{text:"只按本次具体时段"}
                         }
@@ -363,7 +384,7 @@ script_mod! {
                     }
                     sync_status:=Small{text:"自动同步尚未授权"}
                     Heading{text:"本人确认的长期偏好"}
-                    pref_template:=Input{empty_text:"活动类型：羽毛球 / 桌游 / 读书会 / 不限类型"}
+                    pref_template:=Input{empty_text:"偏好类型，如：跑步、摄影、公益志愿，或不限类型"}
                     View{width:Fill height:Fit flow:Right spacing:8
                         Small{text:"同行人数" width:75} pref_group:=Input{width:65 empty_text:"可留空"}
                         Small{text:"星期" width:40} pref_weekdays:=Input{width:180 empty_text:"1=周一，例如 6,7"}
@@ -430,6 +451,12 @@ pub struct BuWeiView {
     activity_count: usize,
     #[rust]
     template: String,
+    #[rust]
+    template_library_open: bool,
+    #[rust]
+    template_page: usize,
+    #[rust]
+    template_query: String,
     #[rust]
     policy_consent_id: Option<String>,
     #[rust]
@@ -520,6 +547,35 @@ pub struct BuWeiView {
     task_page: usize,
 }
 impl BuWeiView {
+    fn display_templates(&mut self, cx: &mut Cx) {
+        let choices = buwei_host_core::activity_types::search(&self.template_query);
+        self.template_page = self.template_page.min(choices.len().saturating_sub(1) / 6);
+        self.view.view(cx, ids!(template_library)).set_visible(cx, self.template_library_open);
+        self.view.button(cx, ids!(templates_toggle)).set_text(cx,
+            if self.template_library_open { "收起活动库" } else { "更多活动类型…" });
+        self.view.label(cx, ids!(template_current)).set_text(cx,
+            &format!("当前类型：{}", buwei_host_core::activity_types::name(
+                if self.template.is_empty() { "custom" } else { &self.template })));
+        macro_rules! template_button {
+            ($id:ident, $n:expr) => {
+                let item = choices.get(self.template_page * 6 + $n);
+                self.view.button(cx, ids!($id)).set_visible(cx, item.is_some());
+                if let Some(t) = item {
+                    self.view.button(cx, ids!($id)).set_text(cx,
+                        &format!("{} · {}\n建议 {} 人", t.name, t.category, t.capacity));
+                }
+            }
+        }
+        template_button!(template_option_0, 0); template_button!(template_option_1, 1);
+        template_button!(template_option_2, 2); template_button!(template_option_3, 3);
+        template_button!(template_option_4, 4); template_button!(template_option_5, 5);
+        self.view.view(cx, ids!(template_pagination)).set_visible(cx, choices.len() > 6);
+        self.view.label(cx, ids!(template_results)).set_text(cx, &if choices.is_empty() {
+            "没有找到对应类型。可点“全部”选择自定义活动。".into()
+        } else {
+            format!("{} 个类型 · 第 {} / {} 页", choices.len(), self.template_page + 1, choices.len().div_ceil(6))
+        });
+    }
     fn display(&mut self, cx: &mut Cx, view: HostView) {
         self.signed_in = view.can_create;
         self.authorized = view.authorized;
@@ -564,7 +620,7 @@ impl BuWeiView {
         self.listing_page = self
             .listing_page
             .min(self.listing_keys.len().saturating_sub(1) / 3);
-        macro_rules! listing_button {($id:ident,$n:expr)=>{let item=view.community_listings.get(self.listing_page*3+$n);self.view.button(cx,ids!($id)).set_visible(cx,item.is_some());if let Some(l)=item{self.view.button(cx,ids!($id)).set_text(cx,&format!("{}\n{} 至 {} · {}\n发布时剩余 {} 个名额 · 点击查看加入申请",l.announcement.title,buwei_host_core::calendar::display(l.announcement.start),buwei_host_core::calendar::display(l.announcement.end),l.announcement.location,l.announcement.free));}};}
+        macro_rules! listing_button {($id:ident,$n:expr)=>{let item=view.community_listings.get(self.listing_page*3+$n);self.view.button(cx,ids!($id)).set_visible(cx,item.is_some());if let Some(l)=item{self.view.button(cx,ids!($id)).set_text(cx,&format!("{} · {}\n{} 至 {} · {}\n发布时剩余 {} 个名额 · 点击查看加入申请",l.announcement.title,buwei_host_core::activity_types::name(&l.announcement.template),buwei_host_core::calendar::display(l.announcement.start),buwei_host_core::calendar::display(l.announcement.end),l.announcement.location,l.announcement.free));}};}
         listing_button!(listing_0, 0);
         listing_button!(listing_1, 1);
         listing_button!(listing_2, 2);
@@ -964,6 +1020,7 @@ impl BuWeiView {
                 self.last_form = Some(key);
             }
         }
+        self.display_templates(cx);
         if self.pending_creation {
             if view.success {
                 self.creating = false;
@@ -1614,6 +1671,40 @@ impl Widget for BuWeiView {
                 self.view
                     .view(cx, ids!(creation_form))
                     .set_visible(cx, true);
+                return;
+            }
+            if clicked!(templates_toggle) || clicked!(template_search_apply)
+                || clicked!(template_search_clear) || clicked!(template_prev) || clicked!(template_next)
+            {
+                if clicked!(templates_toggle) {
+                    self.template_library_open = !self.template_library_open;
+                }
+                if clicked!(template_search_apply) || clicked!(template_search_clear) {
+                    self.template_query = if clicked!(template_search_clear) { String::new() }
+                        else { text!(template_search) };
+                    self.template_page = 0;
+                    self.view.text_input(cx, ids!(template_search)).set_text(cx, &self.template_query);
+                }
+                if clicked!(template_prev) { self.template_page = self.template_page.saturating_sub(1); }
+                if clicked!(template_next) { self.template_page += 1; }
+                self.display_templates(cx);
+                self.view.redraw(cx);
+                return;
+            }
+            let template_option = if clicked!(template_option_0) { Some(0) }
+                else if clicked!(template_option_1) { Some(1) }
+                else if clicked!(template_option_2) { Some(2) }
+                else if clicked!(template_option_3) { Some(3) }
+                else if clicked!(template_option_4) { Some(4) }
+                else if clicked!(template_option_5) { Some(5) } else { None };
+            if let Some(n) = template_option {
+                if let Some(t) = buwei_host_core::activity_types::search(&self.template_query).get(self.template_page * 6 + n) {
+                    self.creating = true;
+                    self.tab = 1;
+                    self.template_library_open = false;
+                    self.send(cx, Command::UseTemplate(t.id.into()));
+                    self.pages(cx);
+                }
                 return;
             }
             if clicked!(cancel_setup) {
