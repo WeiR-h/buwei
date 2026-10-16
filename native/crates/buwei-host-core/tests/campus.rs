@@ -243,3 +243,27 @@ fn activity_selection_shows_campus_deadline_team_size_and_festival_role() {
     assert!(text.contains("演出招募") && text.contains('…'));assert!(!text.contains(&long_topic));
     assert_eq!(EntryRole::parse("AUDIENCE").unwrap(),EntryRole::Audience);
 }
+#[test]
+fn joined_community_search_handles_names_case_and_preserves_original_identifiers() {
+    let choices=vec![("!A:test".into(),"Campus Reading Club".into()),("!B:test".into(),"校园电影社".into()),("!C:test".into(),"校园音乐社".into())];
+    assert_eq!(community_choices(&choices,""),choices);
+    assert_eq!(community_choices(&choices," READING "),vec![choices[0].clone()]);
+    assert_eq!(community_choices(&choices,"校园").len(),2);
+    assert_eq!(community_choices(&choices,"!b:test"),vec![choices[1].clone()]);
+    assert!(community_choices(&choices,"未加入的社群").is_empty());
+}
+#[test]
+fn community_search_cannot_invent_other_accounts_rooms_or_change_membership() {
+    let mine=vec![("!mine:test".into(),"本人校园社群".into())];let before=mine.clone();
+    assert!(community_choices(&mine,"别人的社群").is_empty());
+    assert!(community_choices(&mine,&"校".repeat(121)).is_empty());assert_eq!(mine,before);
+    assert_eq!(community_choices(&[],"校园"),Vec::<(String,String)>::new());
+}
+#[test]
+fn a_closed_signup_explains_the_deadline_without_claiming_the_event_started() {
+    let a=activity("lecture");let mut l=listing(&a);let deadline=l.announcement.campus.as_ref().unwrap().deadline().unwrap().unwrap();
+    assert!(l.check_request(deadline-1).is_ok());
+    let error=l.check_request(deadline).unwrap_err();assert!(error.contains("报名已截止") && !error.contains("已开始"));
+    assert!(l.check_request(a.start).unwrap_err().contains("已开始"));
+    l.announcement.withdrawn=true;assert!(l.check_request(clock()).unwrap_err().contains("已收起"));
+}

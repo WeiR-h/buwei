@@ -115,6 +115,14 @@ script_mod! {
                     activity_4:=CardAction{visible:false}
                     activity_pagination:=View{width:Fill height:Fit flow:Right spacing:8 activity_prev:=Action{text:"上一页"} activity_next:=Action{text:"下一页"}}
                     }
+                    campus_entry:=Panel{visible:false padding:14 spacing:8
+                            Heading{text:"校园活动 · 从合适的场景开始"}
+                            Small{text:"策划、发布、报名与候补连在一起；支持公开活动和指定社群。"}
+                            View{width:Fill height:Fit flow:Right spacing:6
+                                campus_lecture:=Action{width:Fill text:"讲座"} campus_competition:=Action{width:Fill text:"竞赛"}
+                                campus_movie:=Action{width:Fill text:"观影"} campus_festival:=Action{width:Fill text:"音乐节"} campus_club:=Action{width:Fill text:"社团招新"}
+                            }
+                        }
                     assistant_area:=Panel{visible:false
                         assistant_heading:=Heading{text:"先说说你的想法"}
                         requirement_caption:=Small{text:"描述活动需求或本次安排，AI 会准备可编辑的建议。"}
@@ -149,14 +157,6 @@ script_mod! {
                     organizer_setup:=View{width:Fill height:Fit flow:Down spacing:8
                         creation_form:=View{width:Fill height:Fit flow:Down spacing:8
                         Heading{text:"活动策划草稿"}
-                        Panel{padding:14 spacing:8
-                            Heading{text:"校园活动 · 从合适的场景开始"}
-                            Small{text:"策划、发布、报名与候补连在一起；支持公开活动和指定社群。"}
-                            View{width:Fill height:Fit flow:Right spacing:6
-                                campus_lecture:=Action{width:Fill text:"讲座"} campus_competition:=Action{width:Fill text:"竞赛"}
-                                campus_movie:=Action{width:Fill text:"观影"} campus_festival:=Action{width:Fill text:"音乐节"} campus_club:=Action{width:Fill text:"社团招新"}
-                            }
-                        }
                         View{width:Fill height:Fit flow:Right spacing:8
                             template_badminton:=Action{text:"羽毛球"} template_boardgame:=Action{text:"桌游"} template_reading:=Action{text:"读书会"}
                             templates_toggle:=Action{text:"更多活动类型…"}
@@ -274,6 +274,11 @@ script_mod! {
                     View{width:Fill height:Fit flow:Right spacing:8
                         communities_load:=Action{text:"选择已加入的 Rinx 社群"} communities_refresh:=Action{text:"更新社群活动"}
                     }
+                    View{width:Fill height:Fit flow:Right spacing:8
+                        community_search:=Input{width:Fill empty_text:"按名称搜索已加入的校园或兴趣社群"}
+                        community_search_clear:=Action{text:"全部社群"}
+                    }
+                    community_results:=Small{}
                     community_0:=Action{width:Fill visible:false} community_1:=Action{width:Fill visible:false} community_2:=Action{width:Fill visible:false}
                     community_pagination:=View{width:Fill height:Fit flow:Right spacing:8 visible:false community_prev:=Action{text:"上一页社群"} community_next:=Action{text:"下一页社群"}}
                     community_selected:=Small{text:"范围由你选择；仅读取选定社群的活动卡片与加入申请。"}
@@ -532,6 +537,12 @@ pub struct BuWeiView {
     #[rust]
     community_page: usize,
     #[rust]
+    community_source: Vec<(String,String)>,
+    #[rust]
+    community_query: String,
+    #[rust]
+    community_actor: String,
+    #[rust]
     selected_community: Option<String>,
     #[rust]
     public_mode: bool,
@@ -585,6 +596,21 @@ pub struct BuWeiView {
     task_page: usize,
 }
 impl BuWeiView {
+    fn display_communities(&mut self, cx: &mut Cx) {
+        self.communities=buwei_host_core::discovery::community_choices(&self.community_source,&self.community_query);
+        self.community_page=self.community_page.min(self.communities.len().saturating_sub(1)/3);
+        macro_rules! choice { ($id:ident,$n:expr)=>{
+            let item=self.communities.get(self.community_page*3+$n);
+            self.view.button(cx,ids!($id)).set_visible(cx,item.is_some());
+            if let Some((_,name))=item { self.view.button(cx,ids!($id)).set_text(cx,name); }
+        }; }
+        choice!(community_0,0);choice!(community_1,1);choice!(community_2,2);
+        self.view.view(cx,ids!(community_pagination)).set_visible(cx,self.communities.len()>3);
+        let status=if self.community_source.is_empty() { "请先选择已加入的 Rinx 社群。".into() }
+            else if self.communities.is_empty() { "没有匹配的已加入社群，可修改搜索或查看全部。".into() }
+            else {format!("{} 个已加入社群 · 第 {} / {} 页",self.communities.len(),self.community_page+1,self.communities.len().div_ceil(3))};
+        self.view.label(cx,ids!(community_results)).set_text(cx,&status);
+    }
     fn campus_input(&mut self, cx: &mut Cx) -> super::Result<Option<buwei_host_core::campus::CampusDetails>> {
         if !self.campus_enabled { return Ok(None); }
         let team = self.view.text_input(cx, ids!(campus_team)).text();
@@ -664,27 +690,13 @@ impl BuWeiView {
         self.view.label(cx,ids!(public_preview)).set_text(cx,&view.public_directory_preview);
         if view.public_mode {self.selected_community=view.public_room.clone();self.view.label(cx,ids!(community_selected)).set_text(cx,"当前范围：公开活动大厅 · 所有补位用户可进入查看与申请");}
         self.view.button(cx,ids!(community_publish)).set_text(cx,if view.public_mode{"预览发布为公开活动"}else{"预览发布到指定社群"});
-        self.communities = view.communities.clone();
-        self.community_page = self
-            .community_page
-            .min(self.communities.len().saturating_sub(1) / 3);
-        macro_rules! community_button {
-            ($id:ident,$n:expr) => {
-                let item = self.communities.get(self.community_page * 3 + $n);
-                self.view
-                    .button(cx, ids!($id))
-                    .set_visible(cx, item.is_some());
-                if let Some((_, text)) = item {
-                    self.view.button(cx, ids!($id)).set_text(cx, text);
-                }
-            };
+        if self.community_actor != view.account {
+            self.community_actor=view.account.clone();
+            self.community_query.clear();self.community_page=0;self.selected_community=None;
+            self.view.text_input(cx,ids!(community_search)).set_text(cx,"");
         }
-        community_button!(community_0, 0);
-        community_button!(community_1, 1);
-        community_button!(community_2, 2);
-        self.view
-            .view(cx, ids!(community_pagination))
-            .set_visible(cx, self.communities.len() > 3);
+        self.community_source=view.communities.clone();
+        self.display_communities(cx);
         self.listing_keys = view.community_listings.iter().map(|l| l.key()).collect();
         self.listing_page = self
             .listing_page
@@ -1256,6 +1268,8 @@ impl BuWeiView {
         self.view
             .button(cx, ids!(create_with_ai))
             .set_visible(cx, self.creating && self.authorized && self.signed_in);
+        self.view.button(cx,ids!(create_with_ai)).set_text(cx,
+            if self.plan_id.is_some() { "根据描述完善这份策划" } else { "准备可编辑策划稿" });
         self.view
             .button(cx, ids!(suggest))
             .set_visible(cx, !view.organizer && self.participant_controls.register && !self.creating);
@@ -1340,6 +1354,7 @@ impl BuWeiView {
         self.view.redraw(cx);
     }
     fn pages(&mut self, cx: &mut Cx) {
+        self.view.view(cx,ids!(campus_entry)).set_visible(cx,self.creating && self.authorized);
         self.view.label(cx, ids!(profile)).set_text(cx,
             if !self.signed_in { "登录后创建或发现活动" }
             else if self.tab==1 && self.creating { "策划草稿 · 确认后才创建" }
@@ -1785,6 +1800,18 @@ impl Widget for BuWeiView {
                 self.pages(cx);
                 return;
             }
+            if let Some(query)=self.view.text_input(cx,ids!(community_search)).changed(actions) {
+                self.community_query=query;self.community_page=0;
+                self.display_communities(cx);self.view.redraw(cx);return;
+            }
+            if clicked!(community_search_clear) || clicked!(community_prev) || clicked!(community_next) {
+                if clicked!(community_search_clear) {
+                    self.community_query.clear();self.community_page=0;
+                    self.view.text_input(cx,ids!(community_search)).set_text(cx,"");
+                } else if clicked!(community_prev) { self.community_page=self.community_page.saturating_sub(1); }
+                else { self.community_page+=1; }
+                self.display_communities(cx);self.view.redraw(cx);return;
+            }
             if let Some(query) = self.view.text_input(cx, ids!(template_search)).changed(actions) {
                 self.template_query = query;
                 self.template_page = 0;
@@ -1942,14 +1969,6 @@ impl Widget for BuWeiView {
                 }
                 if clicked!(communities_refresh) {
                     return Ok(Some(Command::Discovery(D::Refresh)));
-                }
-                if clicked!(community_prev) || clicked!(community_next) {
-                    self.community_page = if clicked!(community_prev) {
-                        self.community_page.saturating_sub(1)
-                    } else {
-                        (self.community_page + 1).min(self.communities.len().saturating_sub(1) / 3)
-                    };
-                    return Ok(Some(Command::Refresh));
                 }
                 if clicked!(listing_prev) || clicked!(listing_next) {
                     self.listing_page = if clicked!(listing_prev) {
@@ -2384,7 +2403,9 @@ impl Widget for BuWeiView {
                     } else if clicked!(pause_automation) {
                         Some(Command::PauseAutomation)
                     } else if clicked!(create_with_ai) {
-                        Some(Command::CreateWithAi(text!(requirement)))
+                        Some(Command::Planning(super::controller::planning::PlanningCommand::Prepare {
+                            text: text!(requirement), id: self.plan_id.clone(), revision: self.plan_revision,
+                        }))
                     } else if clicked!(ask) {
                         Some(Command::Ask(text!(question)))
                     } else if clicked!(join) {

@@ -284,9 +284,7 @@ impl Controller {
                 let l = self.discovery_store()?.get(&key)?;
                 let states=community_states(&self.rt, self.active(), &l.community, &self.actor())?;
                 check_publication_scope(l.announcement.audience,&states)?;
-                if !l.can_request(now()) {
-                    return Err("本场已开始或已收起，请另选活动".into());
-                }
+                l.check_request(now())?;
                 if let Some(a) = buwei_host_core::catalog::Catalog::open(&self.data)?
                     .list()?
                     .into_iter()

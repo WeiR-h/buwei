@@ -87,6 +87,13 @@ pub struct Listing {
     pub server_time: u64,
     pub announcement: Announcement,
 }
+/// Search only the current host's supplied joined-room choices. No network or
+/// discovery of other people's rooms is performed by this filter.
+pub fn community_choices(options: &[(String,String)], query: &str) -> Vec<(String,String)> {
+    let query=query.trim().to_lowercase();
+    if query.chars().count()>120 { return vec![]; }
+    options.iter().filter(|(id,name)| query.is_empty() || name.to_lowercase().contains(&query) || id.to_lowercase().contains(&query)).cloned().collect()
+}
 impl Listing {
     pub fn parse(event: &Value, room: &str, clock: u64) -> Result<Self> {
         if event["type"] != "m.room.message"
@@ -121,8 +128,15 @@ impl Listing {
         format!("{}|{}", self.community, self.announcement.activity_id)
     }
     pub fn can_request(&self, clock: u64) -> bool {
-        !self.announcement.withdrawn && clock < self.announcement.start
-            && !self.announcement.campus.as_ref().is_some_and(|c| c.deadline().ok().flatten().is_some_and(|d| clock >= d))
+        self.check_request(clock).is_ok()
+    }
+    pub fn check_request(&self, clock: u64) -> Result<()> {
+        if self.announcement.withdrawn { return Err("本场卡片已收起，请另选活动".into()); }
+        if clock>=self.announcement.start { return Err("本场活动已开始，停止新加入申请".into()); }
+        if let Some(c)=&self.announcement.campus {
+            if c.deadline()?.is_some_and(|d|clock>=d) { return Err("本场报名已截止；已有报名仍可查看和处理邀请".into()); }
+        }
+        Ok(())
     }
 }
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -217,9 +231,10 @@ impl AccessPolicy {
     pub fn issue(g: &Grant, l: &Listing, clock: u64, authorization_expires: u64) -> Result<Self> {
         g.check("admit_entry", clock)
             .map_err(|_| "社群访问授权已失效")?;
-        if g.account() != l.announcement.organizer || !l.can_request(clock) {
+        if g.account() != l.announcement.organizer {
             return Err("只能由本场组织者授权加入申请".into());
         }
+        l.check_request(clock)?;
         Ok(Self {
             account: g.account().into(),
             community: l.community.clone(),

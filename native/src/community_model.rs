@@ -265,6 +265,15 @@ mod tests {
         assert!(request.input.get("account").is_none());
     }
     #[test]
+    fn follow_up_planning_receives_the_selected_campus_draft() {
+        let draft=buwei_host_core::planning::ActivityPlanDraft::from_campus_template("@owner:test","competition",now()).unwrap();
+        let request=plan_request("每队两人，在活动室",Some(&draft)).unwrap();
+        assert_eq!(request.input["previous_basics"]["template"],"competition");
+        assert!(request.input["previous_basics"]["campus"].is_object());
+        assert_eq!(request.input["user_intake"],"每队两人，在活动室");
+        assert!(request.input.get("account").is_none());
+    }
+    #[test]
     fn malformed_dates_never_become_a_signup() {
         let v = json!({"earliest":"2030-02-30 19:30","latest":"2030-03-01 21:00","group":2,"questions":[],"explanation":"日期"});
         assert!(parse_dated(&v).is_err());
