@@ -41,6 +41,13 @@ impl Card {
             CLIENT_DOWNLOAD,
         )
     }
+    pub fn activity_body(a: &Activity) -> Result<String> {
+        let mut body = Self::from_activity(a)?.body();
+        if let Some(m) = &a.metadata {
+            if let Some(c) = &m.campus { body.push_str(&format!("\n\n{}", c.summary(&m.template))); }
+        }
+        Ok(body)
+    }
 }
 
 #[cfg(test)]
@@ -119,10 +126,7 @@ impl Adapter for CardAdapter {
             || Card::from_activity(&a).map_err(|_| Error::Integrity)?
                 != serde_json::from_value::<Card>(action.payload["card"].clone())
                     .map_err(|_| Error::Integrity)?
-            || action.payload["body"]
-                != Card::from_activity(&a)
-                    .map_err(|_| Error::Integrity)?
-                    .body()
+            || action.payload["body"] != Card::activity_body(&a).map_err(|_| Error::Integrity)?
             || !self.client.rooms().iter().any(|r| {
                 r.room_id().as_str() == action.target
                     && r.direct_targets().iter().any(|id| id.as_str() == recipient)

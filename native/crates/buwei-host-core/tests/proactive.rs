@@ -16,6 +16,7 @@ fn activity(n: u8, kind: &str) -> Activity {
         template: kind.into(),
         location: "测试场馆".into(),
         description: String::new(),
+        campus: None,
         archived: false,
         metrics: Default::default(),
     });

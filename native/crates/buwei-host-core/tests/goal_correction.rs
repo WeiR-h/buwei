@@ -20,6 +20,7 @@ fn fixture() -> (std::path::PathBuf, Activity, u64, GoalInput) {
         template: "reading".into(),
         location: "测试地点".into(),
         description: String::new(),
+        campus: None,
         archived: false,
         metrics: Default::default(),
     });

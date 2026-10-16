@@ -20,6 +20,8 @@ pub struct Announcement {
     pub organizer: String,
     pub title: String,
     pub template: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub campus: Option<crate::campus::CampusDetails>,
     pub location: String,
     pub start: u64,
     pub end: u64,
@@ -29,17 +31,23 @@ pub struct Announcement {
     pub withdrawn: bool,
 }
 impl Announcement {
+    pub fn listing_text(&self) -> String {
+        let campus=self.campus.as_ref().map(|c|format!("\n{}",c.listing_summary())).unwrap_or_default();
+        format!("{} · {}\n{} 至 {} · {}{}\n发布时剩余 {} 个名额 · 点击查看加入申请",
+            self.title,crate::activity_types::name(&self.template),calendar::display(self.start),calendar::display(self.end),self.location,campus,self.free)
+    }
     pub fn from_activity(a: &Activity, withdrawn: bool) -> Result<Self> {
         a.validate()?;
         let m = a.metadata.as_ref().ok_or("历史活动没有社群定位信息")?;
         Ok(Self {
-            protocol: 1,
+            protocol: if m.campus.is_some() { 3 } else { 1 },
             audience: Audience::Community,
             activity_id: m.activity_id.clone(),
             activity_room: a.room.clone(),
             organizer: a.owner.clone(),
             title: a.title.clone(),
             template: m.template.clone(),
+            campus: m.campus.clone(),
             location: m.location.clone(),
             start: a.start,
             end: a.end,
@@ -50,7 +58,8 @@ impl Announcement {
         })
     }
     pub fn validate(&self) -> Result<()> {
-        if !(self.protocol == 1 && self.audience == Audience::Community || self.protocol == 2)
+        if !(self.protocol == 1 && self.audience == Audience::Community || self.protocol == 2 || self.protocol == 3)
+            || (self.protocol == 3) != self.campus.is_some()
             || self.activity_id.len() != 32
             || !self.activity_id.bytes().all(|b| b.is_ascii_hexdigit())
             || !account_valid(&self.organizer)
@@ -67,6 +76,7 @@ impl Announcement {
         {
             return Err("社群活动卡片不合法".into());
         }
+        if let Some(c) = &self.campus { c.validate(&self.template, Some(self.start))?; }
         Ok(())
     }
 }
@@ -112,6 +122,7 @@ impl Listing {
     }
     pub fn can_request(&self, clock: u64) -> bool {
         !self.announcement.withdrawn && clock < self.announcement.start
+            && !self.announcement.campus.as_ref().is_some_and(|c| c.deadline().ok().flatten().is_some_and(|d| clock >= d))
     }
 }
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -126,13 +137,14 @@ impl Filter {
         l.can_request(clock)
             && (self.template.is_empty()
                 || self.template == "any"
+                || self.template == "campus" && l.announcement.campus.is_some()
                 || l.announcement.template == self.template)
             && (self.date.is_empty()
                 || calendar::display(l.announcement.start).starts_with(&self.date))
             && (!self.available_only || l.announcement.free > 0)
     }
     pub fn validate(&self) -> Result<()> {
-        if !self.template.is_empty() && !crate::activity_types::preference_valid(&self.template) {
+        if !self.template.is_empty() && self.template != "campus" && !crate::activity_types::preference_valid(&self.template) {
             return Err("筛选活动类型不合法".into());
         }
         if !self.date.is_empty() {
@@ -171,6 +183,7 @@ impl EntryRequest {
             || c["activity_room"] != listing.announcement.activity_room
             || time > clock + 5
             || time >= listing.announcement.start
+            || !listing.can_request(time)
             || actor == listing.announcement.organizer
             || listing.announcement.withdrawn
         {
@@ -214,7 +227,8 @@ impl AccessPolicy {
             announcement_event: l.event_id.clone(),
             expires: authorization_expires
                 .min(clock + 3600)
-                .min(l.announcement.start),
+                .min(l.announcement.start)
+                .min(l.announcement.campus.as_ref().map(|c| c.deadline()).transpose()?.flatten().unwrap_or(l.announcement.start)),
             used: Default::default(),
         })
     }

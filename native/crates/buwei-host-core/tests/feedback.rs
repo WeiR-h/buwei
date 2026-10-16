@@ -17,6 +17,7 @@ fn fixture() -> (std::path::PathBuf, Activity, u64) {
         template: "badminton".into(),
         location: "测试球馆".into(),
         description: String::new(),
+        campus: None,
         archived: false,
         metrics: Default::default(),
     });

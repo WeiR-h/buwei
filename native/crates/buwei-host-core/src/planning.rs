@@ -14,6 +14,9 @@ pub const BASIC_FIELDS: [&str; 7] = [
     "capacity",
     "description",
 ];
+pub fn plan_fields() -> Vec<&'static str> {
+    BASIC_FIELDS.into_iter().chain(crate::campus::FIELDS).collect()
+}
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -25,9 +28,14 @@ pub struct ActivityBasics {
     pub location: String,
     pub capacity: u8,
     pub description: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub campus: Option<crate::campus::CampusDetails>,
 }
 impl ActivityBasics {
     pub fn validate_draft(&self) -> Result<()> {
+        if let Some(c) = &self.campus {
+            c.validate(&self.template, if self.start.is_empty() { None } else { Some(calendar::parse(&self.start)?) })?;
+        }
         if self.title.chars().count() > 80
             || self.location.chars().count() > 200
             || self.description.len() > 4000
@@ -70,16 +78,19 @@ impl ActivityBasics {
         if self.capacity == 0 {
             q.push("准备提供几个参与名额（1–30）？".into());
         }
+        if let Some(c) = &self.campus { q.extend(c.questions(&self.template)); }
         q
     }
     pub fn ready(&self, clock: u64) -> Result<()> {
         self.validate_draft()?;
-        if !self.questions().is_empty() || self.title.trim().is_empty() || self.template.is_empty()
-        {
-            return Err("请先补全活动名称、类型、日期、地点和人数".into());
-        }
+        let questions = self.questions();
+        if !questions.is_empty() { return Err(questions.join("\n")); }
         if calendar::parse(&self.start)? <= clock {
             return Err("请选择未来的活动开始时间".into());
+        }
+        if let Some(c) = &self.campus {
+            if c.deadline()?.is_some_and(|d| d <= clock) { return Err("新活动的报名截止须在将来，请重新确认截止时间".into()); }
+            if c.team_size.is_some_and(|n| n > self.capacity) { return Err("总名额不能少于一支完整队伍的人数".into()); }
         }
         Ok(())
     }
@@ -138,9 +149,17 @@ impl ActivityPlanDraft {
             title: t.title.into(), template: t.id.into(), capacity: t.capacity,
             description: t.description.into(), ..Default::default()
         };
+        if crate::campus::dedicated(kind) { draft.basics.campus = Some(Default::default()); }
         draft.agenda = t.agenda.iter().map(|s| s.to_string()).collect();
         draft.preparation = t.preparation.iter().map(|s| s.to_string()).collect();
         draft.reminders = vec!["建议在活动前确认人数与安排；提醒尚未启用。".into()];
+        Ok(draft)
+    }
+    pub fn from_campus_template(account: &str, kind: &str, clock: u64) -> Result<Self> {
+        if !crate::campus::supported(kind) { return Err("请选择校园活动模板".into()); }
+        let mut draft = Self::from_template(account, kind, clock)?;
+        draft.basics.campus = Some(Default::default());
+        if kind == "movie" { draft.basics.title = "校园观影与映后交流".into(); }
         Ok(draft)
     }
     pub fn new(account: &str, text: &str, clock: u64) -> Result<Self> {
@@ -176,8 +195,8 @@ impl ActivityPlanDraft {
         }
         let mut next = self.clone();
         let mut seen = BTreeSet::new();
-        for u in p.updates {
-            if !BASIC_FIELDS.contains(&u.field.as_str())
+        for u in &p.updates {
+            if !plan_fields().contains(&u.field.as_str())
                 || !seen.insert(u.field.clone())
                 || u.source.trim().is_empty()
                 || !text.contains(&u.source)
@@ -185,22 +204,43 @@ impl ActivityPlanDraft {
             {
                 return Err("修改字段缺少本次原话依据，请手动核对".into());
             }
+        }
+        for u in p.updates.iter().filter(|u| !u.field.starts_with("campus.")) {
             match u.field.as_str() {
-                "title" => next.basics.title = u.value,
+                "title" => next.basics.title = u.value.clone(),
                 "template" => {
                     if u.value != "custom" && !crate::activity_types::evidence_supports(&u.value, &u.source) {
                         return Err("活动类型与本次原话不符，请核对类型".into());
                     }
-                    next.basics.template = u.value;
+                    next.basics.template = u.value.clone();
                 }
-                "start" => next.basics.start = u.value,
-                "end" => next.basics.end = u.value,
-                "location" => next.basics.location = u.value,
+                "start" => next.basics.start = u.value.clone(),
+                "end" => next.basics.end = u.value.clone(),
+                "location" => next.basics.location = u.value.clone(),
                 "capacity" => next.basics.capacity = u.value.parse().map_err(|_| "容量不合法")?,
-                "description" => next.basics.description = u.value,
+                "description" => next.basics.description = u.value.clone(),
                 _ => unreachable!(),
             }
             next.confirmed_fields.remove(&u.field);
+        }
+        if crate::campus::dedicated(&next.basics.template) && next.basics.campus.is_none() {
+            next.basics.campus = Some(Default::default());
+        }
+        for u in p.updates.iter().filter(|u| u.field.starts_with("campus.")) {
+            if !["campus.signup_deadline", "campus.team_size", "campus.role"].contains(&u.field.as_str())
+                && !u.value.is_empty() && !u.source.contains(&u.value) {
+                return Err("校园事实须直接引用本人原话，请核对学校、主题和嘉宾".into());
+            }
+            if u.field == "campus.role" && !u.value.is_empty() {
+                let source = u.source.to_ascii_lowercase();
+                let valid = match crate::campus::EntryRole::parse(&u.value)? {
+                    crate::campus::EntryRole::Audience => ["观众", "audience"].iter().any(|s| source.contains(s)),
+                    crate::campus::EntryRole::Performer => ["演出招募", "表演", "演出者", "乐手", "performer"].iter().any(|s| source.contains(s)),
+                };
+                if !valid { return Err("音乐节用途缺少本次原话依据，请选择观众报名或演出招募".into()); }
+            }
+            next.basics.campus.get_or_insert_with(Default::default).set(&u.field, &u.value)?;
+            next.confirmed_fields.clear();
         }
         next.basics.validate_draft()?;
         for lines in [&p.agenda, &p.preparation, &p.reminders] {
@@ -255,7 +295,7 @@ impl ActivityPlanDraft {
                     .join("\n")
             }
         };
-        format!(
+        let mut text = format!(
             "进度：{}\n原需求：{}\n基础信息（请本人核对）：{} · {} · {} 人\n{} 至 {} · 地点：{}\n{}\n\n流程建议：\n{}\n准备建议：\n{}\n招募文案建议：\n{}\n提醒建议（尚未启用）：\n{}\n{}",
             match self.status {
                 PlanStatus::Draft => "策划待本人确认",
@@ -276,7 +316,11 @@ impl ActivityPlanDraft {
             self.recruitment,
             lines(&self.reminders),
             self.basics.questions().join("\n")
-        )
+        );
+        if let Some(c) = &b.campus {
+            text.push_str(&format!("\n\n{}\n{}", c.summary(&b.template), crate::campus::playbook(&b.template).checklist));
+        }
+        text
     }
 }
 

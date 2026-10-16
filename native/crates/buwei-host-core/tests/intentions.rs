@@ -25,6 +25,7 @@ fn activity() -> Activity {
         template: "badminton".into(),
         location: "测试场馆".into(),
         description: String::new(),
+        campus: None,
         archived: false,
         metrics: Default::default(),
     });

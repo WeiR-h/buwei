@@ -188,6 +188,7 @@ fn dated_activity(start: &str, end: &str, template: &str) -> Result<Activity> {
         template: template.into(),
         location: "示例活动中心".into(),
         description: "虚构活动，仅用于开发验收。".into(),
+        campus: None,
         archived: false,
         metrics: Default::default(),
     });

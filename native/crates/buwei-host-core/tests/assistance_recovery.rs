@@ -19,6 +19,7 @@ fn setup(actor: &str) -> (IntentStore, Activity, u64) {
         template: "badminton".into(),
         location: "合成场地".into(),
         description: String::new(),
+        campus: None,
         archived: false,
         metrics: Default::default(),
     });

@@ -40,6 +40,7 @@ impl Intent {
         }
         match self {
             Self::Join { preferences } => {
+                crate::campus::check_signup(activity, preferences, clock)?;
                 if activity.metadata.is_some() && clock >= activity.start {
                     return Err("活动已开始，停止新增报名".into());
                 }

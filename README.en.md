@@ -7,7 +7,8 @@ Author: **WeiR-h** · Team: **生生不息** · Apache-2.0
 Participants use their own Rinx identities. Verified server receipts distinguish an invitation from an accepted place, and preserve operation IDs for recovery.
 
 - Manage up to five dated activities, each with 30 places and 30 active registrations.
-- Search 18 activity templates with editable agendas and preparation lists, including running, hiking, cycling, ball games, reading, meals, workshops and family activities, or choose a custom activity. The same types work in goals, recommendations, discovery and exports. [Activity guide](docs/ACTIVITY-TYPES.md).
+- Search 22 activity templates with editable agendas and preparation lists, including campus events, sports, cultural activities and community gatherings, or choose a custom activity. The same types work in goals, recommendations, discovery and exports. [Activity guide](docs/ACTIVITY-TYPES.md).
+- Plan lectures, competitions, film screenings, music festival sessions and club recruitment through dedicated campus templates. Published campus details, registration deadlines and whole-team competition rules also appear in discovery, registration and organizer exports. [Campus guide](docs/CAMPUS.md).
 - Accept parties of 1–8 people together, including activities that cross midnight.
 - Share an activity card through Rinx and let members sign up using their own identities.
 - Approve activity-specific replacement rules to invite eligible waiting members automatically while the app is open.
@@ -15,9 +16,9 @@ Participants use their own Rinx identities. Verified server receipts distinguish
 - Follow suggestions through persistent tasks. Editing or pausing a goal invalidates its unexecuted previews while preserving existing receipts.
 - Use AI beside each task for editable activity drafts, sign-up clarification and summaries grounded in verified records.
 
-[Download v0.2.13 activity preview](https://github.com/WeiR-h/buwei/releases/tag/v0.2.13) · [Stable release](https://github.com/WeiR-h/buwei/releases/latest) · [Chinese guide](docs/FIRST-RUN.md) · [Privacy](docs/PRIVACY.md) · [Support](https://github.com/WeiR-h/buwei/issues)
+[Download v0.2.14 campus preview](https://github.com/WeiR-h/buwei/releases/tag/v0.2.14) · [Stable release](https://github.com/WeiR-h/buwei/releases/latest) · [Chinese guide](docs/FIRST-RUN.md) · [Privacy](docs/PRIVACY.md) · [Support](https://github.com/WeiR-h/buwei/issues)
 
-**v0.2.13 activity preview** uses the official desktop RC6 host and adds 18 searchable templates with editable agendas, preparation lists and participation notes. The shared catalog connects planning, recommendations, discovery and CSV exports. Each account can organize its own activities and join other people's activities.
+**v0.2.14 campus preview** uses the official desktop RC6 host and connects campus planning, discovery, registration deadlines, whole-team competition places and CSV exports. Each account can organize its own activities and join other people's activities.
 
 Organizers can describe an activity, edit its plan, confirm creation, and separately confirm community publication. Members select a published activity, request room access, and confirm their own registration. CSV exports use a verified organizer snapshot and protect text from spreadsheet formula interpretation. See the [community guide](docs/COMMUNITY.md).
 

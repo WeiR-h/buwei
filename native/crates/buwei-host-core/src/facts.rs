@@ -52,6 +52,9 @@ pub fn list(a: &Activity) -> Vec<Fact> {
             id: "description".into(),
             text: format!("活动说明：{}", m.description),
         });
+        if let Some(c) = &m.campus {
+            facts.push(Fact { id: "campus_details".into(), text: c.summary(&m.template) });
+        }
     }
     if let Some(m) = &a.metadata {
         if m.archived {

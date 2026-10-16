@@ -226,6 +226,38 @@ pub const ALL: &[ActivityType] = &[
         ],
     },
     ActivityType {
+        id: "lecture", name: "校园讲座", category: "校园活动",
+        aliases: &["校园讲座", "讲座", "学术讲座", "lecture", "campus lecture"],
+        title: "校园主题讲座", capacity: 30,
+        description: "围绕明确主题开展讲授与问答。主题、面向人群与主讲安排由组织者核对后公开。",
+        agenda: &["签到与主题介绍", "主题讲授", "提问与交流", "材料与后续安排说明"],
+        preparation: &["确认主题、主讲人、场地与投影音响", "说明面向人群、入场安排与报名截止", "准备问答时间与可分享材料"],
+    },
+    ActivityType {
+        id: "competition", name: "校园竞赛", category: "校园活动",
+        aliases: &["校园竞赛", "竞赛", "比赛", "挑战赛", "黑客松", "competition", "contest", "hackathon"],
+        title: "校园创意竞赛", capacity: 24,
+        description: "先明确个人赛或团队赛、赛制与提交要求。整队报名与递补，名额按实际参与人数计算。",
+        agenda: &["规则与题目说明", "按约定分组开展竞赛", "提交与展示", "按已公布规则安排评审及结果通知"],
+        preparation: &["确认每队人数、总参与名额与报名截止", "准备规则、提交渠道和材料清单", "说明评审安排；奖项与证书仅填写已确认内容"],
+    },
+    ActivityType {
+        id: "music_festival", name: "校园音乐节", category: "校园活动",
+        aliases: &["校园音乐节", "音乐节", "校园演出", "音乐会", "music festival", "concert"],
+        title: "校园音乐节 · 小型场次", capacity: 30,
+        description: "按独立场次管理观众报名或演出招募，明确参与角色、入场安排与节目。每场最多 30 个参与名额。",
+        agenda: &["入场与场次说明", "按已确认节目开展演出", "互动与休息", "有序离场与设备整理"],
+        preparation: &["明确本场是观众报名还是演出招募", "确认场地、音响、演出授权与秩序安排", "室外场次准备天气变化方案，仅公布已确认节目"],
+    },
+    ActivityType {
+        id: "club", name: "社团招新", category: "校园活动",
+        aliases: &["社团招新", "招新", "社团体验", "club recruitment", "club"],
+        title: "社团开放体验日", capacity: 20,
+        description: "让同学了解社团并参加体验活动。说明体验内容、准备事项与后续加入方式。",
+        agenda: &["社团介绍", "体验与小组交流", "答疑", "说明后续加入方式"],
+        preparation: &["确认面向人群、场地与体验材料", "安排接待与交流流程", "区分本场活动报名与社团成员录取"],
+    },
+    ActivityType {
         id: "custom",
         name: "自定义活动",
         category: "社群共建",
@@ -280,6 +312,7 @@ pub fn search(query: &str) -> Vec<&'static ActivityType> {
     ALL.iter()
         .filter(|t| {
             q.is_empty()
+                || matches!(q.as_str(), "校园" | "校园活动" | "campus") && crate::campus::supported(t.id)
                 || t.id.contains(&q)
                 || t.name.contains(&q)
                 || t.category.contains(&q)

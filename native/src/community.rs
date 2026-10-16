@@ -16,6 +16,8 @@ pub(crate) struct ActivityForm {
     pub template: String,
     pub location: String,
     pub description: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub campus: Option<buwei_host_core::campus::CampusDetails>,
 }
 impl From<buwei_host_core::planning::ActivityBasics> for ActivityForm {
     fn from(b: buwei_host_core::planning::ActivityBasics) -> Self {
@@ -27,6 +29,7 @@ impl From<buwei_host_core::planning::ActivityBasics> for ActivityForm {
             template: b.template,
             location: b.location,
             description: b.description,
+            campus: b.campus,
         }
     }
 }
@@ -40,6 +43,7 @@ impl From<ActivityForm> for buwei_host_core::planning::ActivityBasics {
             template: b.template,
             location: b.location,
             description: b.description,
+            campus: b.campus,
         }
     }
 }
@@ -61,6 +65,7 @@ impl ActivityForm {
             template: self.template.clone(),
             location: self.location.clone(),
             description: self.description.clone(),
+            campus: self.campus.clone(),
             archived: false,
             metrics: Default::default(),
         });
@@ -153,6 +158,7 @@ pub(super) fn is_community_command(c: &Command) -> bool {
         c,
         Command::CreateDated(_)
             | Command::UseTemplate(_)
+            | Command::UseCampusTemplate(_)
             | Command::SelectActivity(_)
             | Command::CopyActivity
             | Command::ArchiveActivity
@@ -229,11 +235,13 @@ impl Controller {
     }
     pub(super) fn apply_community(&mut self, c: Command) -> Result<String> {
         match c {
-            Command::UseTemplate(kind) => {
+            Command::UseTemplate(_) | Command::UseCampusTemplate(_) => {
                 self.g("create")?;
-                let mut draft = buwei_host_core::planning::ActivityPlanDraft::from_template(
-                    &self.actor(), &kind, now(),
-                )?;
+                let mut draft = match c {
+                    Command::UseCampusTemplate(kind) => buwei_host_core::planning::ActivityPlanDraft::from_campus_template(&self.actor(), &kind, now())?,
+                    Command::UseTemplate(kind) => buwei_host_core::planning::ActivityPlanDraft::from_template(&self.actor(), &kind, now())?,
+                    _ => unreachable!(),
+                };
                 self.plan_store()?.save(&mut draft, None)?;
                 self.create_form = Some(draft.basics.clone().into());
                 self.selected_plan = Some(draft.id.clone());
@@ -244,6 +252,7 @@ impl Controller {
             }
             Command::CreateDated(form) => {
                 self.g("create")?;
+                buwei_host_core::planning::ActivityBasics::from(form.clone()).ready(now())?;
                 Catalog::open(&self.data)?.ensure_capacity(now())?;
                 if self.data.join("pending-setup.json").exists() {
                     return Err("已有活动创建结果待核实，请先恢复创建结果".into());
@@ -368,6 +377,7 @@ impl Controller {
                     template: m.template.clone(),
                     location: m.location.clone(),
                     description: m.description.clone(),
+                    campus: m.campus.as_ref().map(|c| c.for_next_event()),
                 });
                 Ok("已复制活动设置，请确认新日期。原成员需重新报名。".into())
             }
@@ -700,6 +710,7 @@ impl Controller {
                 if let Some(status) = self.sync_results.get(&m.activity_id) {
                     v.activity.push_str(&format!("\n本场同步：{status}"));
                 }
+                if let Some(c) = &m.campus { v.activity.push_str(&format!("\n\n{}", c.summary(&m.template))); }
             }
             v.people = buwei_host_core::roster::visible(&a, &self.actor());
             fn preview(op: &Operation, title: &str) -> String {
@@ -743,8 +754,8 @@ impl Controller {
                         p.preferences.group,
                     ));
                 } else {
-                    v.dated_inputs =
-                        Some((calendar::display(a.start), calendar::display(a.end), 1));
+                    let group = a.metadata.as_ref().and_then(|m| m.campus.as_ref()).and_then(|c| c.team_size).unwrap_or(1);
+                    v.dated_inputs = Some((calendar::display(a.start), calendar::display(a.end), group));
                 }
             }
         }
@@ -919,7 +930,7 @@ impl Controller {
             return Err("分享活动需由组织者确认".into());
         }
         let card = super::super::activity_card::Card::from_activity(&a)?;
-        let body = card.body();
+        let body = super::super::activity_card::Card::activity_body(&a)?;
         let action = Action {
             permission: "share_card".into(),
             target: room,

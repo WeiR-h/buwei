@@ -13,6 +13,7 @@ pub mod assistance_tasks;
 pub mod automation;
 pub mod calendar;
 pub mod activity_types;
+pub mod campus;
 pub mod catalog;
 pub mod facts;
 pub mod goal_correction;
@@ -274,11 +275,18 @@ impl Activity {
         }
         if let Some(meta) = &self.metadata {
             meta.validate()?;
+            if let Some(c) = &meta.campus { c.validate(&meta.template, Some(self.start))?; }
+            if meta.campus.as_ref().and_then(|c| c.team_size).is_some_and(|n| n > self.capacity) {
+                return Err("活动总名额不能少于一支完整队伍".into());
+            }
         }
         let mut ids = BTreeSet::new();
         let mut positions = BTreeSet::new();
         for p in &self.people {
             p.preferences.validate()?;
+            if let Some(m) = &self.metadata {
+                if let Some(c) = &m.campus { c.check_group(&m.template, p.preferences.group)?; }
+            }
             if self.metadata.is_some() != (p.preferences.earliest >= calendar::MIN_TIME) {
                 return Err("报名日期必须与本场活动的时间格式一致".into());
             }
@@ -375,6 +383,9 @@ impl Activity {
         preferences: Preferences,
     ) -> Result<()> {
         preferences.validate()?;
+        if let Some(m) = &self.metadata {
+            if let Some(c) = &m.campus { c.check_group(&m.template, preferences.group)?; }
+        }
         if let Some(index) = self.people.iter().position(|p| p.account == actor) {
             if self.people[index].status == PersonStatus::Waiting {
                 return self.confirm_preferences(&actor, preferences);
@@ -457,6 +468,9 @@ impl Activity {
     /// person's host confirmation of the exact typed preferences.
     pub fn confirm_preferences(&mut self, actor: &str, preferences: Preferences) -> Result<()> {
         preferences.validate()?;
+        if let Some(m) = &self.metadata {
+            if let Some(c) = &m.campus { c.check_group(&m.template, preferences.group)?; }
+        }
         if self
             .invitations
             .iter()

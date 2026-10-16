@@ -68,6 +68,7 @@ impl ParticipantAdapter {
         let t = v["origin_server_ts"].as_u64().ok_or("服务端时间缺失")? / 1000;
         Store::open(&self.state)?.apply_verified_event(&e.external_id, |a| match intent {
             Intent::Join { preferences } => {
+                buwei_host_core::campus::check_signup(a, &preferences, t)?;
                 a.join_own(e.account.clone(), "参与者".into(), preferences)
             }
             Intent::Reply {

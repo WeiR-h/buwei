@@ -33,7 +33,8 @@ pub fn participant_controls(activity: &Activity, actor: &str, now: u64) -> Parti
     let reply = activity.pending_invitation_for(actor, now).is_ok();
     let reserved = activity.invitations.iter().any(|i| i.recipient == actor
         && i.reply == crate::Reply::Pending && i.delivery != crate::Delivery::Rejected);
-    let open = now < activity.start && !activity.metadata.as_ref().is_some_and(|m| m.archived);
+    let open = now < activity.start && !activity.metadata.as_ref().is_some_and(|m| m.archived
+        || m.campus.as_ref().is_some_and(|c| c.deadline().ok().flatten().is_some_and(|d| now >= d)));
     ParticipantControls {
         register: open && !reserved && person.is_none_or(|p| p.status != crate::PersonStatus::Confirmed),
         reply,
@@ -65,9 +66,10 @@ pub fn whole_activity(
     if !crate::account_valid(actor) || is_organizer(activity, actor) {
         return Err("本场组织者请使用组织流程；报名必须使用成员本人身份".into());
     }
-    let group = preferences
+    let required_group = activity.metadata.as_ref().and_then(|m| m.campus.as_ref()).and_then(|c| c.team_size);
+    let group = required_group.or_else(|| preferences
         .filter(|p| p.confirmed_at > 0)
-        .and_then(|p| p.group)
+        .and_then(|p| p.group))
         .unwrap_or(1);
     let p = Preferences {
         earliest: activity.start,
@@ -77,7 +79,9 @@ pub fn whole_activity(
     p.validate()?;
     Ok((
         p,
-        if preferences.is_some_and(|p| p.confirmed_at > 0 && p.group.is_some()) {
+        if required_group.is_some() {
+            "每份报名人数来自本场竞赛规则，含本人且整组报名，请核对"
+        } else if preferences.is_some_and(|p| p.confirmed_at > 0 && p.group.is_some()) {
             "同行人数来自本人确认的偏好，请核对"
         } else {
             "同行人数暂填1人，请核对"

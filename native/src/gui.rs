@@ -149,6 +149,14 @@ script_mod! {
                     organizer_setup:=View{width:Fill height:Fit flow:Down spacing:8
                         creation_form:=View{width:Fill height:Fit flow:Down spacing:8
                         Heading{text:"活动策划草稿"}
+                        Panel{padding:14 spacing:8
+                            Heading{text:"校园活动 · 从合适的场景开始"}
+                            Small{text:"策划、发布、报名与候补连在一起；支持公开活动和指定社群。"}
+                            View{width:Fill height:Fit flow:Right spacing:6
+                                campus_lecture:=Action{width:Fill text:"讲座"} campus_competition:=Action{width:Fill text:"竞赛"}
+                                campus_movie:=Action{width:Fill text:"观影"} campus_festival:=Action{width:Fill text:"音乐节"} campus_club:=Action{width:Fill text:"社团招新"}
+                            }
+                        }
                         View{width:Fill height:Fit flow:Right spacing:8
                             template_badminton:=Action{text:"羽毛球"} template_boardgame:=Action{text:"桌游"} template_reading:=Action{text:"读书会"}
                             templates_toggle:=Action{text:"更多活动类型…"}
@@ -156,7 +164,7 @@ script_mod! {
                         template_current:=Small{text:"当前类型：自定义活动"}
                         template_library:=Panel{visible:false
                             Heading{text:"选一个合适的活动起点"}
-                            Small{text:"运动健身 · 户外出行 · 文娱休闲 · 学习交流 · 聚会生活 · 社群共建"}
+                            Small{text:"校园活动 · 运动健身 · 户外出行 · 文娱休闲 · 学习交流 · 聚会生活 · 社群共建"}
                             View{width:Fill height:Fit flow:Right spacing:8
                                 template_search:=Input{width:Fill empty_text:"搜索活动或分类，例如：跑步、户外、聚餐"}
                                 template_search_apply:=Action{text:"搜索"} template_search_clear:=Action{text:"全部"}
@@ -180,6 +188,31 @@ script_mod! {
                             Small{text:"名额" width:40} capacity:=Input{text:"6" width:60}
                             Small{text:"开始" width:40} start:=Input{width:Fill empty_text:"YYYY-MM-DD HH:mm"}
                             Small{text:"结束" width:40} end:=Input{width:Fill empty_text:"YYYY-MM-DD HH:mm"}
+                        }
+                        campus_toggle:=Action{visible:false text:"添加校园观影信息"}
+                        campus_form:=Panel{visible:false padding:16 spacing:8
+                            Heading{text:"校园活动信息"}
+                            Small{text:"以下内容经确认后随活动公开；无需填写学号、手机号或私人资料。"}
+                            View{width:Fill height:Fit flow:Right spacing:10
+                                View{width:Fill height:Fit flow:Down Small{text:"学校 / 校区（选填）"} campus_school:=Input{empty_text:"例如：某大学东校区"}}
+                                View{width:Fill height:Fit flow:Down Small{text:"面向人群（选填）"} campus_audience:=Input{empty_text:"例如：对主题感兴趣的同学"}}
+                            }
+                            View{width:Fill height:Fit flow:Right spacing:10
+                                View{width:Fill height:Fit flow:Down campus_topic_label:=Small{text:"主题"} campus_topic:=Input{empty_text:"本人确认的主题 / 作品 / 场次"}}
+                                View{width:Fill height:Fit flow:Down campus_guests_label:=Small{text:"主讲 / 组织团队（选填）"} campus_guests:=Input{empty_text:"仅填写已确认的安排"}}
+                            }
+                            campus_requirements_label:=Small{text:"参加须知（选填）"}
+                            campus_requirements:=Input{height:65 is_multiline:true empty_text:"活动内容、入场、准备与参与角色"}
+                            campus_role_row:=View{width:Fill height:Fit flow:Right spacing:8 visible:false
+                                Small{text:"音乐节本场用途" width:110} campus_role:=Input{width:170 empty_text:"请选择本场用途"}
+                                campus_role_audience:=Action{text:"观众报名"} campus_role_performer:=Action{text:"演出招募"}
+                            }
+                            View{width:Fill height:Fit flow:Right spacing:10
+                                View{width:Fill height:Fit flow:Down Small{text:"报名截止 · 北京时间（选填）"} campus_deadline:=Input{empty_text:"YYYY-MM-DD HH:mm；留空则到活动开始"}}
+                                campus_team_row:=View{width:200 height:Fit flow:Down visible:false Small{text:"竞赛每份报名人数（必填）"} campus_team:=Input{empty_text:"个人赛 1；团队赛 2–8"}}
+                            }
+                            campus_checklist:=Small{}
+                            Small{text:"截止后停止新增及修改报名；已有候补仍可递补，已送达邀请可在有效期内回复。每场最多 30 个名额，按人数计入。"}
                         }
                         create:=Primary{text:"核对并预览创建"}
                         plan_0:=Action{width:Fill visible:false} plan_1:=Action{width:Fill visible:false} plan_2:=Action{width:Fill visible:false}
@@ -246,10 +279,11 @@ script_mod! {
                     community_selected:=Small{text:"范围由你选择；仅读取选定社群的活动卡片与加入申请。"}
                     community_status:=Small{}
                     View{width:Fill height:Fit flow:Right spacing:8
-                        filter_template:=Input{width:180 empty_text:"如：徒步 / 聚餐 / 不限"} filter_date:=Input{width:160 empty_text:"日期（可留空）"}
+                        filter_template:=Input{width:180 empty_text:"校园 / 讲座 / 竞赛 / 不限"} filter_date:=Input{width:160 empty_text:"日期（可留空）"}
                         filter_apply:=Action{text:"筛选"} filter_available:=Action{text:"只看发布时有空位"}
+                        filter_campus:=Action{text:"校园活动"}
                     }
-                    listing_0:=CardAction{height:110 visible:false} listing_1:=CardAction{height:110 visible:false} listing_2:=CardAction{height:110 visible:false}
+                    listing_0:=CardAction{height:155 visible:false} listing_1:=CardAction{height:155 visible:false} listing_2:=CardAction{height:155 visible:false}
                     listing_pagination:=View{width:Fill height:Fit flow:Right spacing:8 visible:false listing_prev:=Action{text:"上一页活动"} listing_next:=Action{text:"下一页活动"}}
                     community_organizer_actions:=View{width:Fill height:Fit flow:Down spacing:8
                         Heading{text:"发布当前活动到社群"}
@@ -452,6 +486,8 @@ pub struct BuWeiView {
     #[rust]
     template: String,
     #[rust]
+    campus_enabled: bool,
+    #[rust]
     template_library_open: bool,
     #[rust]
     template_page: usize,
@@ -549,6 +585,36 @@ pub struct BuWeiView {
     task_page: usize,
 }
 impl BuWeiView {
+    fn campus_input(&mut self, cx: &mut Cx) -> super::Result<Option<buwei_host_core::campus::CampusDetails>> {
+        if !self.campus_enabled { return Ok(None); }
+        let team = self.view.text_input(cx, ids!(campus_team)).text();
+        Ok(Some(buwei_host_core::campus::CampusDetails {
+            campus: self.view.text_input(cx, ids!(campus_school)).text(),
+            audience: self.view.text_input(cx, ids!(campus_audience)).text(),
+            topic: self.view.text_input(cx, ids!(campus_topic)).text(),
+            guests: self.view.text_input(cx, ids!(campus_guests)).text(),
+            requirements: self.view.text_input(cx, ids!(campus_requirements)).text(),
+            signup_deadline: self.view.text_input(cx, ids!(campus_deadline)).text(),
+            team_size: if self.template != "competition" || team.trim().is_empty() { None }
+                else { Some(team.trim().parse().map_err(|_| "竞赛每份报名人数须为 1–8 的整数")?) },
+            role: if self.template == "music_festival" {
+                let role = self.view.text_input(cx, ids!(campus_role)).text();
+                if role.trim().is_empty() { None } else { Some(buwei_host_core::campus::EntryRole::parse(&role)?) }
+            } else { None },
+        }))
+    }
+    fn display_campus(&mut self, cx: &mut Cx) {
+        self.view.view(cx, ids!(campus_form)).set_visible(cx, self.campus_enabled);
+        self.view.button(cx, ids!(campus_toggle)).set_visible(cx, self.template == "movie");
+        self.view.button(cx, ids!(campus_toggle)).set_text(cx, if self.campus_enabled { "收起并移除校园观影信息" } else { "添加校园观影信息" });
+        self.view.view(cx, ids!(campus_team_row)).set_visible(cx, self.campus_enabled && self.template == "competition");
+        self.view.view(cx, ids!(campus_role_row)).set_visible(cx, self.campus_enabled && self.template == "music_festival");
+        let p = buwei_host_core::campus::playbook(&self.template);
+        self.view.label(cx, ids!(campus_topic_label)).set_text(cx, p.topic);
+        self.view.label(cx, ids!(campus_guests_label)).set_text(cx, p.guests);
+        self.view.label(cx, ids!(campus_checklist)).set_text(cx, p.checklist);
+        self.view.label(cx, ids!(campus_requirements_label)).set_text(cx, p.requirements);
+    }
     fn display_templates(&mut self, cx: &mut Cx) {
         let choices = buwei_host_core::activity_types::search(&self.template_query);
         self.template_page = self.template_page.min(choices.len().saturating_sub(1) / 6);
@@ -623,7 +689,7 @@ impl BuWeiView {
         self.listing_page = self
             .listing_page
             .min(self.listing_keys.len().saturating_sub(1) / 3);
-        macro_rules! listing_button {($id:ident,$n:expr)=>{let item=view.community_listings.get(self.listing_page*3+$n);self.view.button(cx,ids!($id)).set_visible(cx,item.is_some());if let Some(l)=item{self.view.button(cx,ids!($id)).set_text(cx,&format!("{} · {}\n{} 至 {} · {}\n发布时剩余 {} 个名额 · 点击查看加入申请",l.announcement.title,buwei_host_core::activity_types::name(&l.announcement.template),buwei_host_core::calendar::display(l.announcement.start),buwei_host_core::calendar::display(l.announcement.end),l.announcement.location,l.announcement.free));}};}
+        macro_rules! listing_button {($id:ident,$n:expr)=>{let item=view.community_listings.get(self.listing_page*3+$n);self.view.button(cx,ids!($id)).set_visible(cx,item.is_some());if let Some(l)=item{self.view.button(cx,ids!($id)).set_text(cx,&l.announcement.listing_text());}};}
         listing_button!(listing_0, 0);
         listing_button!(listing_1, 1);
         listing_button!(listing_2, 2);
@@ -1025,10 +1091,21 @@ impl BuWeiView {
                     .text_input(cx, ids!(description))
                     .set_text(cx, &form.description);
                 self.template = form.template.clone();
+                self.campus_enabled = form.campus.is_some();
+                let campus = form.campus.clone().unwrap_or_default();
+                self.view.text_input(cx, ids!(campus_school)).set_text(cx, &campus.campus);
+                self.view.text_input(cx, ids!(campus_audience)).set_text(cx, &campus.audience);
+                self.view.text_input(cx, ids!(campus_topic)).set_text(cx, &campus.topic);
+                self.view.text_input(cx, ids!(campus_guests)).set_text(cx, &campus.guests);
+                self.view.text_input(cx, ids!(campus_requirements)).set_text(cx, &campus.requirements);
+                self.view.text_input(cx, ids!(campus_deadline)).set_text(cx, &campus.signup_deadline);
+                self.view.text_input(cx, ids!(campus_team)).set_text(cx, &campus.team_size.map(|n| n.to_string()).unwrap_or_default());
+                self.view.text_input(cx, ids!(campus_role)).set_text(cx, campus.role.map(|r| r.name()).unwrap_or_default());
                 self.last_form = Some(key);
             }
         }
         self.display_templates(cx);
+        self.display_campus(cx);
         if buwei_host_core::interaction::creation_is_complete(
             self.pending_creation_plan.as_deref(), view.plan.as_ref(), &view.activity_identity,
         ) {
@@ -1683,6 +1760,31 @@ impl Widget for BuWeiView {
                     .set_visible(cx, true);
                 return;
             }
+            if clicked!(campus_toggle) {
+                self.campus_enabled = !self.campus_enabled;
+                self.display_campus(cx);
+                self.view.redraw(cx);
+                return;
+            }
+            if clicked!(campus_role_audience) || clicked!(campus_role_performer) {
+                self.view.text_input(cx, ids!(campus_role)).set_text(cx,
+                    if clicked!(campus_role_audience) { "观众报名" } else { "演出招募" });
+                self.view.redraw(cx);
+                return;
+            }
+            let campus_kind = if clicked!(campus_lecture) { Some("lecture") }
+                else if clicked!(campus_competition) { Some("competition") }
+                else if clicked!(campus_movie) { Some("movie") }
+                else if clicked!(campus_festival) { Some("music_festival") }
+                else if clicked!(campus_club) { Some("club") } else { None };
+            if let Some(kind) = campus_kind {
+                self.creating = true;
+                self.pending_creation_plan = None;
+                self.tab = 1;
+                self.send(cx, Command::UseCampusTemplate(kind.into()));
+                self.pages(cx);
+                return;
+            }
             if let Some(query) = self.view.text_input(cx, ids!(template_search)).changed(actions) {
                 self.template_query = query;
                 self.template_page = 0;
@@ -1875,7 +1977,10 @@ impl Widget for BuWeiView {
                         .set_text(cx, &format!("当前选择：{label}"));
                     return Ok(Some(Command::Discovery(D::Watch(id.clone()))));
                 }
-                if clicked!(filter_apply) || clicked!(filter_available) {
+                if clicked!(filter_apply) || clicked!(filter_available) || clicked!(filter_campus) {
+                    if clicked!(filter_campus) {
+                        self.view.text_input(cx, ids!(filter_template)).set_text(cx, "校园");
+                    }
                     if clicked!(filter_available) {
                         self.available_only = !self.available_only;
                         self.view.button(cx, ids!(filter_available)).set_text(
@@ -1891,6 +1996,8 @@ impl Widget for BuWeiView {
                         buwei_host_core::discovery::Filter {
                             template: if text!(filter_template).trim().is_empty() {
                                 String::new()
+                            } else if matches!(text!(filter_template).trim(), "校园" | "校园活动" | "campus") {
+                                "campus".into()
                             } else {
                                 super::controller::intentions::parse_template(&text!(
                                     filter_template
@@ -2013,6 +2120,7 @@ impl Widget for BuWeiView {
                                 template: self.template.clone(),
                                 location: text!(location),
                                 description: text!(description),
+                                campus: self.campus_input(cx)?,
                             },
                         },
                     )));
@@ -2229,6 +2337,7 @@ impl Widget for BuWeiView {
                                     },
                                     location: text!(location),
                                     description: text!(description),
+                                    campus: self.campus_input(cx)?,
                                 },
                             },
                         ))

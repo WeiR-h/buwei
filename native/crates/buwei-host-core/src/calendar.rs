@@ -106,6 +106,8 @@ pub struct Metadata {
     pub template: String,
     pub location: String,
     pub description: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub campus: Option<crate::campus::CampusDetails>,
     #[serde(default)]
     pub archived: bool,
     #[serde(default)]
@@ -122,6 +124,10 @@ pub struct Metrics {
 }
 impl Metadata {
     pub fn validate(&self) -> Result<()> {
+        if let Some(c) = &self.campus {
+            c.validate(&self.template, None)?;
+            if !c.questions(&self.template).is_empty() { return Err(c.questions(&self.template).join("\n")); }
+        }
         if self.metrics.invitation_times.len() > 1000
             || self.metrics.successful_invitations > 1000
             || self.metrics.timed_responses > self.metrics.successful_invitations

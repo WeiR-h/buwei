@@ -343,10 +343,13 @@ impl Controller {
         let a=self.activity()?;
         if a.owner!=self.actor(){return Err("只有本场组织者可以发布活动".into());}
         let mut announcement=Announcement::from_activity(&a,withdrawn)?;
-        if audience==buwei_host_core::discovery::Audience::Public {announcement.protocol=2;announcement.audience=audience;}
+        if audience==buwei_host_core::discovery::Audience::Public {
+            if announcement.campus.is_none() { announcement.protocol=2; }
+            announcement.audience=audience;
+        }
         let card=super::super::activity_card::Card::from_activity(&a)?;
         let scope=if audience==buwei_host_core::discovery::Audience::Public {"所有补位用户可进入公开大厅查看与申请"}else{"仅所选社群当前成员可见与申请"};
-        let body=format!("{}\n可见范围：{}。{}",card.body(),scope,if withdrawn{"活动已收起，不接受新申请"}else{"申请只用于加入活动房间，报名与接受均由本人确认"});
+        let body=format!("{}\n可见范围：{}。{}",super::super::activity_card::Card::activity_body(&a)?,scope,if withdrawn{"活动已收起，不接受新申请"}else{"申请只用于加入活动房间，报名与接受均由本人确认"});
         let action=Action{permission:"publish_community".into(),target:community,summary:format!("{}{}：{}",if withdrawn{"收起"}else{"发布"},if audience==buwei_host_core::discovery::Audience::Public{"公开活动"}else{"社群活动"},a.title),payload:json!({"announcement":announcement,"card":card,"body":body})};
         self.prepare_community_action(&g,action,a.revision)?;
         Ok("核对本场活动和公开 / 社群范围后确认发布。".into())
@@ -365,6 +368,7 @@ impl Controller {
                     || m.archived
                     || m.template != l.announcement.template
                     || m.location != l.announcement.location
+                    || m.campus != l.announcement.campus
             })
             || a.start != l.announcement.start
             || a.end != l.announcement.end
@@ -800,7 +804,7 @@ impl Adapter for CommunityMessageAdapter {
                     .ok_or(Error::Integrity)?;
                 if current.owner != account(&self.client)
                     || current.revision != revision
-                    || Announcement::from_activity(&current, announcement.withdrawn).map(|mut value| {if announcement.audience==buwei_host_core::discovery::Audience::Public {value.protocol=2;value.audience=announcement.audience;}value})
+                    || Announcement::from_activity(&current, announcement.withdrawn).map(|mut value| {if announcement.audience==buwei_host_core::discovery::Audience::Public {if value.campus.is_none(){value.protocol=2;}value.audience=announcement.audience;}value})
                         .map_err(|_| Error::Integrity)?
                         != announcement
                 {

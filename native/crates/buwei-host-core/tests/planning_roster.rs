@@ -11,6 +11,7 @@ fn basics() -> ActivityBasics {
         location: "社区阅览室".into(),
         capacity: 6,
         description: String::new(),
+        campus: None,
     }
 }
 fn proposal(field: &str, value: &str, source: &str) -> PlanProposal {
@@ -155,6 +156,7 @@ fn activity() -> Activity {
         template: b.template,
         location: b.location,
         description: String::new(),
+        campus: None,
         archived: false,
         metrics: Default::default(),
     });

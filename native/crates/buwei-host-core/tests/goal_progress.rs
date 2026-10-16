@@ -22,6 +22,7 @@ fn fixture() -> (Activity, GoalInput, u64) {
         template: "reading".into(),
         location: "测试地点".into(),
         description: String::new(),
+        campus: None,
         archived: false,
         metrics: Default::default(),
     });

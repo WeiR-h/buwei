@@ -446,6 +446,7 @@ pub(crate) fn apply_participant(a: &mut Activity, room: &str, v: &Value, clock: 
             }
             let p: Preferences =
                 serde_json::from_value(c["preferences"].clone()).map_err(|_| "时段不合法")?;
+            buwei_host_core::campus::check_signup(a, &p, time)?;
             a.join_own(actor.into(), "参与者".into(), p)
         }
         Some("org.buwei.reply") => a.receive_reply(
@@ -473,6 +474,22 @@ pub(crate) fn apply_participant(a: &mut Activity, room: &str, v: &Value, clock: 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn campus_registration_uses_server_time_and_refuses_a_forged_team_size() {
+        let start=buwei_host_core::calendar::parse("2026-10-20 19:00").unwrap();
+        let deadline=buwei_host_core::calendar::parse("2026-10-19 18:00").unwrap();
+        let mut a=Activity::new("@owner:test".into(),"!campus:test".into(),"校园竞赛".into(),4,19,21).unwrap();
+        a.start=start;a.end=start+7200;
+        a.metadata=Some(buwei_host_core::calendar::Metadata{activity_id:"a".repeat(32),template:"competition".into(),location:"测试教室".into(),description:String::new(),archived:false,metrics:Default::default(),
+            campus:Some(buwei_host_core::campus::CampusDetails{signup_deadline:"2026-10-19 18:00".into(),team_size:Some(2),..Default::default()})});
+        a.validate().unwrap();
+        let mut event=json!({"type":"org.buwei.join","sender":"@member:test","origin_server_ts":(deadline-1)*1000,"content":{"preferences":{"earliest":start,"latest":start+7200,"group":1}}});
+        assert!(apply_participant(&mut a,"!campus:test",&event,deadline+60).is_err());assert!(a.people.is_empty());
+        event["content"]["preferences"]["group"]=json!(2);
+        apply_participant(&mut a,"!campus:test",&event,deadline+60).unwrap();assert_eq!(a.people[0].preferences.group,2);
+        let old=a.clone();event["sender"]=json!("@late:test");event["origin_server_ts"]=json!(deadline*1000);
+        assert!(apply_participant(&mut a,"!campus:test",&event,deadline+60).is_err());assert_eq!(serde_json::to_value(&a).unwrap(),serde_json::to_value(&old).unwrap());
+    }
     #[test]
     fn expiration_uses_verified_server_clock_and_refuses_skew() {
         let time = 1_790_948_000;

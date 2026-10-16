@@ -34,7 +34,7 @@ pub(crate) fn manifest() -> ServiceManifest {
     let proposal = json!({"type":"object","additionalProperties":false,"required":["text","draft_id","revision","proposal"],"properties":{"text":{"type":"string","maxLength":4000},"draft_id":{"type":["string","null"]},"revision":{"type":["integer","null"]},"proposal":{"type":"object","additionalProperties":false,"required":["updates","agenda","preparation","recruitment","reminders"],"properties":community_model::plan_properties()}}});
     let read = json!({"type":"object","additionalProperties":false,"required":["draft_id"],"properties":{"draft_id":{"type":["string","null"]}}});
     let types = buwei_host_core::activity_types::model_catalog();
-    let description = format!("将本人原话整理成可编辑策划稿。新稿 draft_id/revision=null；先读取原稿再修改。updates只含本次提及的基础字段，source逐字引用text。日期为北京时间YYYY-MM-DD HH:MM，capacity为数字字符串。template从以下目录选择最具体的id，未收录类型使用custom：{types}。流程、准备、招募文案、提醒只作建议。缺项由应用追问；工具不会创建、分享、订票或报名。");
+    let description = format!("将本人原话整理成可编辑策划稿。新稿 draft_id/revision=null；先读取原稿再修改。updates只含本次提及字段，source逐字引用text。日期为北京时间YYYY-MM-DD HH:MM，capacity为数字字符串。template从以下目录选择最具体的id，未收录类型使用custom：{types}。校园活动还支持campus.campus学校校区、campus.audience面向人群、campus.topic主题影片场次、campus.guests已确认嘉宾主讲、campus.requirements参加须知、campus.signup_deadline北京报名截止、campus.team_size竞赛每份报名人数1–8、campus.role音乐节用途audience或performer，须引用观众报名或演出招募原话。前五项value须原样包含于source；截止与开始分别提取，竞赛容量按人数，不按队数，缺少每队人数由应用追问。流程、准备、招募文案、提醒只作建议。工具不会创建、分享、订票或报名。");
     ServiceManifest::new("buwei","补位","活动策划与报名助手；工具只准备本账号的策划稿，实际创建和分享由本人在应用中确认。")
         .with_tool(ToolDef::new("prepare_activity_plan",&description,proposal.to_string(),Risk::Act).with_preview())
         .with_tool(ToolDef::new("get_activity_plan","读取本人当前策划稿与版本，供修改前核对。draft_id=null读取当前稿。",read.to_string(),Risk::Read))

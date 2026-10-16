@@ -48,9 +48,12 @@ pub fn csv(a: &Activity, actor: &str, exported_at: u64, verified_at: u64) -> Res
         .ok_or("历史活动请从旧版导出")?
         .activity_id
         .clone();
-    let mut out="\u{feff}活动编号,活动名称,导出北京时间,核验北京时间,报名序号,显示名,Matrix身份,同行人数,最早可用,最晚可用,报名状态,活动类型\r\n".to_owned();
+    let campus = a.metadata.as_ref().and_then(|m| m.campus.as_ref());
+    let mut out="\u{feff}活动编号,活动名称,导出北京时间,核验北京时间,报名序号,显示名,Matrix身份,同行人数,最早可用,最晚可用,报名状态,活动类型".to_owned();
+    if campus.is_some() { out.push_str(",学校校区,面向人群,校园主题,报名截止北京时间,每份报名人数,音乐节用途"); }
+    out.push_str("\r\n");
     for p in a.ordered_people() {
-        let fields = [
+        let mut fields = vec![
             id.clone(),
             a.title.clone(),
             calendar::display(exported_at),
@@ -64,6 +67,7 @@ pub fn csv(a: &Activity, actor: &str, exported_at: u64, verified_at: u64) -> Res
             status(a, &p.account).into(),
             crate::activity_types::name(&a.metadata.as_ref().unwrap().template).into(),
         ];
+        if let Some(c) = campus { fields.extend([c.campus.clone(), c.audience.clone(), c.topic.clone(), c.signup_deadline.clone(), c.team_size.map(|n| n.to_string()).unwrap_or_default(), c.role.map(|r| r.name().to_string()).unwrap_or_default()]); }
         out.push_str(&fields.iter().map(|s| cell(s)).collect::<Vec<_>>().join(","));
         out.push_str("\r\n");
     }

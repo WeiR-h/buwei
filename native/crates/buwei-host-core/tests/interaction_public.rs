@@ -13,6 +13,7 @@ fn activity(owner: &str, room: &str) -> Activity {
         template: "reading".into(),
         location: "阅览室".into(),
         description: String::new(),
+        campus: None,
         archived: false,
         metrics: Default::default(),
     });

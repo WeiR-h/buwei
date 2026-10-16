@@ -29,6 +29,7 @@ fn activity(capacity: u8) -> Activity {
         template: "badminton".into(),
         location: "示例球馆".into(),
         description: "自备球拍".into(),
+        campus: None,
         archived: false,
         metrics: Default::default(),
     });

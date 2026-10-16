@@ -21,6 +21,7 @@ pub(crate) enum Command {
     Assistance(intentions::IntentCommand),
     CreateDated(community::ActivityForm),
     UseTemplate(String),
+    UseCampusTemplate(String),
     SelectActivity(usize),
     CopyActivity,
     ArchiveActivity,

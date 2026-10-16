@@ -30,6 +30,7 @@ fn activity(kind: &str) -> Activity {
         template: kind.into(),
         location: "测试场地".into(),
         description: t.description.into(),
+        campus: None,
         archived: false,
         metrics: Default::default(),
     });
@@ -139,7 +140,9 @@ fn templates_stay_local_unconfirmed_and_require_date_location_and_review() {
                 && draft.publication_operations.is_empty()
         );
         assert!(!draft.agenda.is_empty() && !draft.preparation.is_empty());
-        assert_eq!(draft.basics.questions().len(), 2); // start/end and location, not an invented date or venue
+        assert_eq!(draft.basics.questions().len(), if matches!(t.id, "competition" | "music_festival") { 3 } else { 2 });
+        if t.id == "competition" { draft.basics.campus.as_mut().unwrap().team_size = Some(2); }
+        if t.id == "music_festival" { draft.basics.campus.as_mut().unwrap().role = Some(buwei_host_core::campus::EntryRole::Audience); }
         assert!(draft.creation_digest(clock()).is_err());
         draft.basics.start = "2026-10-17 19:30".into();
         draft.basics.end = "2026-10-17 21:30".into();

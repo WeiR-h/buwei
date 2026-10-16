@@ -81,6 +81,9 @@ fn make(
     deadline: u64,
 ) -> AssistanceCard {
     let a = &f.activity;
+    let deadline = if kind == CardKind::Opportunity {
+        deadline.min(a.metadata.as_ref().and_then(|m| m.campus.as_ref()).and_then(|c| c.deadline().ok().flatten()).unwrap_or(deadline))
+    } else { deadline };
     let id = &a.metadata.as_ref().unwrap().activity_id;
     let goal_id = goal.map(|g| g.id.clone());
     let revision = goal.map_or(0, |g| g.revision);
@@ -359,6 +362,7 @@ pub fn evaluate(
                         .as_ref()
                         .is_some_and(|s| !s.covers(a.start, a.end))
                     || a.start <= clock
+                    || crate::campus::check_signup(a, &crate::Preferences { earliest: g.input.earliest, latest: g.input.latest, group: g.input.group }, clock).is_err()
                     || a.free() < g.input.group as usize
                     || person.is_some_and(|p| {
                         matches!(p.status, PersonStatus::Waiting | PersonStatus::Confirmed)
