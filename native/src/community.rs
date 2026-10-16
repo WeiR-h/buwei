@@ -368,18 +368,13 @@ impl Controller {
             Command::CopyActivity => {
                 self.g("create")?;
                 let a = self.activity()?;
-                let m = a.metadata.as_ref().ok_or("历史活动请填写新日期")?;
-                self.create_form = Some(ActivityForm {
-                    title: a.title,
-                    capacity: a.capacity,
-                    start: String::new(),
-                    end: String::new(),
-                    template: m.template.clone(),
-                    location: m.location.clone(),
-                    description: m.description.clone(),
-                    campus: m.campus.as_ref().map(|c| c.for_next_event()),
-                });
-                Ok("已复制活动设置，请确认新日期。原成员需重新报名。".into())
+                let mut draft=buwei_host_core::planning::ActivityPlanDraft::next_session(&self.actor(),&a,now())?;
+                self.plan_store()?.save(&mut draft,None)?;
+                self.create_form=Some(draft.basics.clone().into());
+                self.selected_plan=Some(draft.id.clone());
+                self.plan_creation_preview=None;
+                std::fs::write(self.data.join("selected-plan.txt"),&draft.id).map_err(|_|"新策划已保存，选择记录不可保存")?;
+                Ok("下一场已保存为独立策划。请确认新日期与报名截止；原活动保留，成员需重新报名。".into())
             }
             Command::ArchiveActivity => {
                 self.g("create")?;

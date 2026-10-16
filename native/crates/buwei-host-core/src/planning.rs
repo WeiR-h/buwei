@@ -162,6 +162,22 @@ impl ActivityPlanDraft {
         if kind == "movie" { draft.basics.title = "校园观影与映后交流".into(); }
         Ok(draft)
     }
+    /// A next session is a new private draft, with no original room, members,
+    /// confirmations or operation references. Dates require a fresh decision.
+    pub fn next_session(account: &str, activity: &crate::Activity, clock: u64) -> Result<Self> {
+        activity.validate()?;
+        if activity.owner != account { return Err("请由本场组织者复制下一场活动".into()); }
+        let m=activity.metadata.as_ref().ok_or("历史活动请重新填写日期与安排")?;
+        let mut draft=Self::from_template(account,&m.template,clock)?;
+        draft.goal=format!("复制《{}》为下一场",activity.title);
+        draft.basics=ActivityBasics {
+            title:activity.title.clone(),template:m.template.clone(),capacity:activity.capacity,
+            start:String::new(),end:String::new(),location:m.location.clone(),description:m.description.clone(),
+            campus:m.campus.as_ref().map(|c|c.for_next_event()),
+        };
+        draft.basics.validate_draft()?;
+        Ok(draft)
+    }
     pub fn new(account: &str, text: &str, clock: u64) -> Result<Self> {
         if !crate::account_valid(account) || text.trim().is_empty() || text.len() > 4000 {
             return Err("策划需求或本人账号不合法".into());

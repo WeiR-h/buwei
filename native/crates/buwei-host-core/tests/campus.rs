@@ -267,3 +267,43 @@ fn a_closed_signup_explains_the_deadline_without_claiming_the_event_started() {
     assert!(l.check_request(a.start).unwrap_err().contains("已开始"));
     l.announcement.withdrawn=true;assert!(l.check_request(clock()).unwrap_err().contains("已收起"));
 }
+#[test]
+fn copying_each_campus_scene_creates_an_unconfirmed_independent_plan() {
+    for kind in ["lecture","competition","movie","music_festival","club"] {
+        let mut a=activity(kind);let p=prefs(&a,if kind=="competition"{2}else{1});
+        a.join_own("@member:test".into(),"成员".into(),p).unwrap();
+        let before=serde_json::to_value(&a).unwrap();
+        let mut next=ActivityPlanDraft::next_session(&a.owner,&a,clock()).unwrap();
+        assert_ne!(next.id,a.metadata.as_ref().unwrap().activity_id);
+        assert_eq!(next.status,PlanStatus::Draft);assert!(next.confirmed_fields.is_empty());
+        assert!(next.activity_id.is_none() && next.setup_id.is_none() && next.publication_operations.is_empty());
+        assert!(next.basics.start.is_empty() && next.basics.end.is_empty());
+        let c=next.basics.campus.as_ref().unwrap();let old=a.metadata.as_ref().unwrap().campus.as_ref().unwrap();
+        assert!(c.signup_deadline.is_empty());assert_eq!(c.topic,old.topic);assert_eq!(c.team_size,old.team_size);assert_eq!(c.role,old.role);
+        assert!(next.creation_digest(clock()).is_err());
+        next.basics.start="2026-10-27 19:00".into();next.basics.end="2026-10-27 21:00".into();
+        assert!(next.creation_digest(clock()).is_err());
+        next.confirm_basics(next.basics.clone(),clock()).unwrap();assert!(next.creation_digest(clock()).is_ok());
+        assert_eq!(serde_json::to_value(&a).unwrap(),before);
+    }
+}
+#[test]
+fn only_the_verified_organizer_can_copy_and_ordinary_templates_stay_ordinary() {
+    let mut a=activity("movie");assert!(ActivityPlanDraft::next_session("@member:test",&a,clock()).is_err());
+    a.metadata.as_mut().unwrap().campus=None;
+    let next=ActivityPlanDraft::next_session(&a.owner,&a,clock()).unwrap();
+    assert!(next.basics.campus.is_none());assert_eq!(next.basics.location,a.metadata.as_ref().unwrap().location);
+    a.metadata=None;assert!(ActivityPlanDraft::next_session(&a.owner,&a,clock()).is_err());
+}
+#[test]
+fn copying_a_published_session_does_not_replace_its_saved_plan() {
+    let path=std::env::temp_dir().join(format!("buwei-next-session-{}.db",action_receipts::new_id()));
+    let a=activity("competition");let store=PlanStore::open(&path,&a.owner).unwrap();
+    let mut original=ActivityPlanDraft::from_campus_template(&a.owner,"competition",clock()).unwrap();
+    original.confirm_basics(basics("competition"),clock()).unwrap();original.status=PlanStatus::Published;
+    original.activity_id=Some(a.metadata.as_ref().unwrap().activity_id.clone());store.save(&mut original,None).unwrap();
+    let mut next=ActivityPlanDraft::next_session(&a.owner,&a,clock()).unwrap();store.save(&mut next,None).unwrap();
+    assert_ne!(original.id,next.id);assert_eq!(store.load(&original.id).unwrap(),original);
+    assert_eq!(store.load(&next.id).unwrap().status,PlanStatus::Draft);assert_eq!(store.list().unwrap().len(),2);
+    drop(store);let _=std::fs::remove_file(path);
+}
